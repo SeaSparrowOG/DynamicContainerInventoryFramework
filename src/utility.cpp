@@ -20,17 +20,4 @@ namespace Utility {
 		ss >> std::hex >> result;
 		return result;
 	}
-
-	RE::TESObjectMISC* GetBoundObjectFromMod(std::string a_id, std::string a_mod) {
-		RE::TESObjectMISC* response = nullptr;
-
-		//Is mod present?
-		if (!IsModPresent(a_mod)) return response;
-		//Is the string a hex?
-		if (!IsHex(a_id)) return response;
-
-		RE::FormID formID = StringToFormID(a_id);
-		response = RE::TESDataHandler::GetSingleton()->LookupForm<RE::TESObjectMISC>(formID, a_mod);
-		return response;
-	}
 }
