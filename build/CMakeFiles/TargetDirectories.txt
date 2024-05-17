@@ -1,7 +1,0 @@
-C:/Projects/Github/coinDLL/build/CMakeFiles/coin.dir
-C:/Projects/Github/coinDLL/build/CMakeFiles/INSTALL.dir
-C:/Projects/Github/coinDLL/build/CMakeFiles/ALL_BUILD.dir
-C:/Projects/Github/coinDLL/build/CMakeFiles/ZERO_CHECK.dir
-C:/Projects/Github/coinDLL/build/CommonLibSSE/CMakeFiles/CommonLibSSE.dir
-C:/Projects/Github/coinDLL/build/CommonLibSSE/CMakeFiles/INSTALL.dir
-C:/Projects/Github/coinDLL/build/CommonLibSSE/CMakeFiles/ALL_BUILD.dir
