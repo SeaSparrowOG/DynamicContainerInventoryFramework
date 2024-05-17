@@ -2,9 +2,10 @@
 
 namespace ContainerManager {
 	struct SwapRule {
+		RE::TESBoundObject*              oldForm;
+		std::vector<std::string>         locationKeywords;
+		std::vector<RE::BGSLocation*>    validLocations;
 		std::vector<RE::TESBoundObject*> newForm;
-		RE::TESBoundObject* oldForm;
-		std::vector<std::string> locationIdentifiers;
 	};
 
 	class ContainerManager : public clib_util::singleton::ISingleton<ContainerManager> {
@@ -14,6 +15,5 @@ namespace ContainerManager {
 
 	private:
 		std::vector<SwapRule> rules;
-		std::unordered_map<RE::TESObjectREFR*, float> managedContainerMap;
 	};
 }

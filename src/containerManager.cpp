@@ -7,48 +7,42 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
-		bool addRemoveEnabled = true;
-		auto* containerObject = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
-
-		if (this->managedContainerMap.find(a_ref) != this->managedContainerMap.end()) {
-			float dayAttached = this->managedContainerMap.at(a_ref);
-			float currentDay = RE::Calendar::GetSingleton()->gameDaysPassed->value;
-			if (currentDay - dayAttached < 30.0f) {
-				addRemoveEnabled = false;
-			}
-		}
+		auto* parentLocation = a_ref->GetCurrentLocation();
 
 		for (auto& rule : this->rules) {
-			//Location name and keyword match.
-			bool needsLocationMatch = false;
-			bool hasLocationMatch = false;
-			if (!rule.locationIdentifiers.empty()) {
-				needsLocationMatch = true;
-				auto* parentLocation = a_ref->GetCurrentLocation();
+			auto count = a_ref->GetInventoryCounts()[rule.oldForm];
+			if (count < 1) continue;
+			bool needsMatch = false;
+			bool hasMatch = false;
+
+			//Location name match.
+			if (!rule.validLocations.empty()) {
+				needsMatch = true;
 				if (parentLocation) {
-					std::string locationName = parentLocation->GetName();
-					auto it = std::find(rule.locationIdentifiers.begin(), rule.locationIdentifiers.end(), locationName);
-					if (it != rule.locationIdentifiers.end()) {
-						hasLocationMatch = true;
-					}
-					else {
-						for (auto identifier : rule.locationIdentifiers) {
-							if (parentLocation->HasKeywordString(identifier)) {
-								hasLocationMatch = true;
-							}
-						}
+					auto it = std::find(rule.validLocations.begin(), rule.validLocations.end(), parentLocation);
+					if (it != rule.validLocations.end()) {
+						hasMatch = true;
 					}
 				}
 			} //End of location search block.
 
-			if (needsLocationMatch && !hasLocationMatch) continue;
-			auto count = a_ref->GetInventoryCounts().at(rule.oldForm);
-			if (count < 1) continue;
+			//Location keyword match.
+			if (!rule.locationKeywords.empty() && parentLocation) {
+				needsMatch = true;
+				for (auto keywordString : rule.locationKeywords) {
+					if (parentLocation->HasKeywordString(keywordString)) {
+						hasMatch = true;
+					}
+				}
+			}
 
+			if (needsMatch && !hasMatch) continue;
 			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 			a_ref->RemoveItem(rule.oldForm, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 			a_ref->AddObjectToContainer(thingToAdd, nullptr, count, nullptr);
+
+			_loggerInfo("Added {} {} to {} in {}.", count, thingToAdd->GetName(), a_ref->GetBaseObject()->As<RE::TESObjectCONT>()->GetName(), a_ref->GetCurrentLocation()->GetName());
 		} //Rule reading end.
 	}
 }
