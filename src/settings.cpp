@@ -6,19 +6,9 @@ namespace {
 	struct SwapData {
 		std::vector<std::string> missingOldField;
 		std::vector<std::string> missingNewField;
-		std::vector<std::string> validConfigs;
 	};
 
 	void ReadReport(SwapData a_report) {
-		if (!a_report.validConfigs.empty()) {
-			_loggerInfo("==============================================");
-			_loggerInfo("         Reading successes report");
-			_loggerInfo("==============================================");
-
-			for (auto it : a_report.validConfigs) {
-				_loggerInfo("    >{}", it);
-			}
-		}
 
 		if (a_report.missingOldField.empty() && a_report.missingNewField.empty()) return;
 		_loggerInfo("==============================================");
@@ -128,7 +118,6 @@ namespace Settings {
 				newRule.newForm.push_back(newChangeForm);
 			}
 			ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
-			a_report->validConfigs.push_back(name);
 		}
 		return true;
 	}
