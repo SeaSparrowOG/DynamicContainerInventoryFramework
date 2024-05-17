@@ -71,8 +71,6 @@ namespace ContainerManager {
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 			a_ref->RemoveItem(rule.oldForm, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 			a_ref->AddObjectToContainer(thingToAdd, nullptr, count, nullptr);
-
-			_loggerInfo("Added {} {} to {} in {}.", count, thingToAdd->GetName(), a_ref->GetBaseObject()->As<RE::TESObjectCONT>()->GetName(), a_ref->GetCurrentLocation()->GetName());
 		} //Rule reading end.
 	}
 }
