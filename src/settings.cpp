@@ -51,97 +51,84 @@ namespace Settings {
 			auto entry = a_config[name];
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
-			auto conditions = entry["conditions"]; //Note - Conditions are optional.
-			auto changes = entry["changes"];
-			if (!changes || !changes.isArray()) return false;
 
-			if (conditions) {
-				if (!conditions.isObject()) {
-					continue;
-				}
-
-				//Plugins - array containing names of plugins that must be PRESENT for this config to take effect.
-				bool shouldStop = false;
-				auto plugins = conditions["plugins"];
-				if (plugins && plugins.isArray()) {
-					for (auto& plugin : plugins) {
-						if (!plugin.isString()) continue;
-						auto pluginString = plugin.asString();
-						if (!Utility::IsModPresent(pluginString)) {
-							shouldStop = true;
-						}
+			//Plugins - array containing names of plugins that must be PRESENT for this config to take effect.
+			bool shouldStop = false;
+			auto plugins = entry["plugins"];
+			if (plugins && plugins.isArray()) {
+				for (auto& plugin : plugins) {
+					if (!plugin.isString()) continue;
+					auto pluginString = plugin.asString();
+					if (!Utility::IsModPresent(pluginString)) {
+						shouldStop = true;
 					}
 				}
-				if (shouldStop) continue;
+			}
+			if (shouldStop) continue;
 
-				//Locations - array containing locations.
-				auto locations = conditions["locations"];
-				if (locations && locations.isArray()) {
-					for (auto identifier : locations) {
-						if (!identifier.isString()) {
-							continue;
-						}
-
-						auto components = clib_util::string::split(identifier.asString(), "|"sv);
-						if (components.size() != 2) continue;
-						auto* location = Utility::GetObjectFromMod<RE::BGSLocation>(components.at(0), components.at(1));
-
-						if (!location) continue;
-						validLocationIdentifiers.push_back(location);
+			//Locations - array containing locations.
+			auto locations = entry["locations"];
+			if (locations && locations.isArray()) {
+				for (auto identifier : locations) {
+					if (!identifier.isString()) {
+						continue;
 					}
+
+					auto components = clib_util::string::split(identifier.asString(), "|"sv);
+					if (components.size() != 2) continue;
+					auto* location = Utility::GetObjectFromMod<RE::BGSLocation>(components.at(0), components.at(1));
+
+					if (!location) continue;
+					validLocationIdentifiers.push_back(location);
 				}
+			}
 
-				auto locationKeywords = conditions["locationKeywords"];
-				if (locationKeywords && locationKeywords.isArray()) {
-					for (auto identifier : locations) {
-						if (!identifier.isString()) {
-							continue;
-						}
-						validLocationKeywords.push_back(identifier.asString());
+			auto locationKeywords = entry["locationKeywords"];
+			if (locationKeywords && locationKeywords.isArray()) {
+				for (auto identifier : locations) {
+					if (!identifier.isString()) {
+						continue;
 					}
+					validLocationKeywords.push_back(identifier.asString());
 				}
 			}
 
 			//Changes here.
-			for (auto change : changes) {
-				if (!change.isObject()) continue;
+			ContainerManager::SwapRule newRule;
+			newRule.validLocations = validLocationIdentifiers;
+			newRule.locationKeywords = validLocationKeywords;
 
-				ContainerManager::SwapRule newRule;
-				newRule.validLocations = validLocationIdentifiers;
-				newRule.locationKeywords = validLocationKeywords;
+			auto oldId = entry["object"];
+			if (!oldId || !oldId.isString()) continue;
+			auto oldIdString = oldId.asString();
 
-				auto oldId = change["old"];
-				if (!oldId || !oldId.isString()) continue;
-				auto oldIdString = oldId.asString();
+			auto components = clib_util::string::split(oldIdString, "|"sv);
+			if (components.size() != 2) continue;
 
-				auto components = clib_util::string::split(oldIdString, "|"sv);
-				if (components.size() != 2) continue;
+			auto* oldChangeForm = Utility::GetObjectFromMod<RE::TESObjectMISC>(components.at(0), components.at(1));
+			if (!oldChangeForm) {
+				a_report->missingOldField.push_back(name);
+				continue;
+			}
+			newRule.oldForm = oldChangeForm;
 
-				auto* oldChangeForm = Utility::GetObjectFromMod<RE::TESObjectMISC>(components.at(0), components.at(1));
-				if (!oldChangeForm) {
-					a_report->missingOldField.push_back(name);
+			auto newIdArray = entry["replace"];
+			if (!newIdArray || !newIdArray.isArray()) continue;
+			for (auto newId : newIdArray) {
+				auto newIdString = newId.asString();
+
+				auto newComponents = clib_util::string::split(newIdString, "|"sv);
+				if (newComponents.size() != 2) continue;
+
+				auto* newChangeForm = Utility::GetObjectFromMod<RE::TESObjectMISC>(newComponents.at(0), newComponents.at(1));
+				if (!newChangeForm) {
+					a_report->missingNewField.push_back(name);
 					continue;
 				}
-				newRule.oldForm = oldChangeForm;
-
-				auto newIdArray = change["new"];
-				if (!newIdArray || !newIdArray.isArray()) continue;
-				for (auto newId : newIdArray) {
-					auto newIdString = newId.asString();
-
-					auto newComponents = clib_util::string::split(newIdString, "|"sv);
-					if (newComponents.size() != 2) continue;
-
-					auto* newChangeForm = Utility::GetObjectFromMod<RE::TESObjectMISC>(newComponents.at(0), newComponents.at(1));
-					if (!newChangeForm) {
-						a_report->missingNewField.push_back(name);
-						continue;
-					}
-					newRule.newForm.push_back(newChangeForm);
-				}
-				ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
-				a_report->validConfigs.push_back(name);
+				newRule.newForm.push_back(newChangeForm);
 			}
+			ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
+			a_report->validConfigs.push_back(name);
 		}
 		return true;
 	}
