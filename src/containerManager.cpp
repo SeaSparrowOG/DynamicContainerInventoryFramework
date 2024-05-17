@@ -3,6 +3,36 @@
 namespace ContainerManager {
 	bool ContainerManager::CreateSwapRule(SwapRule a_rule) {
 		this->rules.push_back(a_rule);
+
+		_loggerInfo("Registered new rule:");
+		_loggerInfo("    >Form to be replaced: {}", a_rule.oldForm->GetName());
+
+		if (a_rule.newForm.size() == 1) {
+			_loggerInfo("    >Replaced with: {}", a_rule.newForm.at(0)->GetName());
+		}
+		else {
+			_loggerInfo("    >Can be replaced with:");
+			for (auto candidate : a_rule.newForm) {
+				_loggerInfo("        {}", candidate->GetName());
+			}
+		}
+
+		if (!(a_rule.locationKeywords.empty() && a_rule.validLocations.empty())) {
+			if (!a_rule.locationKeywords.empty()) {
+				_loggerInfo("    >Location keywords:");
+				for (auto locationKeyword : a_rule.locationKeywords) {
+					_loggerInfo("        {}", locationKeyword);
+				}
+			}
+
+			if (!a_rule.validLocations.empty()) {
+				_loggerInfo("    >Locations:");
+				for (auto location : a_rule.validLocations) {
+					_loggerInfo("        {}", clib_util::editorID::get_editorID(location));
+				}
+			}
+		}
+		_loggerInfo("----------------------------------------------");
 		return true;
 	}
 

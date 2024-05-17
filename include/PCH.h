@@ -12,6 +12,7 @@
 #include <ClibUtil/simpleINI.hpp>
 #include <ClibUtil/singleton.hpp>
 #include <ClibUtil/distribution.hpp>
+#include <ClibUtil/editorID.hpp>
 #include <ClibUtil/rng.hpp>
 
 #include <json/json.h>
