@@ -1,5 +1,5 @@
-## Rain Extinguishes Fires
-SKSE plugin that allows fires to respond to the weather and ice/fire spells.
+## C.O.I.N. DLL
+SKSE plugin that allows for C.O.I.N. to function independently. 
 
 ## Building
 1. Install VCPKG and add its installation location in an environment variable called "VCPKG_ROOT".
