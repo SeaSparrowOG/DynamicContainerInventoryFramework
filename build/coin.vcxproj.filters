@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Projects\Github\coinDLL\build\CMakeFiles\coin.dir\cmake_pch.cxx">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\Github\coinDLL\src\containerManager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\Github\coinDLL\src\hooks.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\Github\coinDLL\src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\Github\coinDLL\src\settings.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Projects\Github\coinDLL\src\utility.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Projects\Github\coinDLL\include\PCH.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\Github\coinDLL\include\containerManager.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\Github\coinDLL\include\hooks.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\Github\coinDLL\include\settings.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\Github\coinDLL\include\utility.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\Github\coinDLL\build\include\Version.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\Github\coinDLL\build\CMakeFiles\coin.dir\Debug\cmake_pch.hxx">
+      <Filter>Precompile Header File</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Projects\Github\coinDLL\build\CMakeFiles\coin.dir\Release\cmake_pch.hxx">
+      <Filter>Precompile Header File</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Projects\Github\coinDLL\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="C:\Projects\Github\coinDLL\build\version.rc">
+      <Filter>Source Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Precompile Header File">
+      <UniqueIdentifier>{7982EAC8-068E-362A-8FFA-1E5F74425744}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{275006FB-37E1-3CC1-8D61-8789C4DF9CA1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{140B3B2C-4537-329F-8AC3-0272011FDD5C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{5FC51B24-41F9-3068-B0B0-71D839F68AB7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

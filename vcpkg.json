@@ -1,0 +1,21 @@
+{
+  "name": "coin",
+  "version-string": "1.0.0",
+  "description": "Dynamically replaces items in containers based on rules. Developed for C.O.I.N. for Skyrim SE.",
+  "homepage": "",
+  "license": "MIT",
+  "dependencies": [
+    "rsm-binary-io",
+    "spdlog",
+    "clib-util",
+    "jsoncpp",
+    "xbyak"
+  ],
+  "overrides": [
+    {
+      "name": "fmt",
+      "version": "9.1.0"
+    }
+  ],
+  "builtin-baseline": "b7dba7f9aad09a56900f21cd78cfda1258e54e38"
+}
