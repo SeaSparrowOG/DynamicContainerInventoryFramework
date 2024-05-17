@@ -85,7 +85,7 @@ namespace Settings {
 
 			auto locationKeywords = entry["locationKeywords"];
 			if (locationKeywords && locationKeywords.isArray()) {
-				for (auto identifier : locations) {
+				for (auto identifier : locationKeywords) {
 					if (!identifier.isString()) {
 						continue;
 					}
