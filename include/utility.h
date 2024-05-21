@@ -18,4 +18,6 @@ namespace Utility {
 		response = RE::TESDataHandler::GetSingleton()->LookupForm<T>(formID, a_mod);
 		return response;
 	}
+
+	RE::TESForm* GetFormFromMod(std::string a_id, std::string a_mod);
 }

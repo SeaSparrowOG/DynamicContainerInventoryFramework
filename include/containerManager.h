@@ -1,7 +1,10 @@
 #pragma once
+#include "settings.h"
 
 namespace ContainerManager {
 	struct SwapRule {
+		int                              count;
+		Settings::ChangeType             changeType;
 		RE::TESBoundObject*              oldForm;
 		std::vector<std::string>         locationKeywords;
 		std::vector<RE::BGSLocation*>    validLocations;
