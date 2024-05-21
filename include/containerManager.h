@@ -5,7 +5,7 @@ namespace ContainerManager {
 	struct SwapRule {
 		int                              count;
 		Settings::ChangeType             changeType;
-		RE::TESBoundObject*              oldForm;
+		RE::TESBoundObject*              oldForm { nullptr };
 		std::vector<std::string>         locationKeywords;
 		std::vector<RE::BGSLocation*>    validLocations;
 		std::vector<RE::TESBoundObject*> newForm;

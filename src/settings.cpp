@@ -19,6 +19,10 @@ namespace {
 		if (!a_report.hasError) return;
 
 		_loggerInfo("{} has errors:", a_report.name);
+		if (a_report.hasBatData) {
+			_loggerInfo("Swap has bad data.");
+		}
+
 		if (!a_report.missingOldField.empty()) {
 			_loggerInfo("Missing item for \"add\" field:");
 			for (auto it : a_report.missingOldField) {
@@ -271,7 +275,7 @@ namespace Settings {
 					newRule.count = countField.asInt();
 				}
 				else {
-					newRule.count = 1;
+					newRule.count = -1;
 				}
 
 				switch (changeType) {

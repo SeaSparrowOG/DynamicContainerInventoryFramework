@@ -1,76 +1,106 @@
 #include "containerManager.h"
 
+namespace {
+	bool HasLocationMatch(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		auto* refLoc = a_ref->GetEditorLocation();
+		if (!refLoc || a_rule->validLocations.empty()) return true;
+
+		for (auto* location : a_rule->validLocations) {
+			if (location == refLoc) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool HasLocationKeywordMatch(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		auto* refLoc = a_ref->GetEditorLocation();
+		if (!refLoc || a_rule->locationKeywords.empty()) return true;
+
+		for (auto& locationKeyword : a_rule->locationKeywords) {
+			if (refLoc->HasKeywordString(locationKeyword)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+}
+
 namespace ContainerManager {
 	bool ContainerManager::CreateSwapRule(SwapRule a_rule) {
 		this->rules.push_back(a_rule);
-
-		_loggerInfo("Registered new rule:");
-		_loggerInfo("    >Form to be replaced: {}", a_rule.oldForm->GetName());
-
-		if (a_rule.newForm.size() == 1) {
-			_loggerInfo("    >Replaced with: {}", a_rule.newForm.at(0)->GetName());
-		}
-		else {
-			_loggerInfo("    >Can be replaced with:");
-			for (auto candidate : a_rule.newForm) {
-				_loggerInfo("        {}", candidate->GetName());
+		_loggerInfo("Registered new rule");
+		_loggerInfo("Type: {}", a_rule.changeType == Settings::ChangeType::ADD ? "Add" :
+			a_rule.changeType == Settings::ChangeType::REMOVE ? "Remove" : "Replace");
+		if (a_rule.oldForm) {
+			if (a_rule.changeType == Settings::ChangeType::REMOVE) {
+				_loggerInfo("Form to remove: {}", a_rule.oldForm->GetName());
+				_loggerInfo("Count: {}", a_rule.count);
+			}
+			else {
+				_loggerInfo("Form to replace: {}", a_rule.oldForm->GetName());
 			}
 		}
 
-		if (!(a_rule.locationKeywords.empty() && a_rule.validLocations.empty())) {
-			if (!a_rule.locationKeywords.empty()) {
-				_loggerInfo("    >Location keywords:");
-				for (auto locationKeyword : a_rule.locationKeywords) {
-					_loggerInfo("        {}", locationKeyword);
+		if (!a_rule.newForm.empty()) {
+			if (a_rule.changeType == Settings::ChangeType::ADD) {
+				if (a_rule.newForm.size() == 1) {
+					_loggerInfo("Form to add: {}", a_rule.newForm.at(0)->GetName());
+				}
+				else {
+					_loggerInfo("Forms to add:");
+					for (auto form : a_rule.newForm) {
+						_loggerInfo("    >{}", form->GetName());
+					}
+				}
+				_loggerInfo("Count: {}", a_rule.count);
+			}
+			else {
+				if (a_rule.newForm.size() == 1) {
+					_loggerInfo("Form to substitute: {}", a_rule.newForm.at(0)->GetName());
+				}
+				else {
+					_loggerInfo("Forms to substitute:");
+					for (auto form : a_rule.newForm) {
+						_loggerInfo("    >{}", form->GetName());
+					}
 				}
 			}
-
-			if (!a_rule.validLocations.empty()) {
-				_loggerInfo("    >Locations:");
-				for (auto location : a_rule.validLocations) {
-					_loggerInfo("        {}", clib_util::editorID::get_editorID(location));
-				}
-			}
 		}
+
 		_loggerInfo("----------------------------------------------");
 		return true;
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
-		auto* parentLocation = a_ref->GetCurrentLocation();
-
 		for (auto& rule : this->rules) {
 			auto count = a_ref->GetInventoryCounts()[rule.oldForm];
-			if (count < 1) continue;
-			bool needsMatch = false;
-			bool hasMatch = false;
-
-			//Location name match.
-			if (!rule.validLocations.empty()) {
-				needsMatch = true;
-				if (parentLocation) {
-					auto it = std::find(rule.validLocations.begin(), rule.validLocations.end(), parentLocation);
-					if (it != rule.validLocations.end()) {
-						hasMatch = true;
-					}
-				}
-			} //End of location search block.
-
-			//Location keyword match.
-			if (!rule.locationKeywords.empty() && parentLocation) {
-				needsMatch = true;
-				for (auto keywordString : rule.locationKeywords) {
-					if (parentLocation->HasKeywordString(keywordString)) {
-						hasMatch = true;
-					}
-				}
+			if (rule.changeType == Settings::ChangeType::REMOVE || rule.changeType == Settings::ChangeType::REPLACE) {
+				if (count < 1) continue;
 			}
 
-			if (needsMatch && !hasMatch) continue;
+			if (!(
+				HasLocationKeywordMatch(&rule, a_ref) && 
+				HasLocationMatch(&rule, a_ref))) {
+				continue;
+			}
+
 			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-			a_ref->RemoveItem(rule.oldForm, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-			a_ref->AddObjectToContainer(thingToAdd, nullptr, count, nullptr);
+			int32_t ruleCount = rule.count;
+
+			if (rule.changeType == Settings::ChangeType::ADD) {
+				a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+			} 
+			else if (rule.changeType == Settings::ChangeType::REMOVE) {
+				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+			}
+			else {
+				a_ref->RemoveItem(rule.oldForm, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+				a_ref->AddObjectToContainer(thingToAdd, nullptr, count, nullptr);
+			}
 		} //Rule reading end.
 	}
 }
