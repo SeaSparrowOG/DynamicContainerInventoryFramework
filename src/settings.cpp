@@ -1,4 +1,5 @@
 #include "containerManager.h"
+#include "settings.h"
 #include "utility.h"
 
 namespace {
@@ -217,22 +218,6 @@ namespace Settings {
 				newRule.container = validContainers;
 				bool changesAreValid = true;
 
-				auto& changeTypeField = change["type"];
-				ChangeType changeType = ChangeType::REPLACE;
-				if (changeTypeField && changeTypeField.isString()) {
-					auto changeTypeString = changeTypeField.asString();
-					if (changeTypeString == "add") {
-						changeType = ChangeType::ADD;
-					}
-					else if (changeTypeString == "remove") {
-						changeType = ChangeType::REMOVE;
-					}
-					else {
-						changeType = ChangeType::REPLACE;
-					}
-				} //End of setting change type
-
-				newRule.changeType = changeType;
 				auto& oldId = change["remove"];
 				if (oldId) {
 					if (!oldId.isString()) {
@@ -305,26 +290,10 @@ namespace Settings {
 					newRule.count = countField.asInt();
 				}
 				else {
-					newRule.count = -1;
+					newRule.count = 1;
 				}
-
-				switch (changeType) {
-				case ChangeType::ADD:
-					if (!newRule.newForm.empty() && newRule.newForm.at(0)) {
-						ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
-					}
-					break;
-				case ChangeType::REMOVE:
-					if (newRule.oldForm) {
-						ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
-					}
-					break;
-				case ChangeType::REPLACE:
-					if (!newRule.newForm.empty() && newRule.newForm.at(0) && newRule.oldForm) {
-						ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
-					}
-					break;
-				}
+				if (!(oldId || newId)) continue;
+				ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
 			} //End of changes check
 		} //End of data loop
 	} //End of read config

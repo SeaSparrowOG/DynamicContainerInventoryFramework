@@ -42,60 +42,45 @@ namespace {
 }
 
 namespace ContainerManager {
-	bool ContainerManager::CreateSwapRule(SwapRule a_rule) {
-		this->rules.push_back(a_rule);
-		_loggerInfo("Registered new rule");
-		_loggerInfo("Type: {}", a_rule.changeType == Settings::ChangeType::ADD ? "Add" :
-			a_rule.changeType == Settings::ChangeType::REMOVE ? "Remove" : "Replace");
-		if (a_rule.oldForm) {
-			if (a_rule.changeType == Settings::ChangeType::REMOVE) {
-				_loggerInfo("Form to remove: {}", a_rule.oldForm->GetName());
-				_loggerInfo("Count: {}", a_rule.count);
+	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
+		if (!a_rule.oldForm) {
+			this->addRules.push_back(a_rule);
+			_loggerInfo("Registered bew <Add> rule.");
+			_loggerInfo("    Form(s) that can be added:");
+			for (auto form : a_rule.newForm) {
+				_loggerInfo("        >{}.", form->GetName());
 			}
-			else {
-				_loggerInfo("Form to replace: {}", a_rule.oldForm->GetName());
-			}
+			_loggerInfo("    Ammount to be added: {}.", a_rule.count);
+			_loggerInfo("----------------------------------------------");
 		}
+		else if (a_rule.newForm.empty()) {
+			this->removeRules.push_back(a_rule);
 
-		if (!a_rule.newForm.empty()) {
-			if (a_rule.changeType == Settings::ChangeType::ADD) {
-				if (a_rule.newForm.size() == 1) {
-					_loggerInfo("Form to add: {}", a_rule.newForm.at(0)->GetName());
-				}
-				else {
-					_loggerInfo("Forms to add:");
-					for (auto form : a_rule.newForm) {
-						_loggerInfo("    >{}", form->GetName());
-					}
-				}
-				_loggerInfo("Count: {}", a_rule.count);
-			}
-			else {
-				if (a_rule.newForm.size() == 1) {
-					_loggerInfo("Form to substitute: {}", a_rule.newForm.at(0)->GetName());
-				}
-				else {
-					_loggerInfo("Forms to substitute:");
-					for (auto form : a_rule.newForm) {
-						_loggerInfo("    >{}", form->GetName());
-					}
-				}
-			}
+			_loggerInfo("Registered bew <Remove> rule.");
+			_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
+			_loggerInfo("    Ammount to be removed: {}.", a_rule.count);
+			_loggerInfo("----------------------------------------------");
 		}
+		else {
+			this->replaceRules.push_back(a_rule);
 
-		_loggerInfo("----------------------------------------------");
-		return true;
+			_loggerInfo("Registered bew <Replace> rule.");
+			_loggerInfo("    Form(s) that can be added:");
+			for (auto form : a_rule.newForm) {
+				_loggerInfo("        >{}.", form->GetName());
+			}
+			_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
+			_loggerInfo("----------------------------------------------");
+		}
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
-		for (auto& rule : this->rules) {
-			auto count = a_ref->GetInventoryCounts()[rule.oldForm];
-			if (rule.changeType == Settings::ChangeType::REMOVE || rule.changeType == Settings::ChangeType::REPLACE) {
-				if (count < 1) continue;
-			}
+		for (auto& rule : this->replaceRules) {
+			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+			if (itemCount < 1) continue;
 
 			if (!(
-				HasLocationKeywordMatch(&rule, a_ref) && 
+				HasLocationKeywordMatch(&rule, a_ref) &&
 				HasLocationMatch(&rule, a_ref) &&
 				IsValidContainer(&rule, a_ref))) {
 				continue;
@@ -103,18 +88,40 @@ namespace ContainerManager {
 
 			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-			int32_t ruleCount = rule.count;
+			a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+			a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+		} //Replace Rule reading end.
 
-			if (rule.changeType == Settings::ChangeType::ADD) {
-				a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
-			} 
-			else if (rule.changeType == Settings::ChangeType::REMOVE) {
-				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+		for (auto& rule : this->removeRules) {
+			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+			if (itemCount < 1) continue;
+
+			if (!(
+				HasLocationKeywordMatch(&rule, a_ref) &&
+				HasLocationMatch(&rule, a_ref) &&
+				IsValidContainer(&rule, a_ref))) {
+				continue;
 			}
-			else {
-				a_ref->RemoveItem(rule.oldForm, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				a_ref->AddObjectToContainer(thingToAdd, nullptr, count, nullptr);
+
+			int32_t ruleCount = rule.count;
+			if (ruleCount > itemCount) {
+				ruleCount = itemCount;
 			}
-		} //Rule reading end.
+			a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+		} //Remove rule reading end.
+
+		for (auto& rule : this->addRules) {
+			if (!(
+				HasLocationKeywordMatch(&rule, a_ref) &&
+				HasLocationMatch(&rule, a_ref) &&
+				IsValidContainer(&rule, a_ref))) {
+				continue;
+			}
+
+			int32_t ruleCount = rule.count;
+			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
+			a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+		} //Add rule reading end.
 	}
 }

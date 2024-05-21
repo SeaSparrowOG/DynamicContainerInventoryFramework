@@ -1,23 +1,23 @@
 #pragma once
-#include "settings.h"
 
 namespace ContainerManager {
 	struct SwapRule {
-		int                              count;
-		Settings::ChangeType             changeType;
-		std::vector<RE::TESObjectCONT*>  container;
-		RE::TESBoundObject*              oldForm { nullptr };
-		std::vector<std::string>         locationKeywords;
-		std::vector<RE::BGSLocation*>    validLocations;
-		std::vector<RE::TESBoundObject*> newForm;
+		int                              count             { 1 };
+		RE::TESBoundObject*              oldForm           { nullptr };
+		std::vector<std::string>         locationKeywords  { std::vector<std::string>() };
+		std::vector<RE::TESObjectCONT*>  container         { std::vector<RE::TESObjectCONT*>() };
+		std::vector<RE::BGSLocation*>    validLocations    { std::vector<RE::BGSLocation*>() };
+		std::vector<RE::TESBoundObject*> newForm           { std::vector<RE::TESBoundObject*>() };
 	};
 
 	class ContainerManager : public clib_util::singleton::ISingleton<ContainerManager> {
 	public:
-		bool CreateSwapRule(SwapRule a_rule);
+		void CreateSwapRule(SwapRule a_rule);
 		void HandleContainer(RE::TESObjectREFR* a_ref);
 
 	private:
-		std::vector<SwapRule> rules;
+		std::vector<SwapRule> addRules;
+		std::vector<SwapRule> removeRules;
+		std::vector<SwapRule> replaceRules;
 	};
 }
