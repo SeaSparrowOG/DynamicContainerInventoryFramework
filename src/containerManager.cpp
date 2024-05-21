@@ -26,6 +26,19 @@ namespace {
 
 		return false;
 	}
+
+	bool IsValidContainer(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		auto* refBaseContainer = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
+		if (a_rule->container.empty()) return true;
+
+		for (auto& container : a_rule->container) {
+			if (refBaseContainer == container) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 namespace ContainerManager {
@@ -83,7 +96,8 @@ namespace ContainerManager {
 
 			if (!(
 				HasLocationKeywordMatch(&rule, a_ref) && 
-				HasLocationMatch(&rule, a_ref))) {
+				HasLocationMatch(&rule, a_ref) &&
+				IsValidContainer(&rule, a_ref))) {
 				continue;
 			}
 

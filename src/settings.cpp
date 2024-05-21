@@ -102,6 +102,7 @@ namespace Settings {
 			bool conditionsAreValid = true;
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
+			std::vector<RE::TESObjectCONT*> validContainers;
 
 			if (conditions) {
 				if (!conditions.isObject()) {
@@ -135,6 +136,32 @@ namespace Settings {
 						}
 					}
 				} //End of plugins check
+
+				//Container check.
+				auto& containerField = conditions["containers"];
+				if (containerField && containerField.isArray()) {
+					for (auto& identifier : containerField) {
+						if (!identifier.isString()) {
+							std::string name = friendlyNameString; name += " -> containers";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+						auto components = clib_util::string::split(identifier.asString(), "|"sv);
+						if (components.size() != 2) {
+							std::string name = friendlyNameString; name += " -> containers -> "; name += identifier.asString();
+							a_report->badStringFormat.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						auto* container = Utility::GetObjectFromMod<RE::TESObjectCONT>(components.at(0), components.at(1));
+						if (!container) continue;
+						validContainers.push_back(container);
+					}
+				}
 
 				//Location check.
 				//If a location is null, it will not error.
@@ -185,6 +212,9 @@ namespace Settings {
 			//Changes tracking here.
 			for (auto& change : changes) {
 				ContainerManager::SwapRule newRule;
+				newRule.validLocations = validLocationIdentifiers;
+				newRule.locationKeywords = validLocationKeywords;
+				newRule.container = validContainers;
 				bool changesAreValid = true;
 
 				auto& changeTypeField = change["type"];
