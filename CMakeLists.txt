@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 set(PROJECT_AUTHOR "SeaSparrow" CACHE STRING "")
-set(NAME "DynamicContainerInventoryFramework" CACHE STRING "")
+set(NAME "ContainerDistributionFramework" CACHE STRING "")
 set(VERSION 1.0.0 CACHE STRING "")
 
 # ---- Options ----

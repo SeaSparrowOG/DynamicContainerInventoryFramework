@@ -1,7 +1,7 @@
 #pragma once
 
 namespace Settings {
-#define configPath R"(Data/SKSE/Plugins/COIN/)"
+#define configPath R"(Data/SKSE/Plugins/ContainerDistributionFramework/)"
 	enum ChangeType {
 		ADD,
 		REMOVE,
