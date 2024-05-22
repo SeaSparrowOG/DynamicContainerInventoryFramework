@@ -101,6 +101,7 @@ namespace Settings {
 			}
 
 			bool conditionsAreValid = true;
+			bool distributeToVendors = false;
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
 			std::vector<RE::TESObjectCONT*> validContainers;
@@ -111,6 +112,12 @@ namespace Settings {
 					a_report->hasError = true;
 					conditionsAreValid = false;
 					continue;
+				}
+
+				//Merchant eligibility check.
+				auto& distributeToMerchantsField = conditions["merchants"];
+				if (distributeToMerchantsField && distributeToMerchantsField.isBool()) {
+					distributeToVendors = distributeToMerchantsField.asBool();
 				}
 
 				//Plugins check.
@@ -216,6 +223,7 @@ namespace Settings {
 				newRule.validLocations = validLocationIdentifiers;
 				newRule.locationKeywords = validLocationKeywords;
 				newRule.container = validContainers;
+				newRule.distributeToVendors = distributeToVendors;
 				bool changesAreValid = true;
 
 				auto& oldId = change["remove"];

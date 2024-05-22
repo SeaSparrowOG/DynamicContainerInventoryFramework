@@ -75,12 +75,14 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
+		bool isVendorContainer = false;
 		auto* ownerFaction = a_ref->GetFactionOwner();
 		if (ownerFaction && ownerFaction->IsVendor()) {
-			return;
+			isVendorContainer = true;
 		}
 
 		for (auto& rule : this->replaceRules) {
+			if (isVendorContainer && !rule.distributeToVendors) continue;
 			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 			if (itemCount < 1) continue;
 
@@ -98,6 +100,7 @@ namespace ContainerManager {
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
+			if (isVendorContainer && !rule.distributeToVendors) continue;
 			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 			if (itemCount < 1) continue;
 
@@ -116,6 +119,7 @@ namespace ContainerManager {
 		} //Remove rule reading end.
 
 		for (auto& rule : this->addRules) {
+			if (isVendorContainer && !rule.distributeToVendors) continue;
 			if (!(
 				HasLocationKeywordMatch(&rule, a_ref) &&
 				HasLocationMatch(&rule, a_ref) &&
