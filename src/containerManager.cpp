@@ -75,6 +75,11 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
+		auto* ownerFaction = a_ref->GetFactionOwner();
+		if (ownerFaction && ownerFaction->IsVendor()) {
+			return;
+		}
+
 		for (auto& rule : this->replaceRules) {
 			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 			if (itemCount < 1) continue;
