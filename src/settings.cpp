@@ -71,7 +71,7 @@ namespace {
 }
 
 namespace Settings {
-	void ReadConfig(Json::Value a_config, SwapData* a_report) {
+	void ReadConfig(Json::Value a_config, std::string a_reportName, SwapData* a_report) {
 		if (!a_config.isObject()) return;
 		auto& rules = a_config["rules"];
 		if (!rules.isArray()) return;
@@ -102,7 +102,7 @@ namespace Settings {
 
 			bool conditionsAreValid = true;
 			bool distributeToVendors = false;
-			std::string ruleName = friendlyName.asString();
+			std::string ruleName = friendlyName.asString(); ruleName += a_reportName;
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
 			std::vector<RE::TESObjectCONT*> validContainers;
@@ -359,7 +359,7 @@ namespace Settings {
 				SwapData  report;
 				std::string configName = config.substr(config.rfind("/") + 1, config.length() - 1);
 				report.name = configName;
-				ReadConfig(JSONFile, &report);
+				ReadConfig(JSONFile, configName, &report);
 				reports.push_back(report);
 			}
 			catch (std::exception e) { //Unlikely to be thrown, unless there are some weird characters involved.
