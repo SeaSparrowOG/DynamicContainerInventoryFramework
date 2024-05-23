@@ -17,7 +17,7 @@ namespace ContainerManager {
 	public:
 		void CreateSwapRule(SwapRule a_rule);
 		void HandleContainer(RE::TESObjectREFR* a_ref);
-		bool HasRuleApplied(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
+		bool HasRuleApplied(RE::TESObjectREFR* a_ref);
 		bool IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
 		void LoadMap(SKSE::SerializationInterface* a_intfc);
 		void LoadParentLocations();

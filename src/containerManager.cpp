@@ -1,31 +1,6 @@
 #include "containerManager.h"
 
 namespace {
-	bool IsValidContainer(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
-		auto* refBaseContainer = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
-		if (a_rule->container.empty()) return true;
-
-		for (auto& container : a_rule->container) {
-			if (refBaseContainer == container) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool IsValidReference(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
-		if (!a_rule->references.empty()) {
-			std::stringstream stream;
-			stream << std::hex << a_ref->formID;
-			if (std::find(a_rule->references.begin(), a_rule->references.end(), a_ref->formID) != a_rule->references.end()) {
-				return true;
-			}
-			return false;
-		}
-		return true;
-	}
-
 	void GetParentChain(RE::BGSLocation* a_child, std::vector<RE::BGSLocation*>* a_parentArray) {
 		auto* parent = a_child->parentLoc;
 		if (!parent) return;
@@ -91,14 +66,32 @@ namespace ContainerManager {
 			}
 		}
 
-		return (!HasRuleApplied(a_rule, a_ref) &&
-			IsValidReference(a_rule, a_ref) &&
-			hasLocationKeywordMatch &&
-			hasParentLocation &&
-			IsValidContainer(a_rule, a_ref));
+		//Reference check.
+		bool hasReferenceMatch = a_rule->references.empty() ? true : false;
+		if (!hasReferenceMatch) {
+			std::stringstream stream;
+			stream << std::hex << a_ref->formID;
+			if (std::find(a_rule->references.begin(), a_rule->references.end(), a_ref->formID) != a_rule->references.end()) {
+				hasReferenceMatch = true;
+			}
+		}
+
+		//Container check.
+		bool hasContainerMatch = a_rule->container.empty() ? true : false;
+		auto* refBaseContainer = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
+		if (!hasContainerMatch && refBaseContainer) {
+			for (auto& container : a_rule->container) {
+				if (refBaseContainer == container) {
+					hasContainerMatch = true;
+				}
+			}
+		}
+
+		return (!HasRuleApplied(a_ref) &&
+			hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch);
 	}
 
-	bool ContainerManager::HasRuleApplied(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref) {
 		if (this->handledContainers.find(a_ref) != this->handledContainers.end()) {
 			auto& dayAttached = this->handledContainers[a_ref];
 			if (RE::Calendar::GetSingleton()->GetDaysPassed() > dayAttached + 10.0f) return false;
