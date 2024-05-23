@@ -187,50 +187,7 @@ namespace ContainerManager {
 		}
 	}
 
-	void ContainerManager::LoadMap(SKSE::SerializationInterface* a_intfc) {
-		std::uint32_t type;
-		std::uint32_t size;
-		std::uint32_t version;
-
-		while (a_intfc->GetNextRecordInfo(type, size, version)) {
-			if (type == _byteswap_ulong('MAPR')) {
-				std::size_t recordSize;
-				a_intfc->ReadRecordData(&recordSize, sizeof(recordSize));
-
-				for (; recordSize > 0; --recordSize) {
-					RE::FormID refBuffer = 0;
-					a_intfc->ReadRecordData(&refBuffer, sizeof(refBuffer));
-					RE::FormID newRef = 0;
-					if (a_intfc->ResolveFormID(refBuffer, newRef)) {
-						float dayAttached = -1.0f;
-						a_intfc->ReadRecordData(&dayAttached, sizeof(dayAttached));
-						if (!dayAttached) {
-							auto* foundForm = RE::TESForm::LookupByID(newRef);
-							auto* foundReference = foundForm ? foundForm->As<RE::TESObjectREFR>() : nullptr;
-							if (foundReference) {
-								_loggerInfo("Creating entry {}:\n    >{}\n    >{}.", recordSize, foundReference->GetBaseObject()->GetName(), dayAttached);
-								this->handledContainers[foundReference] = dayAttached;
-							}
-						}
-					}
-				}
-				_loggerInfo("__________________________________________________");
-			}
-		}
-	}
-
-	void ContainerManager::SaveMap(SKSE::SerializationInterface* a_intfc) {
-		if (a_intfc->OpenRecord(_byteswap_ulong('MAPR'), 0)) {
-			auto size = this->handledContainers.size();
-			a_intfc->WriteRecordData(&size, sizeof(size));
-			for (auto& container : this->handledContainers) {
-				a_intfc->WriteRecordData(&container.first->formID, sizeof(container.first->formID));
-				a_intfc->WriteRecordData(&container.second, sizeof(container.second));
-			}
-		}
-	}
-
-	void ContainerManager::LoadParentLocations() {
+	void ContainerManager::InitializeData() {
 		auto& locationArray = RE::TESDataHandler::GetSingleton()->GetFormArray<RE::BGSLocation>();
 		for (auto* location : locationArray) {
 			std::vector<RE::BGSLocation*> parents;
@@ -243,14 +200,5 @@ namespace ContainerManager {
 			GetParentChain(parentLocation, &parents);
 			this->parentLocations[location] = parents;
 		}
-	}
-
-	void SaveCallback(SKSE::SerializationInterface* a_intfc) {
-		ContainerManager::GetSingleton()->SaveMap(a_intfc);
-	}
-
-	void LoadCallback(SKSE::SerializationInterface* a_intfc) {
-
-		ContainerManager::GetSingleton()->LoadMap(a_intfc);
 	}
 }

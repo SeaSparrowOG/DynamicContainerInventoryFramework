@@ -1,6 +1,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include "containerManager.h"
 #include "eventManager.h"
+#include "serde.h"
 #include "settings.h"
 
 void SetupLog() {
@@ -24,7 +25,7 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     switch (a_message->type) {
     case SKSE::MessagingInterface::kDataLoaded:
         Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
-        ContainerManager::ContainerManager::GetSingleton()->LoadParentLocations();
+        ContainerManager::ContainerManager::GetSingleton()->InitializeData();
         Settings::ReadSettings();
         break;
     default:
@@ -83,8 +84,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
     SKSE::Init(a_skse);
     const auto serialization = SKSE::GetSerializationInterface();
     serialization->SetUniqueID(_byteswap_ulong('SSCD'));
-    serialization->SetSaveCallback(ContainerManager::SaveCallback);
-    serialization->SetLoadCallback(ContainerManager::LoadCallback);
+    serialization->SetSaveCallback(Serialization::SaveCallback);
+    serialization->SetLoadCallback(Serialization::LoadCallback);
 
     auto messaging = SKSE::GetMessagingInterface();
     messaging->RegisterListener(MessageHandler);
