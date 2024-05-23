@@ -1,32 +1,6 @@
 #include "containerManager.h"
 
 namespace {
-	bool HasLocationMatch(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
-		auto* refLoc = a_ref->GetEditorLocation();
-		if (!refLoc || a_rule->validLocations.empty()) return true;
-
-		for (auto* location : a_rule->validLocations) {
-			if (location == refLoc) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	bool HasLocationKeywordMatch(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
-		auto* refLoc = a_ref->GetEditorLocation();
-		if (!refLoc || a_rule->locationKeywords.empty()) return true;
-
-		for (auto& locationKeyword : a_rule->locationKeywords) {
-			if (refLoc->HasKeywordString(locationKeyword)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	bool IsValidContainer(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
 		auto* refBaseContainer = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
 		if (a_rule->container.empty()) return true;
@@ -51,14 +25,76 @@ namespace {
 		}
 		return true;
 	}
+
+	void GetParentChain(RE::BGSLocation* a_child, std::vector<RE::BGSLocation*>* a_parentArray) {
+		auto* parent = a_child->parentLoc;
+		if (!parent) return;
+
+		if (std::find(a_parentArray->begin(), a_parentArray->end(), parent) != a_parentArray->end()) {
+			_loggerError("IMPORTANT - Recursive parent locations. Consider fixing this.");
+			_loggerError("Chain:");
+			for (auto* location : *a_parentArray) {
+				_loggerError("    {} ->", location->GetName());
+			}
+			return;
+		}
+		//_loggerInfo("    >{}", clib_util::editorID::get_editorID(parent));
+		a_parentArray->push_back(parent);
+		return GetParentChain(parent, a_parentArray);
+	}
 }
 
 namespace ContainerManager {
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		auto* refLoc = a_ref->GetCurrentLocation();
+
+		//Parent Location check. If the current location is NOT a match, this finds its parents.
+		bool hasParentLocation = a_rule->validLocations.empty() ? true : false;
+
+		if (!hasParentLocation && refLoc) {
+			if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), refLoc) != a_rule->validLocations.end()) {
+				hasParentLocation = true;
+			}
+
+			//Check parents.
+			auto settingsParents = this->parentLocations.find(refLoc) != this->parentLocations.end() ? this->parentLocations[refLoc] : std::vector<RE::BGSLocation*>();
+			RE::BGSLocation* parent = refLoc->parentLoc;
+			for (auto it = settingsParents.begin(); it != settingsParents.end() && !hasParentLocation && parent; ++it) {
+				if (std::find(settingsParents.begin(), settingsParents.end(), parent) != settingsParents.end()) {
+					hasParentLocation = true;
+				}
+				parent = parent->parentLoc;
+			}
+		}
+
+		//Location keyword search. If these do not exist, check the parents..
+		bool hasLocationKeywordMatch = a_rule->locationKeywords.empty() ? true : false;
+		if (!hasLocationKeywordMatch && refLoc) {
+			for (auto& locationKeyword : a_rule->locationKeywords) {
+				if (refLoc->HasKeywordString(locationKeyword)) {
+					hasLocationKeywordMatch = true;
+				}
+			}
+
+			//Check parents.
+			if (!hasLocationKeywordMatch) {
+				auto refParentLocs = this->parentLocations.find(refLoc) != this->parentLocations.end() ?
+					this->parentLocations[refLoc] : std::vector<RE::BGSLocation*>();
+
+				for (auto it = refParentLocs.begin(); it != refParentLocs.end() && hasLocationKeywordMatch; ++it) {
+					for (auto& locationKeyword : a_rule->locationKeywords) {
+						if ((*it)->HasKeywordString(locationKeyword)) {
+							hasLocationKeywordMatch = true;
+						}
+					}
+				}
+			}
+		}
+
 		return (!HasRuleApplied(a_rule, a_ref) &&
 			IsValidReference(a_rule, a_ref) &&
-			HasLocationKeywordMatch(a_rule, a_ref) &&
-			HasLocationMatch(a_rule, a_ref) &&
+			hasLocationKeywordMatch &&
+			hasParentLocation &&
 			IsValidContainer(a_rule, a_ref));
 	}
 
@@ -198,6 +234,21 @@ namespace ContainerManager {
 				a_intfc->WriteRecordData(&container.first->formID, sizeof(container.first->formID));
 				a_intfc->WriteRecordData(&container.second, sizeof(container.second));
 			}
+		}
+	}
+
+	void ContainerManager::LoadParentLocations() {
+		auto& locationArray = RE::TESDataHandler::GetSingleton()->GetFormArray<RE::BGSLocation>();
+		for (auto* location : locationArray) {
+			std::vector<RE::BGSLocation*> parents;
+			auto* parentLocation = location->parentLoc;
+			if (!parentLocation) continue;
+
+			parents.push_back(parentLocation);
+			//_loggerInfo("Location: {} - Parents:", clib_util::editorID::get_editorID(location));
+			//_loggerInfo("    >{}", clib_util::editorID::get_editorID(parentLocation));
+			GetParentChain(parentLocation, &parents);
+			this->parentLocations[location] = parents;
 		}
 	}
 

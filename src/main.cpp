@@ -24,6 +24,7 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     switch (a_message->type) {
     case SKSE::MessagingInterface::kDataLoaded:
         Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
+        ContainerManager::ContainerManager::GetSingleton()->LoadParentLocations();
         Settings::ReadSettings();
         break;
     default:

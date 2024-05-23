@@ -197,6 +197,7 @@ namespace Settings {
 						auto* location = Utility::GetObjectFromMod<RE::BGSLocation>(components.at(0), components.at(1));
 
 						if (!location) continue;
+						_loggerInfo("Pushing back");
 						validLocationIdentifiers.push_back(location);
 					}
 				}
