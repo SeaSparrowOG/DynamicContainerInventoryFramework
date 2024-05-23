@@ -1,4 +1,5 @@
 #include <spdlog/sinks/basic_file_sink.h>
+#include "containerManager.h"
 #include "eventManager.h"
 #include "settings.h"
 
@@ -24,6 +25,10 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     case SKSE::MessagingInterface::kDataLoaded:
         Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
         Settings::ReadSettings();
+        break;
+    case SKSE::MessagingInterface::kPreLoadGame:
+    case SKSE::MessagingInterface::kNewGame:
+        ContainerManager::ContainerManager::GetSingleton()->LoadMap();
         break;
     default:
         break;

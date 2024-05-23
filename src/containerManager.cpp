@@ -44,7 +44,6 @@ namespace {
 		if (!a_rule->references.empty()) {
 			std::stringstream stream;
 			stream << std::hex << a_ref->formID;
-			_loggerInfo("Ref ID: {} -> {}.", a_ref->GetName(), stream.str());
 			if (std::find(a_rule->references.begin(), a_rule->references.end(), a_ref->formID) != a_rule->references.end()) {
 				return true;
 			}
@@ -56,7 +55,6 @@ namespace {
 
 namespace ContainerManager {
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
-
 		return (!HasRuleApplied(a_rule, a_ref) &&
 			IsValidReference(a_rule, a_ref) &&
 			HasLocationKeywordMatch(a_rule, a_ref) &&
@@ -165,6 +163,6 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::LoadMap() {
-
+		this->handledContainers.clear();
 	}
 }
