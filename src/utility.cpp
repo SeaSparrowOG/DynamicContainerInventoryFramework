@@ -33,4 +33,13 @@ namespace Utility {
 		response = RE::TESDataHandler::GetSingleton()->LookupForm(formID, a_mod);
 		return response;
 	}
+
+	RE::FormID ParseFormID(const std::string& a_identifier) {
+		if (const auto splitID = clib_util::string::split(a_identifier, "|"); splitID.size() == 2) {
+			const auto  formID = clib_util::string::to_num<RE::FormID>(splitID[0], true);
+			const auto& modName = splitID[1];
+			return RE::TESDataHandler::GetSingleton()->LookupFormID(formID, modName);
+		}
+		return static_cast<RE::FormID>(0);
+	}
 }

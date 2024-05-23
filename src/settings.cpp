@@ -105,6 +105,7 @@ namespace Settings {
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
 			std::vector<RE::TESObjectCONT*> validContainers;
+			std::vector<RE::FormID> validReferences;
 
 			if (conditions) {
 				if (!conditions.isObject()) {
@@ -214,6 +215,33 @@ namespace Settings {
 						validLocationKeywords.push_back(identifier.asString());
 					}
 				}
+
+				//Reference check.
+				auto& referencesField = conditions["references"];
+				if (referencesField && referencesField.isArray()) {
+					for (auto& identifier : referencesField) {
+						if (!identifier.isString()) {
+							std::string name = friendlyNameString; name += " -> references";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+						auto components = clib_util::string::split(identifier.asString(), "|"sv);
+						if (components.size() != 2) {
+							std::string name = friendlyNameString; name += " -> references -> "; name += identifier.asString();
+							a_report->badStringFormat.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+						auto* file = RE::TESDataHandler::GetSingleton()->LookupModByName(components.at(1));
+						if (!file) continue;
+						validReferences.push_back(Utility::ParseFormID(identifier.asString()));
+					}
+				}
 			} //End of conditions check
 			if (!conditionsAreValid) continue;
 
@@ -223,6 +251,7 @@ namespace Settings {
 				newRule.validLocations = validLocationIdentifiers;
 				newRule.locationKeywords = validLocationKeywords;
 				newRule.container = validContainers;
+				newRule.references = validReferences;
 				newRule.distributeToVendors = distributeToVendors;
 				bool changesAreValid = true;
 

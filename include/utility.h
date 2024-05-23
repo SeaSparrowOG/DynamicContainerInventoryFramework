@@ -4,6 +4,7 @@ namespace Utility {
 	bool IsHex(std::string const& s);
 	bool IsModPresent(std::string a_modName);
 	RE::FormID StringToFormID(std::string a_str);
+	RE::FormID ParseFormID(const std::string& a_identifier);
 
 	template <typename T>
 	T* GetObjectFromMod(std::string a_id, std::string a_mod) {

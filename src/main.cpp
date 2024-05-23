@@ -1,5 +1,5 @@
 #include <spdlog/sinks/basic_file_sink.h>
-#include "hooks.h"
+#include "eventManager.h"
 #include "settings.h"
 
 void SetupLog() {
@@ -22,7 +22,7 @@ void SetupLog() {
 void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     switch (a_message->type) {
     case SKSE::MessagingInterface::kDataLoaded:
-        Hooks::Install();
+        Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
         Settings::ReadSettings();
         break;
     default:

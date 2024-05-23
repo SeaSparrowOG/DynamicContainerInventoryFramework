@@ -39,9 +39,41 @@ namespace {
 
 		return false;
 	}
+
+	bool IsValidReference(ContainerManager::SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		if (!a_rule->references.empty()) {
+			std::stringstream stream;
+			stream << std::hex << a_ref->formID;
+			_loggerInfo("Ref ID: {} -> {}.", a_ref->GetName(), stream.str());
+			if (std::find(a_rule->references.begin(), a_rule->references.end(), a_ref->formID) != a_rule->references.end()) {
+				return true;
+			}
+			return false;
+		}
+		return true;
+	}
 }
 
 namespace ContainerManager {
+	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+
+		return (HasRuleApplied(a_rule, a_ref) &&
+			IsValidReference(a_rule, a_ref) &&
+			HasLocationKeywordMatch(a_rule, a_ref) &&
+			HasLocationMatch(a_rule, a_ref) &&
+			IsValidContainer(a_rule, a_ref));
+	}
+
+	bool ContainerManager::HasRuleApplied(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		if (this->handledContainers.find(a_ref) != this->handledContainers.end()) {
+			auto& rulePair = this->handledContainers[a_ref];
+			if (a_rule->ruleName != rulePair.second) return false;
+			if (RE::Calendar::GetSingleton()->GetDaysPassed() > rulePair.first + 10) return false;
+			return true;
+		}
+		return false;
+	}
+
 	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
 		if (!a_rule.oldForm) {
 			this->addRules.push_back(a_rule);
@@ -80,57 +112,59 @@ namespace ContainerManager {
 		if (ownerFaction && ownerFaction->IsVendor()) {
 			isVendorContainer = true;
 		}
+		std::vector<std::string> appliedRules;
 
 		for (auto& rule : this->replaceRules) {
 			if (isVendorContainer && !rule.distributeToVendors) continue;
 			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 			if (itemCount < 1) continue;
-
-			if (!(
-				HasLocationKeywordMatch(&rule, a_ref) &&
-				HasLocationMatch(&rule, a_ref) &&
-				IsValidContainer(&rule, a_ref))) {
-				continue;
-			}
+			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 			a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 			a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+
+			appliedRules.push_back(rule.ruleName);
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
 			if (isVendorContainer && !rule.distributeToVendors) continue;
 			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 			if (itemCount < 1) continue;
-
-			if (!(
-				HasLocationKeywordMatch(&rule, a_ref) &&
-				HasLocationMatch(&rule, a_ref) &&
-				IsValidContainer(&rule, a_ref))) {
-				continue;
-			}
+			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			int32_t ruleCount = rule.count;
 			if (ruleCount > itemCount) {
 				ruleCount = itemCount;
 			}
 			a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+
+			appliedRules.push_back(rule.ruleName);
 		} //Remove rule reading end.
 
 		for (auto& rule : this->addRules) {
 			if (isVendorContainer && !rule.distributeToVendors) continue;
-			if (!(
-				HasLocationKeywordMatch(&rule, a_ref) &&
-				HasLocationMatch(&rule, a_ref) &&
-				IsValidContainer(&rule, a_ref))) {
-				continue;
-			}
+			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			int32_t ruleCount = rule.count;
 			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 			a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+
+			appliedRules.push_back(rule.ruleName);
 		} //Add rule reading end.
+
+		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
+		for (auto rule : appliedRules) {
+			std::pair<float, std::string> rulePair;
+			rulePair.first = daysPassed;
+			rulePair.second = rule;
+			this->handledContainers[a_ref] = rulePair;
+		}
+	}
+
+	void ContainerManager::LoadMap() {
+
 	}
 }
