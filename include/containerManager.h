@@ -19,14 +19,16 @@ namespace ContainerManager {
 		void HandleContainer(RE::TESObjectREFR* a_ref);
 		bool HasRuleApplied(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
 		bool IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
-		void LoadMap();
-		void SaveMap();
+		void LoadMap(SKSE::SerializationInterface* a_intfc);
+		void SaveMap(SKSE::SerializationInterface* a_intfc);
 
 	private:
 		std::vector<SwapRule> addRules;
 		std::vector<SwapRule> removeRules;
 		std::vector<SwapRule> replaceRules;
-		std::unordered_map<RE::TESObjectREFR*, std::pair<float, std::string>> handledContainers;
-		std::unordered_map<RE::TESObjectREFR*, std::pair<float, std::string>> handledContainersBackup;
+		std::unordered_map<RE::TESObjectREFR*, float> handledContainers;
 	};
+
+	void SaveCallback(SKSE::SerializationInterface* a_intfc);
+	void LoadCallback(SKSE::SerializationInterface* a_intfc);
 }

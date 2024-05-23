@@ -64,9 +64,8 @@ namespace ContainerManager {
 
 	bool ContainerManager::HasRuleApplied(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
 		if (this->handledContainers.find(a_ref) != this->handledContainers.end()) {
-			auto& rulePair = this->handledContainers[a_ref];
-			if (a_rule->ruleName != rulePair.second) return false;
-			if (RE::Calendar::GetSingleton()->GetDaysPassed() > rulePair.first + 10) return false;
+			auto& dayAttached = this->handledContainers[a_ref];
+			if (RE::Calendar::GetSingleton()->GetDaysPassed() > dayAttached + 10.0f) return false;
 			return true;
 		}
 		return false;
@@ -155,19 +154,59 @@ namespace ContainerManager {
 
 		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
 		for (auto rule : appliedRules) {
-			std::pair<float, std::string> rulePair;
-			rulePair.first = daysPassed;
-			rulePair.second = rule;
-			this->handledContainers[a_ref] = rulePair;
+			this->handledContainers[a_ref] = daysPassed;
 		}
 	}
 
-	void ContainerManager::LoadMap() {
-		this->handledContainers = this->handledContainersBackup;
+	void ContainerManager::LoadMap(SKSE::SerializationInterface* a_intfc) {
+		std::uint32_t type;
+		std::uint32_t size;
+		std::uint32_t version;
 
+		while (a_intfc->GetNextRecordInfo(type, size, version)) {
+			if (type == _byteswap_ulong('MAPR')) {
+				std::size_t recordSize;
+				a_intfc->ReadRecordData(&recordSize, sizeof(recordSize));
+
+				for (; recordSize > 0; --recordSize) {
+					RE::FormID refBuffer = 0;
+					a_intfc->ReadRecordData(&refBuffer, sizeof(refBuffer));
+					RE::FormID newRef = 0;
+					if (a_intfc->ResolveFormID(refBuffer, newRef)) {
+						float dayAttached = -1.0f;
+						a_intfc->ReadRecordData(&dayAttached, sizeof(dayAttached));
+						if (!dayAttached) {
+							auto* foundForm = RE::TESForm::LookupByID(newRef);
+							auto* foundReference = foundForm ? foundForm->As<RE::TESObjectREFR>() : nullptr;
+							if (foundReference) {
+								_loggerInfo("Creating entry {}:\n    >{}\n    >{}.", recordSize, foundReference->GetBaseObject()->GetName(), dayAttached);
+								this->handledContainers[foundReference] = dayAttached;
+							}
+						}
+					}
+				}
+				_loggerInfo("__________________________________________________");
+			}
+		}
 	}
 
-	void ContainerManager::SaveMap() {
-		this->handledContainersBackup = this->handledContainers;
+	void ContainerManager::SaveMap(SKSE::SerializationInterface* a_intfc) {
+		if (a_intfc->OpenRecord(_byteswap_ulong('MAPR'), 0)) {
+			auto size = this->handledContainers.size();
+			a_intfc->WriteRecordData(&size, sizeof(size));
+			for (auto& container : this->handledContainers) {
+				a_intfc->WriteRecordData(&container.first->formID, sizeof(container.first->formID));
+				a_intfc->WriteRecordData(&container.second, sizeof(container.second));
+			}
+		}
+	}
+
+	void SaveCallback(SKSE::SerializationInterface* a_intfc) {
+		ContainerManager::GetSingleton()->SaveMap(a_intfc);
+	}
+
+	void LoadCallback(SKSE::SerializationInterface* a_intfc) {
+
+		ContainerManager::GetSingleton()->LoadMap(a_intfc);
 	}
 }

@@ -26,13 +26,6 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
         Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
         Settings::ReadSettings();
         break;
-    case SKSE::MessagingInterface::kPreLoadGame:
-    case SKSE::MessagingInterface::kNewGame:
-        ContainerManager::ContainerManager::GetSingleton()->LoadMap();
-        break;
-    case SKSE::MessagingInterface::kSaveGame:
-        ContainerManager::ContainerManager::GetSingleton()->SaveMap();
-        break;
     default:
         break;
     }
@@ -87,6 +80,11 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 #endif
     _loggerInfo("----------------------------------------------");
     SKSE::Init(a_skse);
+    const auto serialization = SKSE::GetSerializationInterface();
+    serialization->SetUniqueID(_byteswap_ulong('SSCD'));
+    serialization->SetSaveCallback(ContainerManager::SaveCallback);
+    serialization->SetLoadCallback(ContainerManager::LoadCallback);
+
     auto messaging = SKSE::GetMessagingInterface();
     messaging->RegisterListener(MessageHandler);
     return true;
