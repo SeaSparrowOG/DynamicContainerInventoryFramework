@@ -163,6 +163,11 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::LoadMap() {
-		this->handledContainers.clear();
+		this->handledContainers = this->handledContainersBackup;
+
+	}
+
+	void ContainerManager::SaveMap() {
+		this->handledContainersBackup = this->handledContainers;
 	}
 }

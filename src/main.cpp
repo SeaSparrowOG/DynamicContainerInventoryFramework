@@ -30,6 +30,9 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     case SKSE::MessagingInterface::kNewGame:
         ContainerManager::ContainerManager::GetSingleton()->LoadMap();
         break;
+    case SKSE::MessagingInterface::kSaveGame:
+        ContainerManager::ContainerManager::GetSingleton()->SaveMap();
+        break;
     default:
         break;
     }

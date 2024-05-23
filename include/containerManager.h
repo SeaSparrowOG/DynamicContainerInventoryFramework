@@ -20,11 +20,13 @@ namespace ContainerManager {
 		bool HasRuleApplied(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
 		bool IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
 		void LoadMap();
+		void SaveMap();
 
 	private:
 		std::vector<SwapRule> addRules;
 		std::vector<SwapRule> removeRules;
 		std::vector<SwapRule> replaceRules;
 		std::unordered_map<RE::TESObjectREFR*, std::pair<float, std::string>> handledContainers;
+		std::unordered_map<RE::TESObjectREFR*, std::pair<float, std::string>> handledContainersBackup;
 	};
 }
