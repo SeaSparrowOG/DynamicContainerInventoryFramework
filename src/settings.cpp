@@ -102,6 +102,7 @@ namespace Settings {
 
 			bool conditionsAreValid = true;
 			bool distributeToVendors = false;
+			std::string ruleName = friendlyName.asString();
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
 			std::vector<RE::TESObjectCONT*> validContainers;
@@ -253,6 +254,7 @@ namespace Settings {
 				newRule.container = validContainers;
 				newRule.references = validReferences;
 				newRule.distributeToVendors = distributeToVendors;
+				newRule.ruleName = ruleName;
 				bool changesAreValid = true;
 
 				auto& oldId = change["remove"];

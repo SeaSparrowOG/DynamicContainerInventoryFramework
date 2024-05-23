@@ -57,7 +57,7 @@ namespace {
 namespace ContainerManager {
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
 
-		return (HasRuleApplied(a_rule, a_ref) &&
+		return (!HasRuleApplied(a_rule, a_ref) &&
 			IsValidReference(a_rule, a_ref) &&
 			HasLocationKeywordMatch(a_rule, a_ref) &&
 			HasLocationMatch(a_rule, a_ref) &&
