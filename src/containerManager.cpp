@@ -66,6 +66,7 @@ namespace {
 namespace ContainerManager {
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
 		auto* refLoc = a_ref->GetCurrentLocation();
+		auto* refWorldspace = a_ref->GetWorldspace();
 
 		//Parent Location check. If the current location is NOT a match, this finds its parents.
 		bool hasParentLocation = a_rule->validLocations.empty() ? true : false;
@@ -85,6 +86,30 @@ namespace ContainerManager {
 				parent = parent->parentLoc;
 			}
 		}
+		else if (!hasParentLocation && !refLoc) {
+			if (this->worldspaceMarker.find(refWorldspace) != this->worldspaceMarker.end()) {
+				for (auto marker : this->worldspaceMarker[refWorldspace]) {
+					if (marker->GetPosition().GetDistance(a_ref->GetPosition()) > 20000.0f) continue;
+					auto* markerLoc = marker->GetCurrentLocation();
+					if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), markerLoc) != a_rule->validLocations.end()) {
+						hasParentLocation = true;
+						break;
+					}
+
+					//Check parents.
+					auto settingsParents = this->parentLocations.find(markerLoc) != this->parentLocations.end() ? this->parentLocations[markerLoc] : std::vector<RE::BGSLocation*>();
+					RE::BGSLocation* parent = markerLoc->parentLoc;
+					for (auto it = settingsParents.begin(); it != settingsParents.end() && !hasParentLocation && parent; ++it) {
+						if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), parent) != a_rule->validLocations.end()) {
+							hasParentLocation = true;
+							break;
+						}
+						parent = parent->parentLoc;
+					}
+				}
+			}
+		}
+		
 
 		//Location keyword search. If these do not exist, check the parents..
 		bool hasLocationKeywordMatch = a_rule->locationKeywords.empty() ? true : false;
@@ -326,6 +351,23 @@ namespace ContainerManager {
 			//_loggerInfo("    >{}", clib_util::editorID::get_editorID(parentLocation));
 			GetParentChain(parentLocation, &parents);
 			this->parentLocations[location] = parents;
+		}
+
+		auto& worldspaceArray = RE::TESDataHandler::GetSingleton()->GetFormArray<RE::TESWorldSpace>();
+		for (auto* worldspace : worldspaceArray) {
+			auto* persistentCell = worldspace->persistentCell;
+			if (!persistentCell) continue;
+			std::vector<RE::TESObjectREFR*> references{};
+
+			persistentCell->ForEachReference([&](RE::TESObjectREFR* a_marker) {
+				auto* markerLoc = a_marker->GetCurrentLocation();
+				if (!markerLoc) return RE::BSContainer::ForEachResult::kContinue;
+				if (!a_marker->extraList.GetByType(RE::ExtraDataType::kMapMarker)) return RE::BSContainer::ForEachResult::kContinue;
+				references.push_back(a_marker);
+				return RE::BSContainer::ForEachResult::kContinue;
+			});
+
+			this->worldspaceMarker[worldspace] = references;
 		}
 	}
 }
