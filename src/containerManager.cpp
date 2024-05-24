@@ -31,9 +31,11 @@ namespace {
 				auto* boundObject = static_cast<RE::TESBoundObject*>(form);
 				if (!boundObject) continue;
 				if (!boundObject->HasKeywordByEditorID(a_keyword)) continue;
+
 				auto inventoryCount = a_container->GetInventoryCounts().find(boundObject) != a_container->GetInventoryCounts().end() ? 
 					a_container->GetInventoryCounts()[boundObject] : 0;
 				if (inventoryCount < 1) continue;
+
 				a_container->RemoveItem(boundObject, inventoryCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				response += inventoryCount;
 			}
@@ -129,17 +131,16 @@ namespace ContainerManager {
 			}
 		}
 
-		return (!HasRuleApplied(a_ref) &&
-			hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch);
+		return (hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch);
 	}
 
 	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref) {
 		if (this->handledContainers.find(a_ref) != this->handledContainers.end()) {
 			auto& dayAttached = this->handledContainers[a_ref];
 			if (RE::Calendar::GetSingleton()->GetDaysPassed() > dayAttached + 10.0f) return false;
-			return true;
+			return false;
 		}
-		return false;
+		return true;
 	}
 
 	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
@@ -196,16 +197,21 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
+		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
+		this->handledContainers[a_ref] = daysPassed;
+
 		bool isVendorContainer = false;
 		auto* ownerFaction = a_ref->GetFactionOwner();
 		if (ownerFaction && ownerFaction->IsVendor()) {
 			isVendorContainer = true;
 		}
-		std::vector<std::string> appliedRules;
+
+		if (HasRuleApplied(a_ref)) return;
 
 		for (auto& rule : this->replaceRules) {
 			if (isVendorContainer && !rule.distributeToVendors) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
+
 			if (rule.removeKeyword.empty()) {
 				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 				if (itemCount < 1) continue;
@@ -219,6 +225,7 @@ namespace ContainerManager {
 				uint32_t itemCount = 0;
 				auto* container = a_ref->GetContainer();
 				if (!container) continue;
+
 				container->ForEachContainerObject([&](RE::ContainerObject& a_obj) {
 					auto* baseObj = a_obj.obj;
 					if (!baseObj) return RE::BSContainer::ForEachResult::kContinue;
@@ -236,20 +243,23 @@ namespace ContainerManager {
 					return RE::BSContainer::ForEachResult::kContinue;
 				});
 
-				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
-				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-				auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
-				if (leveledThing) {
-					AddLeveledListToContainer(leveledThing, itemCount, a_ref);
-				}
-				else {
-					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+				for (uint32_t i = 0; i < itemCount; ++i) {
+					size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+					RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
+					auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
+					if (leveledThing) {
+						AddLeveledListToContainer(leveledThing, itemCount, a_ref);
+					}
+					else {
+						a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+					}
 				}
 			}
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
 			if (isVendorContainer && !rule.distributeToVendors) continue;
+
 			if (rule.removeKeyword.empty()) {
 				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 				if (itemCount < 1) continue;
@@ -264,20 +274,23 @@ namespace ContainerManager {
 			else {
 				auto* container = a_ref->GetContainer();
 				if (!container) continue;
+
 				container->ForEachContainerObject([&](RE::ContainerObject& a_obj) {
 					auto* baseObj = a_obj.obj;
 					if (!baseObj) return RE::BSContainer::ForEachResult::kContinue;
-					auto* leveledBase = baseObj->As<RE::TESLeveledList>();
 
+					auto* leveledBase = baseObj->As<RE::TESLeveledList>();
 					if (!leveledBase) {
 						auto itemCount = a_ref->GetInventoryCounts()[baseObj];
 						if (!baseObj->HasKeywordByEditorID(rule.removeKeyword)) return RE::BSContainer::ForEachResult::kContinue;
+
 						itemCount += a_obj.count;
 						a_ref->RemoveItem(baseObj, a_obj.count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 					}
 					else {
 						HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeyword);
 					}
+
 					return RE::BSContainer::ForEachResult::kContinue;
 				});
 			}
@@ -298,14 +311,7 @@ namespace ContainerManager {
 			else {
 				a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
 			}
-
-			appliedRules.push_back(rule.ruleName);
 		} //Add rule reading end.
-
-		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
-		for (auto rule : appliedRules) {
-			this->handledContainers[a_ref] = daysPassed;
-		}
 	}
 
 	void ContainerManager::InitializeData() {
