@@ -31,7 +31,7 @@ namespace Serialization {
 						if (a_intfc->ResolveFormID(refBuffer, newRef)) {
 							float dayAttached = -1.0f;
 							a_intfc->ReadRecordData(&dayAttached, sizeof(dayAttached));
-							if (!dayAttached) {
+							if (dayAttached > 0 && dayAttached < RE::Calendar::GetSingleton()->GetDaysPassed() + 1.0f) {
 								auto* foundForm = RE::TESForm::LookupByID(newRef);
 								auto* foundReference = foundForm ? foundForm->As<RE::TESObjectREFR>() : nullptr;
 								if (foundReference) {
