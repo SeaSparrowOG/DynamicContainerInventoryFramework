@@ -1,6 +1,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include "containerManager.h"
 #include "eventManager.h"
+#include "iniReader.h"
 #include "serde.h"
 #include "settings.h"
 
@@ -24,9 +25,10 @@ void SetupLog() {
 void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     switch (a_message->type) {
     case SKSE::MessagingInterface::kDataLoaded:
-        Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
         ContainerManager::ContainerManager::GetSingleton()->InitializeData();
+        Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
         Settings::ReadSettings();
+        INISettings::BuildINI();
         break;
     default:
         break;

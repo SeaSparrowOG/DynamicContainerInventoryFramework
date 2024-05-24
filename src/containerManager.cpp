@@ -89,7 +89,7 @@ namespace ContainerManager {
 		else if (!hasParentLocation && !refLoc) {
 			if (this->worldspaceMarker.find(refWorldspace) != this->worldspaceMarker.end()) {
 				for (auto marker : this->worldspaceMarker[refWorldspace]) {
-					if (marker->GetPosition().GetDistance(a_ref->GetPosition()) > 20000.0f) continue;
+					if (marker->GetPosition().GetDistance(a_ref->GetPosition()) > this->fMaxLookupRadius) continue;
 					auto* markerLoc = marker->GetCurrentLocation();
 					if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), markerLoc) != a_rule->validLocations.end()) {
 						hasParentLocation = true;

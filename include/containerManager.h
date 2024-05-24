@@ -21,6 +21,7 @@ namespace ContainerManager {
 		bool IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
 		void InitializeData();
 
+		float fMaxLookupRadius;
 		std::vector<SwapRule> addRules;
 		std::vector<SwapRule> removeRules;
 		std::vector<SwapRule> replaceRules;
