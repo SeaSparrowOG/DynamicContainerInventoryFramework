@@ -209,7 +209,7 @@ namespace ContainerManager {
 		if (HasRuleApplied(a_ref)) return;
 
 		for (auto& rule : this->replaceRules) {
-			if (isVendorContainer && !rule.distributeToVendors) continue;
+			if (isVendorContainer) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			if (rule.removeKeyword.empty()) {
@@ -258,7 +258,7 @@ namespace ContainerManager {
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
-			if (isVendorContainer && !rule.distributeToVendors) continue;
+			if (isVendorContainer) continue;
 
 			if (rule.removeKeyword.empty()) {
 				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
@@ -297,7 +297,7 @@ namespace ContainerManager {
 		} //Remove rule reading end.
 
 		for (auto& rule : this->addRules) {
-			if (isVendorContainer && !rule.distributeToVendors) continue;
+			if (isVendorContainer) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			int32_t ruleCount = rule.count;

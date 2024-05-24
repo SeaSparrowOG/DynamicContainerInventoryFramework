@@ -3,7 +3,6 @@
 namespace ContainerManager {
 	struct SwapRule {
 		int                              count               { 1 };
-		bool                             distributeToVendors { false };
 		std::string                      ruleName            { std::string() };
 		std::string                      removeKeyword       { std::string() };
 		RE::TESBoundObject*              oldForm             { nullptr };
