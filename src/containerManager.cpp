@@ -41,6 +41,24 @@ namespace {
 
 		return response;
 	}
+
+	/*
+	Credit: ThirdEyeSqueegee
+	Github: https://github.com/ThirdEyeSqueegee/ContainerItemDistributor/blob/d9aae0a5e30e81db885cc28f3fcf7e11a2f97bf6/include/Utility.h#L124
+	Nexus: https://next.nexusmods.com/profile/ThirdEye3301/about-me?gameId=1704
+	*/
+	static auto AddLeveledListToContainer(RE::TESLeveledList* list, int16_t a_count, RE::TESObjectREFR* a_container) {
+		RE::BSScrapArray<RE::CALCED_OBJECT> calced_objects{};
+		list->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), a_count, calced_objects, 0, true);
+
+		std::vector<std::pair<RE::TESBoundObject*, int>> obj_and_counts{};
+		for (const auto& [form, count, pad0A, pad0C, containerItem] : calced_objects) {
+			if (const auto bound_obj{ form->As<RE::TESBoundObject>() }) {
+				a_container->AddObjectToContainer(bound_obj, nullptr, count, nullptr);
+			}
+		}
+		return obj_and_counts;
+	}
 }
 
 namespace ContainerManager {
@@ -220,7 +238,13 @@ namespace ContainerManager {
 
 				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-				a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+				auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
+				if (leveledThing) {
+					AddLeveledListToContainer(leveledThing, itemCount, a_ref);
+				}
+				else {
+					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+				}
 			}
 		} //Replace Rule reading end.
 
@@ -266,7 +290,14 @@ namespace ContainerManager {
 			int32_t ruleCount = rule.count;
 			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-			a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+			auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
+
+			if (leveledThing) {
+				AddLeveledListToContainer(leveledThing, ruleCount, a_ref);
+			}
+			else {
+				a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+			}
 
 			appliedRules.push_back(rule.ruleName);
 		} //Add rule reading end.
