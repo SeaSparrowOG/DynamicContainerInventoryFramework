@@ -14,6 +14,7 @@ namespace {
 		std::vector<std::string> missingNewField;
 		std::vector<std::string> badStringField;
 		std::vector<std::string> badStringFormat;
+		std::vector<std::string> missingForm;
 	};
 
 	void ReadReport(SwapData a_report) {
@@ -66,6 +67,14 @@ namespace {
 
 		if (!a_report.conditionsPluginTypeError.empty()) {
 			_loggerInfo("The plugins field is unreadable, but present.");
+		}
+
+		if (!a_report.missingForm.empty()) {
+			_loggerInfo("The following fields specify a form in a plugin that is loaded, but the form doesn't exist:");
+			for (auto it : a_report.missingForm) {
+				_loggerInfo("    >{}", it);
+			}
+			_loggerInfo("");
 		}
 	}
 }
@@ -168,7 +177,15 @@ namespace Settings {
 							continue;
 						}
 						auto* container = Utility::GetObjectFromMod<RE::TESObjectCONT>(components.at(0), components.at(1));
-						if (!container) continue;
+						if (!container) {
+							if (Utility::IsModPresent(components.at(1))) {
+								std::string name = friendlyNameString; name += " -> containers -> "; name += identifier.asString();
+								a_report->missingForm.push_back(name);
+								a_report->hasError = true;
+								conditionsAreValid = false;
+							}
+							continue;
+						}
 						validContainers.push_back(container);
 					}
 				}
@@ -195,9 +212,15 @@ namespace Settings {
 							continue;
 						}
 						auto* location = Utility::GetObjectFromMod<RE::BGSLocation>(components.at(0), components.at(1));
-
-						if (!location) continue;
-						_loggerInfo("Pushing back");
+						if (!location) {
+							if (Utility::IsModPresent(components.at(1))) {
+								std::string name = friendlyNameString; name += " -> locations -> "; name += identifier.asString();
+								a_report->missingForm.push_back(name);
+								a_report->hasError = true;
+								conditionsAreValid = false;
+							}
+							continue;
+						}
 						validLocationIdentifiers.push_back(location);
 					}
 				}
