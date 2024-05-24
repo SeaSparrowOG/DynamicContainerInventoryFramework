@@ -77,7 +77,7 @@ namespace ContainerManager {
 			auto settingsParents = this->parentLocations.find(refLoc) != this->parentLocations.end() ? this->parentLocations[refLoc] : std::vector<RE::BGSLocation*>();
 			RE::BGSLocation* parent = refLoc->parentLoc;
 			for (auto it = settingsParents.begin(); it != settingsParents.end() && !hasParentLocation && parent; ++it) {
-				if (std::find(settingsParents.begin(), settingsParents.end(), parent) != settingsParents.end()) {
+				if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), parent) != a_rule->validLocations.end()) {
 					hasParentLocation = true;
 				}
 				parent = parent->parentLoc;
