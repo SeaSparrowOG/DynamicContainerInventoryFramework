@@ -325,6 +325,19 @@ namespace Settings {
 				} //New ID Check
 				if (!changesAreValid) continue;
 
+				auto& removeKeyword = change["removeByKeyword"];
+				if (removeKeyword) {
+					if (!removeKeyword.isString()) {
+						std::string name = friendlyNameString; name += " -> removeKeyword";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						changesAreValid = false;
+						continue;
+					}
+
+					newRule.removeKeyword = removeKeyword.asString();
+				}
+
 				auto& countField = change["count"];
 				if (countField && countField.isInt()) {
 					newRule.count = countField.asInt();
@@ -332,7 +345,7 @@ namespace Settings {
 				else {
 					newRule.count = 1;
 				}
-				if (!(oldId || newId)) continue;
+				if (!(oldId || newId || removeKeyword)) continue;
 				ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
 			} //End of changes check
 		} //End of data loop

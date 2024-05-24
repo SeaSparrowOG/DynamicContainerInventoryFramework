@@ -17,6 +17,30 @@ namespace {
 		a_parentArray->push_back(parent);
 		return GetParentChain(parent, a_parentArray);
 	}
+
+	uint32_t HandleContainerLeveledList(RE::TESLeveledList* a_leveledList, RE::TESObjectREFR* a_container, std::string a_keyword) {
+		uint32_t response = 0;
+		auto forms = a_leveledList->GetContainedForms();
+
+		for (auto* form : forms) {
+			auto* leveledForm = form->As<RE::TESLeveledList>();
+			if (leveledForm) {
+				response += HandleContainerLeveledList(leveledForm, a_container, a_keyword);
+			}
+			else {
+				auto* boundObject = static_cast<RE::TESBoundObject*>(form);
+				if (!boundObject) continue;
+				if (!boundObject->HasKeywordByEditorID(a_keyword)) continue;
+				auto inventoryCount = a_container->GetInventoryCounts().find(boundObject) != a_container->GetInventoryCounts().end() ? 
+					a_container->GetInventoryCounts()[boundObject] : 0;
+				if (inventoryCount < 1) continue;
+				a_container->RemoveItem(boundObject, inventoryCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+				response += inventoryCount;
+			}
+		}
+
+		return response;
+	}
 }
 
 namespace ContainerManager {
@@ -101,34 +125,55 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
-		if (!a_rule.oldForm) {
-			this->addRules.push_back(a_rule);
-			_loggerInfo("Registered bew <Add> rule.");
-			_loggerInfo("    Form(s) that can be added:");
-			for (auto form : a_rule.newForm) {
-				_loggerInfo("        >{}.", form->GetName());
+		if (a_rule.removeKeyword.empty()) {
+			if (!a_rule.oldForm) {
+				this->addRules.push_back(a_rule);
+				_loggerInfo("Registered bew <Add> rule.");
+				_loggerInfo("    Form(s) that can be added:");
+				for (auto form : a_rule.newForm) {
+					_loggerInfo("        >{}.", form->GetName());
+				}
+				_loggerInfo("    Ammount to be added: {}.", a_rule.count);
+				_loggerInfo("----------------------------------------------");
 			}
-			_loggerInfo("    Ammount to be added: {}.", a_rule.count);
-			_loggerInfo("----------------------------------------------");
-		}
-		else if (a_rule.newForm.empty()) {
-			this->removeRules.push_back(a_rule);
+			else if (a_rule.newForm.empty()) {
+				this->removeRules.push_back(a_rule);
 
-			_loggerInfo("Registered bew <Remove> rule.");
-			_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
-			_loggerInfo("    Ammount to be removed: {}.", a_rule.count);
-			_loggerInfo("----------------------------------------------");
+				_loggerInfo("Registered bew <Remove> rule.");
+				_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
+				_loggerInfo("    Ammount to be removed: {}.", a_rule.count);
+				_loggerInfo("----------------------------------------------");
+			}
+			else {
+				this->replaceRules.push_back(a_rule);
+
+				_loggerInfo("Registered bew <Replace> rule.");
+				_loggerInfo("    Form(s) that can be added:");
+				for (auto form : a_rule.newForm) {
+					_loggerInfo("        >{}.", form->GetName());
+				}
+				_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
+				_loggerInfo("----------------------------------------------");
+			}
 		}
 		else {
-			this->replaceRules.push_back(a_rule);
-
-			_loggerInfo("Registered bew <Replace> rule.");
-			_loggerInfo("    Form(s) that can be added:");
-			for (auto form : a_rule.newForm) {
-				_loggerInfo("        >{}.", form->GetName());
+			if (!a_rule.newForm.empty()) {
+				this->replaceRules.push_back(a_rule);
+				_loggerInfo("Registered bew <Replace> rule.");
+				_loggerInfo("    Form(s) that can be added:");
+				for (auto form : a_rule.newForm) {
+					_loggerInfo("        >{}.", form->GetName());
+				}
+				_loggerInfo("    Items marked as {} will be removed.", a_rule.removeKeyword);
+				_loggerInfo("----------------------------------------------");
 			}
-			_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
-			_loggerInfo("----------------------------------------------");
+			else {
+				this->removeRules.push_back(a_rule);
+
+				_loggerInfo("Registered bew <Remove> rule.");
+				_loggerInfo("    Items marked as {} will be removed.", a_rule.removeKeyword);
+				_loggerInfo("----------------------------------------------");
+			}
 		}
 	}
 
@@ -142,31 +187,76 @@ namespace ContainerManager {
 
 		for (auto& rule : this->replaceRules) {
 			if (isVendorContainer && !rule.distributeToVendors) continue;
-			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
-			if (itemCount < 1) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
+			if (rule.removeKeyword.empty()) {
+				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+				if (itemCount < 1) continue;
 
-			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
-			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-			a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-			a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
+				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+				a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+			}
+			else {
+				uint32_t itemCount = 0;
+				auto* container = a_ref->GetContainer();
+				if (!container) continue;
+				container->ForEachContainerObject([&](RE::ContainerObject& a_obj) {
+					auto* baseObj = a_obj.obj;
+					if (!baseObj) return RE::BSContainer::ForEachResult::kContinue;
 
-			appliedRules.push_back(rule.ruleName);
+					auto* leveledBase = baseObj->As<RE::TESLeveledList>();
+					if (!leveledBase) {
+						if (!baseObj->HasKeywordByEditorID(rule.removeKeyword)) return RE::BSContainer::ForEachResult::kContinue;
+						itemCount += a_obj.count;
+						a_ref->RemoveItem(baseObj, a_obj.count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+					}
+					else {
+						itemCount += HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeyword);
+					}
+
+					return RE::BSContainer::ForEachResult::kContinue;
+				});
+
+				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
+				a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+			}
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
 			if (isVendorContainer && !rule.distributeToVendors) continue;
-			auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
-			if (itemCount < 1) continue;
-			if (!IsRuleValid(&rule, a_ref)) continue;
+			if (rule.removeKeyword.empty()) {
+				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+				if (itemCount < 1) continue;
+				if (!IsRuleValid(&rule, a_ref)) continue;
 
-			int32_t ruleCount = rule.count;
-			if (ruleCount > itemCount) {
-				ruleCount = itemCount;
+				int32_t ruleCount = rule.count;
+				if (ruleCount > itemCount) {
+					ruleCount = itemCount;
+				}
+				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+			} 
+			else {
+				auto* container = a_ref->GetContainer();
+				if (!container) continue;
+				container->ForEachContainerObject([&](RE::ContainerObject& a_obj) {
+					auto* baseObj = a_obj.obj;
+					if (!baseObj) return RE::BSContainer::ForEachResult::kContinue;
+					auto* leveledBase = baseObj->As<RE::TESLeveledList>();
+
+					if (!leveledBase) {
+						auto itemCount = a_ref->GetInventoryCounts()[baseObj];
+						if (!baseObj->HasKeywordByEditorID(rule.removeKeyword)) return RE::BSContainer::ForEachResult::kContinue;
+						itemCount += a_obj.count;
+						a_ref->RemoveItem(baseObj, a_obj.count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+					}
+					else {
+						HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeyword);
+					}
+					return RE::BSContainer::ForEachResult::kContinue;
+				});
 			}
-			a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-
-			appliedRules.push_back(rule.ruleName);
 		} //Remove rule reading end.
 
 		for (auto& rule : this->addRules) {
