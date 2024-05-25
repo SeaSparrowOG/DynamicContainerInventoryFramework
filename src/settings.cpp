@@ -4,17 +4,19 @@
 
 namespace {
 	struct SwapData {
+		bool unableToOpen = false;
 		bool hasError = false;
 		bool hasBatData = false;
+		bool missingName = false;
+		bool noChanges = false;
 		std::string name;
 		std::string changesError;
 		std::string conditionsError;
 		std::string conditionsPluginTypeError;
-		std::vector<std::string> missingOldField;
-		std::vector<std::string> missingNewField;
 		std::vector<std::string> badStringField;
 		std::vector<std::string> badStringFormat;
 		std::vector<std::string> missingForm;
+		std::vector<std::string> objectNotArray;
 	};
 
 	void ReadReport(SwapData a_report) {
@@ -23,25 +25,20 @@ namespace {
 		_loggerInfo("{} has errors:", a_report.name);
 		if (a_report.hasBatData) {
 			_loggerInfo("Swap has bad data.");
-		}
-
-		if (!a_report.missingOldField.empty()) {
-			_loggerInfo("Missing item for \"add\" field:");
-			for (auto it : a_report.missingOldField) {
-				_loggerInfo("    >{}", it);
-			}
 			_loggerInfo("");
 		}
 
-		if (!a_report.missingNewField.empty()) {
-			_loggerInfo("Missing item for \"remove\" field:");
-			for (auto it : a_report.missingNewField) {
-				_loggerInfo("    >{}", it);
-			}
+		if (a_report.missingName) {
+			_loggerInfo("Missing friendlyName, or field not a string.");
 			_loggerInfo("");
 		}
 
-		if (!a_report.missingNewField.empty()) {
+		if (a_report.noChanges) {
+			_loggerInfo("    Missing changes field, or field is invalid.");
+			_loggerInfo("");
+		}
+
+		if (!a_report.badStringField.empty()) {
 			_loggerInfo("The following fields are not strings when they should be:");
 			for (auto it : a_report.badStringField) {
 				_loggerInfo("    >{}", it);
@@ -49,7 +46,15 @@ namespace {
 			_loggerInfo("");
 		}
 
-		if (!a_report.missingNewField.empty()) {
+		if (!a_report.objectNotArray.empty()) {
+			_loggerInfo("The following fields are not arrays when they should be:");
+			for (auto it : a_report.objectNotArray) {
+				_loggerInfo("    >{}", it);
+			}
+			_loggerInfo("");
+		}
+
+		if (!a_report.badStringFormat.empty()) {
 			_loggerInfo("The following fields are not formatted as they should be:");
 			for (auto it : a_report.badStringFormat) {
 				_loggerInfo("    >{}", it);
@@ -59,14 +64,17 @@ namespace {
 
 		if (!a_report.changesError.empty()) {
 			_loggerInfo("Changes error.");
+			_loggerInfo("");
 		}
 
 		if (!a_report.conditionsError.empty()) {
 			_loggerInfo("The condition field is unreadable, but present.");
+			_loggerInfo("");
 		}
 
 		if (!a_report.conditionsPluginTypeError.empty()) {
 			_loggerInfo("The plugins field is unreadable, but present.");
+			_loggerInfo("");
 		}
 
 		if (!a_report.missingForm.empty()) {
@@ -74,6 +82,11 @@ namespace {
 			for (auto it : a_report.missingForm) {
 				_loggerInfo("    >{}", it);
 			}
+			_loggerInfo("");
+		}
+
+		if (a_report.unableToOpen) {
+			_loggerInfo("Unable to open the config. Make sure the JSON is valid (no missing commas, brackets are closed...)");
 			_loggerInfo("");
 		}
 	}
@@ -99,6 +112,7 @@ namespace Settings {
 			if (!friendlyName || !friendlyName.isString()) {
 				a_report->hasBatData = true;
 				a_report->hasError = true;
+				a_report->missingName = true;
 				continue;
 			}
 			auto friendlyNameString = friendlyName.asString();
@@ -106,6 +120,7 @@ namespace Settings {
 			if (!changes || !changes.isArray()) {
 				a_report->changesError = friendlyNameString;
 				a_report->hasError = true;
+				a_report->noChanges = true;
 				continue;
 			}
 
@@ -151,7 +166,15 @@ namespace Settings {
 
 				//Container check.
 				auto& containerField = conditions["containers"];
-				if (containerField && containerField.isArray()) {
+				if (containerField) {
+					if (!containerField.isArray()) {
+						std::string name = friendlyNameString; name += " -> add";
+						a_report->objectNotArray.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
 					for (auto& identifier : containerField) {
 						if (!identifier.isString()) {
 							std::string name = friendlyNameString; name += " -> containers";
@@ -186,8 +209,16 @@ namespace Settings {
 				//Location check.
 				//If a location is null, it will not error.
 				auto& locations = conditions["locations"];
-				if (locations && locations.isArray()) {
+				if (locations) {
 					for (auto& identifier : locations) {
+						if (!locations.isArray()) {
+							std::string name = friendlyNameString; name += " -> locations";
+							a_report->objectNotArray.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
 						if (!identifier.isString()) {
 							std::string name = friendlyNameString; name += " -> locations";
 							a_report->badStringField.push_back(name);
@@ -221,7 +252,15 @@ namespace Settings {
 				//Location keywords.
 				//No verification, for KID reasons.
 				auto& locationKeywords = conditions["locationKeywords"];
-				if (locationKeywords && locationKeywords.isArray()) {
+				if (locationKeywords) {
+					if (!locationKeywords.isArray()) {
+						std::string name = friendlyNameString; name += " -> locationKeywords";
+						a_report->objectNotArray.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
 					for (auto& identifier : locationKeywords) {
 						if (!identifier.isString()) {
 							std::string name = friendlyNameString; name += " -> locationKeywords";
@@ -296,7 +335,7 @@ namespace Settings {
 					auto* oldChangeForm = Utility::GetFormFromMod(components.at(0), components.at(1));
 					if (!oldChangeForm || !oldChangeForm->IsBoundObject()) {
 						std::string name = friendlyNameString; name += " -> remove -> "; name += oldIdString;
-						a_report->missingOldField.push_back(name);
+						a_report->missingForm.push_back(name);
 						a_report->hasError = true;
 						changesAreValid = false;
 						continue;
@@ -308,7 +347,7 @@ namespace Settings {
 				if (newId) {
 					if (!newId.isArray()) {
 						std::string name = friendlyNameString; name += " -> add";
-						a_report->badStringField.push_back(name);
+						a_report->objectNotArray.push_back(name);
 						a_report->hasError = true;
 						changesAreValid = false;
 						continue;
@@ -333,7 +372,13 @@ namespace Settings {
 						}
 
 						auto* newChangeForm = Utility::GetFormFromMod(newComponents.at(0), newComponents.at(1));
-						if (!newChangeForm || !newChangeForm->IsBoundObject()) continue;
+						if (!newChangeForm || !newChangeForm->IsBoundObject()) {
+							std::string name = friendlyNameString; name += " -> remove -> "; name += newIdString;
+							a_report->missingForm.push_back(name);
+							a_report->hasError = true;
+							changesAreValid = false;
+							continue;
+						}
 						auto* newForm = static_cast<RE::TESBoundObject*>(newChangeForm);
 						newRule.newForm.push_back(newForm);
 					}
@@ -358,7 +403,7 @@ namespace Settings {
 					newRule.count = countField.asInt();
 				}
 				else {
-					newRule.count = 1;
+					newRule.count = -1;
 				}
 				if (!(oldId || newId || removeKeyword)) continue;
 				ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);

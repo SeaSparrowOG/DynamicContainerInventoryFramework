@@ -4,8 +4,8 @@
 namespace INISettings {
 	bool ShouldRebuildINI(CSimpleIniA* a_ini) {
 		const char* section = "General";
-		const char* keys[5] = { "fMaxRefLookupDistance" };
-		int sectionLength = 5;
+		const char* keys[1] = { "fMaxRefLookupDistance" };
+		int sectionLength = 1;
 		std::list<CSimpleIniA::Entry> keyHolder;
 
 		a_ini->GetAllKeys(section, keyHolder);
@@ -34,6 +34,7 @@ namespace INISettings {
 		if (createEntries) {
 			ini.Delete("General", NULL);
 			ini.SetDoubleValue("General", "fMaxRefLookupDistance", 25000.0, ";If a reference does not have a location specified, search this distance for a marker with a location to substitute.");
+			ini.SaveFile(f.c_str());
 		}
 
 		double range = ini.GetDoubleValue("General", "fMaxRefLookupDistance", 25000.0f);

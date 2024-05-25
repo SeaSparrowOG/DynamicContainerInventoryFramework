@@ -177,7 +177,12 @@ namespace ContainerManager {
 				for (auto form : a_rule.newForm) {
 					_loggerInfo("        >{}.", form->GetName());
 				}
-				_loggerInfo("    Ammount to be added: {}.", a_rule.count);
+				if (a_rule.count < 1) {
+					_loggerInfo("    Ammount to be added: {}.", 1);
+				}
+				else {
+					_loggerInfo("    Ammount to be added: {}.", a_rule.count);
+				}
 				_loggerInfo("----------------------------------------------");
 			}
 			else if (a_rule.newForm.empty()) {
@@ -185,7 +190,12 @@ namespace ContainerManager {
 
 				_loggerInfo("Registered bew <Remove> rule.");
 				_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
-				_loggerInfo("    Ammount to be removed: {}.", a_rule.count);
+				if (a_rule.count < 1) {
+					_loggerInfo("    All instances of the item will be removed.");
+				}
+				else {
+					_loggerInfo("    Ammount to be removed: {}.", a_rule.count);
+				}
 				_loggerInfo("----------------------------------------------");
 			}
 			else {
@@ -291,7 +301,7 @@ namespace ContainerManager {
 				if (!IsRuleValid(&rule, a_ref)) continue;
 
 				int32_t ruleCount = rule.count;
-				if (ruleCount > itemCount) {
+				if (ruleCount > itemCount || ruleCount < 1) {
 					ruleCount = itemCount;
 				}
 				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
@@ -326,6 +336,10 @@ namespace ContainerManager {
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			int32_t ruleCount = rule.count;
+			if (ruleCount < 1) {
+				ruleCount = 1;
+			}
+
 			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 			auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
