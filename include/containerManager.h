@@ -23,11 +23,12 @@ namespace ContainerManager {
 		void InitializeData();
 
 		float fMaxLookupRadius;
-		float fResetDays;
+		uint32_t fResetDaysLong;
+		uint32_t fResetDaysShort;
 		std::vector<SwapRule> addRules;
 		std::vector<SwapRule> removeRules;
 		std::vector<SwapRule> replaceRules;
-		std::unordered_map<RE::TESObjectREFR*, float> handledContainers;
+		std::unordered_map<RE::TESObjectREFR*, std::pair<bool, float>> handledContainers;
 		std::unordered_map<RE::BGSLocation*, std::vector<RE::BGSLocation*>> parentLocations;
 		std::unordered_map<RE::TESWorldSpace*, std::vector<RE::TESObjectREFR*>> worldspaceMarker;
 	};

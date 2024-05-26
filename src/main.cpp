@@ -27,6 +27,7 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     case SKSE::MessagingInterface::kDataLoaded:
         ContainerManager::ContainerManager::GetSingleton()->InitializeData();
         Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
+        Events::LocationClearedEvent::GetSingleton()->RegisterListener();
         Settings::ReadSettings();
         INISettings::BuildINI();
         break;

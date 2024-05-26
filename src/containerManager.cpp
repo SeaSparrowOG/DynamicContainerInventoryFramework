@@ -176,11 +176,28 @@ namespace ContainerManager {
 	}
 
 	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref) {
+		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
+		float dayToStore = daysPassed;
+		bool cleared = a_ref->GetCurrentLocation() ? a_ref->GetCurrentLocation()->IsCleared() : false;
+		if (cleared) {
+			dayToStore += this->fResetDaysLong;
+		}
+		else {
+			dayToStore += this->fResetDaysShort;
+		}
+		auto newVal = std::pair<bool, float>(cleared, dayToStore);
+
 		if (this->handledContainers.find(a_ref) != this->handledContainers.end()) {
-			auto& dayAttached = this->handledContainers[a_ref];
-			if (RE::Calendar::GetSingleton()->GetDaysPassed() > dayAttached + this->fResetDays) return true;
+			float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
+			auto resetDayPair = this->handledContainers[a_ref].second;
+			if (currentDay > resetDayPair) {
+				this->handledContainers[a_ref] = newVal;
+				return true;
+			} 
+			this->handledContainers[a_ref] = newVal;
 			return false;
 		}
+		this->handledContainers[a_ref] = newVal;
 		return false;
 	}
 
@@ -254,9 +271,6 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
-		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
-		this->handledContainers[a_ref] = daysPassed;
-
 		bool isVendorContainer = false;
 		auto* ownerFaction = a_ref->GetFactionOwner();
 		if (ownerFaction && ownerFaction->IsVendor()) {
@@ -265,7 +279,6 @@ namespace ContainerManager {
 
 		if (HasRuleApplied(a_ref)) return;
 
-		bool allowDistribution = true;
 		auto* containerBase = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
 		if (containerBase && !(containerBase->data.flags & RE::CONT_DATA::Flag::kRespawn)) {
 			return;
@@ -439,5 +452,12 @@ namespace ContainerManager {
 
 			this->worldspaceMarker[worldspace] = references;
 		}
+
+		auto* longGS = RE::GameSettingCollection::GetSingleton()->GetSetting("iHoursToRespawnCellCleared");
+		uint32_t longDelay = longGS->GetUInt() / 24;
+		auto* shortGS = RE::GameSettingCollection::GetSingleton()->GetSetting("iHoursToRespawnCell");
+		uint32_t shortDelay = shortGS->GetUInt() / 24;
+		this->fResetDaysShort = shortDelay;
+		this->fResetDaysLong = longDelay;
 	}
 }

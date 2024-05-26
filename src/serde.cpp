@@ -8,7 +8,8 @@ namespace Serialization {
 			a_intfc->WriteRecordData(&size, sizeof(size));
 			for (auto& container : ContainerManager::ContainerManager::GetSingleton()->handledContainers) {
 				a_intfc->WriteRecordData(&container.first->formID, sizeof(container.first->formID));
-				a_intfc->WriteRecordData(&container.second, sizeof(container.second));
+				a_intfc->WriteRecordData(&container.second.first, sizeof(container.second.first));
+				a_intfc->WriteRecordData(&container.second.second, sizeof(container.second.second));
 			}
 		}
 	}
@@ -30,12 +31,16 @@ namespace Serialization {
 						RE::FormID newRef = 0;
 						if (a_intfc->ResolveFormID(refBuffer, newRef)) {
 							float dayAttached = -1.0f;
+							bool clearedLoc = false;
+
+							a_intfc->ReadRecordData(&clearedLoc, sizeof(clearedLoc));
 							a_intfc->ReadRecordData(&dayAttached, sizeof(dayAttached));
-							if (dayAttached > 0 && dayAttached < RE::Calendar::GetSingleton()->GetDaysPassed() + 1.0f) {
+							if (dayAttached > 0) {
 								auto* foundForm = RE::TESForm::LookupByID(newRef);
 								auto* foundReference = foundForm ? foundForm->As<RE::TESObjectREFR>() : nullptr;
 								if (foundReference) {
-									ContainerManager::ContainerManager::GetSingleton()->handledContainers[foundReference] = dayAttached;
+									auto newVal = std::make_pair(clearedLoc, dayAttached);
+									ContainerManager::ContainerManager::GetSingleton()->handledContainers[foundReference] = newVal;
 								}
 							}
 						}
