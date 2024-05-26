@@ -23,6 +23,7 @@ namespace ContainerManager {
 		void InitializeData();
 
 		float fMaxLookupRadius;
+		float fResetDays;
 		std::vector<SwapRule> addRules;
 		std::vector<SwapRule> removeRules;
 		std::vector<SwapRule> replaceRules;
