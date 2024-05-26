@@ -128,6 +128,7 @@ namespace Settings {
 			std::string ruleName = friendlyName.asString(); ruleName += a_reportName;
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
+			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers;
 			std::vector<RE::TESObjectCONT*> validContainers;
 			std::vector<RE::FormID> validReferences;
 
@@ -210,15 +211,14 @@ namespace Settings {
 				//If a location is null, it will not error.
 				auto& locations = conditions["locations"];
 				if (locations) {
+					if (!locations.isArray()) {
+						std::string name = friendlyNameString; name += " -> locations";
+						a_report->objectNotArray.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
 					for (auto& identifier : locations) {
-						if (!locations.isArray()) {
-							std::string name = friendlyNameString; name += " -> locations";
-							a_report->objectNotArray.push_back(name);
-							a_report->hasError = true;
-							conditionsAreValid = false;
-							continue;
-						}
-
 						if (!identifier.isString()) {
 							std::string name = friendlyNameString; name += " -> locations";
 							a_report->badStringField.push_back(name);
@@ -246,6 +246,48 @@ namespace Settings {
 							continue;
 						}
 						validLocationIdentifiers.push_back(location);
+					}
+				}
+
+				//Location check.
+				//If a location is null, it will not error.
+				auto& worldspaces = conditions["worldspaces"];
+				if (worldspaces) {
+					if (!worldspaces.isArray()) {
+						std::string name = friendlyNameString; name += " -> worldspaces";
+						a_report->objectNotArray.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					for (auto& identifier : worldspaces) {
+						if (!identifier.isString()) {
+							std::string name = friendlyNameString; name += " -> worldspaces";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						auto components = clib_util::string::split(identifier.asString(), "|"sv);
+						if (components.size() != 2) {
+							std::string name = friendlyNameString; name += " -> worldspaces -> "; name += identifier.asString();
+							a_report->badStringFormat.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						auto* worldspace = Utility::GetObjectFromMod<RE::TESWorldSpace>(components.at(0), components.at(1));
+						if (!worldspace) {
+							if (Utility::IsModPresent(components.at(1))) {
+								std::string name = friendlyNameString; name += " -> worldspaces -> "; name += identifier.asString();
+								a_report->missingForm.push_back(name);
+								a_report->hasError = true;
+								conditionsAreValid = false;
+							}
+							continue;
+						}
+						validWorldspaceIdentifiers.push_back(worldspace);
 					}
 				}
 
@@ -306,6 +348,7 @@ namespace Settings {
 			for (auto& change : changes) {
 				ContainerManager::SwapRule newRule;
 				newRule.validLocations = validLocationIdentifiers;
+				newRule.validWorldspaces = validWorldspaceIdentifiers;
 				newRule.locationKeywords = validLocationKeywords;
 				newRule.container = validContainers;
 				newRule.references = validReferences;

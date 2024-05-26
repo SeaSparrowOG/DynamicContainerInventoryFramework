@@ -9,6 +9,7 @@ namespace ContainerManager {
 		std::vector<std::string>         locationKeywords    { std::vector<std::string>() };
 		std::vector<RE::TESObjectCONT*>  container           { std::vector<RE::TESObjectCONT*>() };
 		std::vector<RE::BGSLocation*>    validLocations      { std::vector<RE::BGSLocation*>() };
+		std::vector<RE::TESWorldSpace*>  validWorldspaces    { std::vector<RE::TESWorldSpace*>() };
 		std::vector<RE::TESBoundObject*> newForm             { std::vector<RE::TESBoundObject*>() };
 		std::vector<RE::FormID>          references          { std::vector<RE::FormID>() };
 	};

@@ -68,6 +68,13 @@ namespace ContainerManager {
 		auto* refLoc = a_ref->GetCurrentLocation();
 		auto* refWorldspace = a_ref->GetWorldspace();
 
+		bool hasWorldspaceLocation = a_rule->validWorldspaces.empty() ? true : false;
+		if (!hasWorldspaceLocation && refWorldspace) {
+			if (std::find(a_rule->validWorldspaces.begin(), a_rule->validWorldspaces.end(), refWorldspace) != a_rule->validWorldspaces.end()) {
+				hasWorldspaceLocation = true;
+			}
+		}
+
 		//Parent Location check. If the current location is NOT a match, this finds its parents.
 		bool hasParentLocation = a_rule->validLocations.empty() ? true : false;
 
@@ -156,7 +163,7 @@ namespace ContainerManager {
 			}
 		}
 
-		return (hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch);
+		return (hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch && hasWorldspaceLocation);
 	}
 
 	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref) {
