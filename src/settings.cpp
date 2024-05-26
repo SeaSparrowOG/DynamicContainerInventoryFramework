@@ -428,17 +428,27 @@ namespace Settings {
 				} //New ID Check
 				if (!changesAreValid) continue;
 
-				auto& removeKeyword = change["removeByKeyword"];
-				if (removeKeyword) {
-					if (!removeKeyword.isString()) {
-						std::string name = friendlyNameString; name += " -> removeKeyword";
-						a_report->badStringField.push_back(name);
+				auto& removeKeywords = change["removeByKeywords"];
+				if (removeKeywords) {
+					if (!removeKeywords.isArray()) {
+						a_report->conditionsPluginTypeError = friendlyNameString;
 						a_report->hasError = true;
-						changesAreValid = false;
+						conditionsAreValid = false;
 						continue;
 					}
 
-					newRule.removeKeyword = removeKeyword.asString();
+					std::vector<std::string> validRemoveKeywords{};
+					for (auto& removeKeyword : removeKeywords) {
+						if (!removeKeyword.isString()) {
+							std::string name = friendlyNameString; name += " -> removeByKeywords";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							changesAreValid = false;
+							continue;
+						}
+						validRemoveKeywords.push_back(removeKeyword.asString());
+					}
+					newRule.removeKeywords = validRemoveKeywords;
 				}
 
 				auto& countField = change["count"];
@@ -448,7 +458,7 @@ namespace Settings {
 				else {
 					newRule.count = -1;
 				}
-				if (!(oldId || newId || removeKeyword)) continue;
+				if (!(oldId || newId || removeKeywords)) continue;
 				ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
 			} //End of changes check
 		} //End of data loop

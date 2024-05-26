@@ -4,7 +4,7 @@ namespace ContainerManager {
 	struct SwapRule {
 		int                              count               { 1 };
 		std::string                      ruleName            { std::string() };
-		std::string                      removeKeyword       { std::string() };
+		std::vector<std::string>         removeKeywords      { std::string() };
 		RE::TESBoundObject*              oldForm             { nullptr };
 		std::vector<std::string>         locationKeywords    { std::vector<std::string>() };
 		std::vector<RE::TESObjectCONT*>  container           { std::vector<RE::TESObjectCONT*>() };
