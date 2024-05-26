@@ -265,6 +265,16 @@ namespace ContainerManager {
 
 		if (HasRuleApplied(a_ref)) return;
 
+		bool allowDistribution = true;
+		auto* containerBase = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
+		if (containerBase && !(containerBase->data.flags & RE::CONT_DATA::Flag::kRespawn)) {
+			return;
+		}
+		auto* parentEncounterZone = a_ref->parentCell->extraList.GetEncounterZone();
+		if (parentEncounterZone && parentEncounterZone->data.flags & RE::ENCOUNTER_ZONE_DATA::Flag::kNeverResets) {
+			return;
+		}
+
 		for (auto& rule : this->replaceRules) {
 			if (isVendorContainer) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
@@ -315,7 +325,7 @@ namespace ContainerManager {
 						itemCount += HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeywords, ruleCount);
 					}
 					return RE::BSContainer::ForEachResult::kContinue;
-				});
+					});
 
 				for (uint32_t i = 0; i < itemCount; ++i) {
 					size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
@@ -344,7 +354,7 @@ namespace ContainerManager {
 					ruleCount = itemCount;
 				}
 				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-			} 
+			}
 			else {
 				auto* container = a_ref->GetContainer();
 				if (!container) continue;
@@ -373,7 +383,7 @@ namespace ContainerManager {
 					}
 
 					return RE::BSContainer::ForEachResult::kContinue;
-				});
+					});
 			}
 		} //Remove rule reading end.
 
