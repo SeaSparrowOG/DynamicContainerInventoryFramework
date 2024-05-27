@@ -21,6 +21,7 @@ namespace ContainerManager {
 		bool HasRuleApplied(RE::TESObjectREFR* a_ref);
 		bool IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
 		void InitializeData();
+		void RegisterInMap(RE::TESObjectREFR* a_ref, bool a_cleared, float a_resetTime);
 
 		float fMaxLookupRadius;
 		uint32_t fResetDaysLong;
@@ -28,7 +29,7 @@ namespace ContainerManager {
 		std::vector<SwapRule> addRules;
 		std::vector<SwapRule> removeRules;
 		std::vector<SwapRule> replaceRules;
-		std::unordered_map<RE::TESObjectREFR*, std::pair<bool, float>> handledContainers;
+		std::unordered_map<RE::FormID, std::pair<bool, float>> handledContainers;
 		std::unordered_map<RE::BGSLocation*, std::vector<RE::BGSLocation*>> parentLocations;
 		std::unordered_map<RE::TESWorldSpace*, std::vector<RE::TESObjectREFR*>> worldspaceMarker;
 	};

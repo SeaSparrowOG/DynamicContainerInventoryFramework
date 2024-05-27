@@ -210,19 +210,16 @@ namespace ContainerManager {
 		else {
 			dayToStore += this->fResetDaysShort;
 		}
-		auto newVal = std::pair<bool, float>(cleared, dayToStore);
 
-		if (this->handledContainers.find(a_ref) != this->handledContainers.end()) {
-			float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
-			auto resetDayPair = this->handledContainers[a_ref].second;
-			if (currentDay > resetDayPair) {
-				this->handledContainers[a_ref] = newVal;
+		float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
+		auto resetDay = this->handledContainers[a_ref->formID].second;
+		RegisterInMap(a_ref, cleared, resetDay);
+		if (this->handledContainers.find(a_ref->formID) != this->handledContainers.end()) {
+			if (currentDay > resetDay) {
 				return true;
 			} 
-			this->handledContainers[a_ref] = newVal;
 			return false;
 		}
-		this->handledContainers[a_ref] = newVal;
 		return false;
 	}
 
@@ -489,5 +486,10 @@ namespace ContainerManager {
 		uint32_t shortDelay = shortGS->GetUInt() / 24;
 		this->fResetDaysShort = shortDelay;
 		this->fResetDaysLong = longDelay;
+	}
+
+	void ContainerManager::RegisterInMap(RE::TESObjectREFR* a_ref, bool a_cleared, float a_resetTime) {
+		auto newVal = std::pair<bool, float>(a_cleared, a_resetTime);
+		this->handledContainers[a_ref->formID] = newVal;
 	}
 }

@@ -36,7 +36,9 @@ namespace Events {
 		auto& handledContainers = containerManagerSingleton->handledContainers;
 
 		for (auto& pair : handledContainers) {
-			auto* pairLoc = pair.first->GetCurrentLocation();
+			auto* ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(pair.first);
+			if (!ref) continue;
+			auto* pairLoc = ref->GetCurrentLocation();
 			if (!pairLoc) continue;
 			if (pairLoc->IsCleared() && !pair.second.first && pair.second.second > daysPassed) {
 				pair.second.first = true;
