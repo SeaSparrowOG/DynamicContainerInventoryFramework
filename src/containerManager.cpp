@@ -58,17 +58,43 @@ namespace {
 	Github: https://github.com/ThirdEyeSqueegee/ContainerItemDistributor/blob/d9aae0a5e30e81db885cc28f3fcf7e11a2f97bf6/include/Utility.h#L124
 	Nexus: https://next.nexusmods.com/profile/ThirdEye3301/about-me?gameId=1704
 	*/
-	static auto AddLeveledListToContainer(RE::TESLeveledList* list, int16_t a_count, RE::TESObjectREFR* a_container) {
-		RE::BSScrapArray<RE::CALCED_OBJECT> calced_objects{};
-		list->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), a_count, calced_objects, 0, true);
+	static void ResolveLeveledList(RE::TESLeveledList* a_levItem, std::vector<RE::TESBoundObject*>* a_result) {
+		auto resolvedList = a_levItem->GetContainedForms();
+		uint8_t chanceNone = a_levItem->GetChanceNone();
+		int rng = clib_util::RNG().generate<int>(0, 99);
+		_loggerInfo("{} chance {}", chanceNone, rng);
+		if (chanceNone > rng) {
+			return;
+		}
 
-		std::vector<std::pair<RE::TESBoundObject*, int>> obj_and_counts{};
-		for (const auto& [form, count, pad0A, pad0C, containerItem] : calced_objects) {
-			if (const auto bound_obj{ form->As<RE::TESBoundObject>() }) {
-				a_container->AddObjectToContainer(bound_obj, nullptr, count, nullptr);
+		for (auto it : a_levItem->entries) {
+			if (it.level > RE::PlayerCharacter::GetSingleton()->GetLevel()) continue;
+			auto* form = it.form;
+			auto* baseForm = static_cast<RE::TESBoundObject*>(form);
+			if (!baseForm) continue;
+
+			if (baseForm->As<RE::TESLeveledList>()) {
+				ResolveLeveledList(baseForm->As<RE::TESLeveledList>(), a_result);
+			}
+			else {
+				a_result->push_back(baseForm);
 			}
 		}
-		return obj_and_counts;
+	}
+
+	static void AddLeveledListToContainer(RE::TESLeveledList* list, int16_t a_count, RE::TESObjectREFR* a_container) {
+		RE::BSScrapArray<RE::CALCED_OBJECT> resolvedList{};
+		list->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), a_count, resolvedList, 0, true);
+		std::vector<RE::TESBoundObject*> result{};
+		ResolveLeveledList(list, &result);
+		if (result.size() < 1) return;
+
+		for (; a_count > 0;) {
+			size_t rng = clib_util::RNG().generate<size_t>(0, result.size() - 1);
+			RE::TESBoundObject* thingToAdd = result.at(rng);
+			a_container->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
+			a_count--;
+		}
 	}
 }
 
@@ -299,7 +325,12 @@ namespace ContainerManager {
 				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+				if (thingToAdd->As<RE::TESLeveledList>()) {
+					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+				}
+				else {
+					AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), itemCount, a_ref);
+				}
 			}
 			else {
 				uint32_t itemCount = 0;
