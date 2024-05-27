@@ -62,7 +62,6 @@ namespace {
 		auto resolvedList = a_levItem->GetContainedForms();
 		uint8_t chanceNone = a_levItem->GetChanceNone();
 		int rng = clib_util::RNG().generate<int>(0, 99);
-		_loggerInfo("{} chance {}", chanceNone, rng);
 		if (chanceNone > rng) {
 			return;
 		}
