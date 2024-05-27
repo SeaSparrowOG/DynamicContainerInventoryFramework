@@ -86,7 +86,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
     _loggerInfo("----------------------------------------------");
     SKSE::Init(a_skse);
     const auto serialization = SKSE::GetSerializationInterface();
-    serialization->SetUniqueID(_byteswap_ulong('SSCD'));
+    serialization->SetUniqueID(Serialization::SaveRecord);
     serialization->SetSaveCallback(Serialization::SaveCallback);
     serialization->SetLoadCallback(Serialization::LoadCallback);
 
