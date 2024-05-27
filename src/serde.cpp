@@ -19,6 +19,7 @@ namespace Serialization {
 		std::uint32_t size;
 		std::uint32_t version;
 		auto& map = ContainerManager::ContainerManager::GetSingleton()->handledContainers;
+		map.clear();
 
 		while (a_intfc->GetNextRecordInfo(type, size, version)) {
 			if (version != 1) continue;
@@ -40,10 +41,8 @@ namespace Serialization {
 				auto* foundForm = RE::TESForm::LookupByID(newRef);
 				auto* foundReference = foundForm ? foundForm->As<RE::TESObjectREFR>() : nullptr;
 				auto* foundContainer = foundReference ? foundForm->As<RE::TESObjectCONT>() : nullptr;
-				if (foundReference && foundContainer) {
-					auto newVal = std::make_pair(clearedLoc, dayAttached);
-					map[foundReference->formID] = newVal;
-				}
+				auto newVal = std::make_pair(clearedLoc, dayAttached);
+				map[foundReference->formID] = newVal;
 			}
 		}
 	}
