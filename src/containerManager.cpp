@@ -60,9 +60,9 @@ namespace {
 	*/
 	static void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result) {
 		RE::BSScrapArray<RE::CALCED_OBJECT> temp{};
-		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), 1, temp, 0, true);
+		//a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), 1, temp, 0, true);
 
-		for (auto it : temp) {
+		for (auto& it : temp) {
 			auto* form = it.form;
 			auto* leveledForm = form->As<RE::TESLeveledList>();
 			if (leveledForm) {
@@ -122,6 +122,7 @@ namespace ContainerManager {
 				for (auto marker : this->worldspaceMarker[refWorldspace]) {
 					if (marker->GetPosition().GetDistance(a_ref->GetPosition()) > this->fMaxLookupRadius) continue;
 					auto* markerLoc = marker->GetCurrentLocation();
+					if (!markerLoc) continue;
 					if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), markerLoc) != a_rule->validLocations.end()) {
 						hasParentLocation = true;
 						break;
@@ -218,7 +219,7 @@ namespace ContainerManager {
 		if (a_rule.removeKeywords.empty()) {
 			if (!a_rule.oldForm) {
 				this->addRules.push_back(a_rule);
-				_loggerInfo("Registered bew <Add> rule.");
+				_loggerInfo("Registered new <Add> rule.");
 				_loggerInfo("    Form(s) that can be added:");
 				for (auto form : a_rule.newForm) {
 					_loggerInfo("        >{}.", form->GetName());
@@ -312,10 +313,10 @@ namespace ContainerManager {
 				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				if (thingToAdd->As<RE::TESLeveledList>()) {
-					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+					AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
 				}
 				else {
-					AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
+					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
 				}
 			}
 			else {
