@@ -58,41 +58,31 @@ namespace {
 	Github: https://github.com/ThirdEyeSqueegee/ContainerItemDistributor/blob/d9aae0a5e30e81db885cc28f3fcf7e11a2f97bf6/include/Utility.h#L124
 	Nexus: https://next.nexusmods.com/profile/ThirdEye3301/about-me?gameId=1704
 	*/
-	static void ResolveLeveledList(RE::TESLeveledList* a_levItem, std::vector<RE::TESBoundObject*>* a_result) {
-		auto resolvedList = a_levItem->GetContainedForms();
-		uint8_t chanceNone = a_levItem->GetChanceNone();
-		int rng = clib_util::RNG().generate<int>(0, 99);
-		if (chanceNone > rng) {
-			return;
-		}
+	static void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result) {
+		RE::BSScrapArray<RE::CALCED_OBJECT> temp{};
+		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), 1, temp, 0, true);
 
-		for (auto it : a_levItem->entries) {
-			if (it.level > RE::PlayerCharacter::GetSingleton()->GetLevel()) continue;
+		for (auto it : temp) {
 			auto* form = it.form;
-			auto* baseForm = static_cast<RE::TESBoundObject*>(form);
-			if (!baseForm) continue;
-
-			if (baseForm->As<RE::TESLeveledList>()) {
-				ResolveLeveledList(baseForm->As<RE::TESLeveledList>(), a_result);
+			auto* leveledForm = form->As<RE::TESLeveledList>();
+			if (leveledForm) {
+				ResolveLeveledList(leveledForm, a_result);
 			}
 			else {
-				a_result->push_back(baseForm);
+				a_result->push_back(it);
 			}
 		}
 	}
 
-	static void AddLeveledListToContainer(RE::TESLeveledList* list, int16_t a_count, RE::TESObjectREFR* a_container) {
-		RE::BSScrapArray<RE::CALCED_OBJECT> resolvedList{};
-		list->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), a_count, resolvedList, 0, true);
-		std::vector<RE::TESBoundObject*> result{};
+	static void AddLeveledListToContainer(RE::TESLeveledList* list, RE::TESObjectREFR* a_container) {
+		RE::BSScrapArray<RE::CALCED_OBJECT> result{};
 		ResolveLeveledList(list, &result);
 		if (result.size() < 1) return;
 
-		for (; a_count > 0;) {
-			size_t rng = clib_util::RNG().generate<size_t>(0, result.size() - 1);
-			RE::TESBoundObject* thingToAdd = result.at(rng);
-			a_container->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
-			a_count--;
+		for (auto& obj : result) {
+			auto* thingToAdd = static_cast<RE::TESBoundObject*>(obj.form);
+			if (!thingToAdd) continue;
+			a_container->AddObjectToContainer(thingToAdd, nullptr, obj.count, nullptr);
 		}
 	}
 }
@@ -196,7 +186,6 @@ namespace ContainerManager {
 				}
 			}
 		}
-
 		return (hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch && hasWorldspaceLocation);
 	}
 
@@ -211,16 +200,18 @@ namespace ContainerManager {
 			dayToStore += this->fResetDaysShort;
 		}
 
-		float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
-		auto resetDay = this->handledContainers[a_ref->formID].second;
-		RegisterInMap(a_ref, cleared, resetDay);
-		if (this->handledContainers.find(a_ref->formID) != this->handledContainers.end()) {
+		bool returnVal = false;
+		if (this->handledContainers.contains(a_ref->formID)) {
+			float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
+			auto resetDay = this->handledContainers[a_ref->formID].second;
+
 			if (currentDay > resetDay) {
-				return true;
-			} 
-			return false;
+				returnVal = true;
+			}
 		}
-		return false;
+
+		RegisterInMap(a_ref, cleared, dayToStore);
+		return returnVal;
 	}
 
 	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
@@ -233,6 +224,7 @@ namespace ContainerManager {
 					_loggerInfo("        >{}.", form->GetName());
 				}
 				if (a_rule.count < 1) {
+					a_rule.count = 1;
 					_loggerInfo("    Ammount to be added: {}.", 1);
 				}
 				else {
@@ -293,10 +285,9 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
-		bool isVendorContainer = false;
 		auto* ownerFaction = a_ref->GetFactionOwner();
 		if (ownerFaction && ownerFaction->IsVendor()) {
-			isVendorContainer = true;
+			return;
 		}
 
 		if (HasRuleApplied(a_ref)) return;
@@ -311,7 +302,6 @@ namespace ContainerManager {
 		}
 
 		for (auto& rule : this->replaceRules) {
-			if (isVendorContainer) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			if (rule.removeKeywords.empty()) {
@@ -325,7 +315,7 @@ namespace ContainerManager {
 					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
 				}
 				else {
-					AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), itemCount, a_ref);
+					AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
 				}
 			}
 			else {
@@ -372,7 +362,7 @@ namespace ContainerManager {
 					RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 					auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 					if (leveledThing) {
-						AddLeveledListToContainer(leveledThing, itemCount, a_ref);
+						AddLeveledListToContainer(leveledThing, a_ref);
 					}
 					else {
 						a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
@@ -382,7 +372,6 @@ namespace ContainerManager {
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
-			if (isVendorContainer) continue;
 			int32_t ruleCount = rule.count;
 
 			if (rule.removeKeywords.empty()) {
@@ -428,11 +417,9 @@ namespace ContainerManager {
 		} //Remove rule reading end.
 
 		for (auto& rule : this->addRules) {
-			if (isVendorContainer) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
-
 			int32_t ruleCount = rule.count;
-			if (ruleCount < 1) {
+			if (rule.count < 1) {
 				ruleCount = 1;
 			}
 
@@ -441,7 +428,7 @@ namespace ContainerManager {
 			auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 
 			if (leveledThing) {
-				AddLeveledListToContainer(leveledThing, ruleCount, a_ref);
+				AddLeveledListToContainer(leveledThing, a_ref);
 			}
 			else {
 				a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
