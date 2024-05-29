@@ -350,28 +350,29 @@ namespace ContainerManager {
 				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
 				if (itemCount < 1) continue;
 
-				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
-				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				if (thingToAdd->As<RE::TESLeveledList>()) {
-					AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
+				for (; itemCount > 0;) {
+					size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+					RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
+					if (thingToAdd->As<RE::TESLeveledList>()) {
+						AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
 
-					if (isContainerUnsafe) {
-						this->handledUnsafeContainers[a_ref->formID] = true;
+						if (isContainerUnsafe) {
+							this->handledUnsafeContainers[a_ref->formID] = true;
+						}
 					}
-				}
-				else {
-					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+					else {
+						a_ref->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
 
-					if (isContainerUnsafe) {
-						this->handledUnsafeContainers[a_ref->formID] = true;
+						if (isContainerUnsafe) {
+							this->handledUnsafeContainers[a_ref->formID] = true;
+						}
 					}
+					--itemCount;
 				}
 			}
 			else {
 				uint32_t itemCount = 0;
-				int ruleCount = rule.count;
-
 				auto* container = a_ref->GetContainer();
 				if (!container) continue;
 
@@ -388,29 +389,18 @@ namespace ContainerManager {
 						bool missingKeyword = false;
 						for (auto it = rule.removeKeywords.begin(); it != rule.removeKeywords.end() && !missingKeyword; ++it) {
 							if (baseObj->HasKeywordByEditorID(*it)) continue;
-							missingKeyword = true;
+							return RE::BSContainer::ForEachResult::kContinue;
 						}
-						if (missingKeyword) return RE::BSContainer::ForEachResult::kContinue;
 
-						if (inventoryCount < ruleCount && ruleCount > 0) {
-							itemCount += inventoryCount;
-							a_ref->RemoveItem(baseObj, inventoryCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+						itemCount += inventoryCount;
+						a_ref->RemoveItem(baseObj, inventoryCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 
-							if (isContainerUnsafe) {
-								this->handledUnsafeContainers[a_ref->formID] = true;
-							}
-						}
-						else {
-							itemCount += ruleCount;
-							a_ref->RemoveItem(baseObj, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-
-							if (isContainerUnsafe) {
-								this->handledUnsafeContainers[a_ref->formID] = true;
-							}
+						if (isContainerUnsafe) {
+							this->handledUnsafeContainers[a_ref->formID] = true;
 						}
 					}
 					else {
-						itemCount += HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeywords, ruleCount);
+						itemCount += HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeywords, itemCount);
 					}
 					return RE::BSContainer::ForEachResult::kContinue;
 					});
@@ -491,17 +481,19 @@ namespace ContainerManager {
 				ruleCount = 1;
 			}
 
-			size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
-			RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-			auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
+			for (; ruleCount > 0;) {
+				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
+				auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 
-			if (leveledThing) {
-				AddLeveledListToContainer(leveledThing, a_ref);
+				if (leveledThing) {
+					AddLeveledListToContainer(leveledThing, a_ref);
+				}
+				else {
+					a_ref->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
+				}
+				--ruleCount;
 			}
-			else {
-				a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
-			}
-
 			if (isContainerUnsafe) {
 				this->handledUnsafeContainers[a_ref->formID] = true;
 			}
