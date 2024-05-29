@@ -33,7 +33,7 @@ namespace Events {
 
 		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
 		auto* containerManagerSingleton = ContainerManager::ContainerManager::GetSingleton();
-		auto& handledContainers = containerManagerSingleton->handledContainers;
+		auto& handledContainers = *containerManagerSingleton->GetHandledContainers();
 
 		for (auto& pair : handledContainers) {
 			auto* ref = RE::TESForm::LookupByID<RE::TESObjectREFR>(pair.first);
@@ -42,7 +42,7 @@ namespace Events {
 			if (!pairLoc) continue;
 			if (pairLoc->IsCleared() && !pair.second.first && pair.second.second > daysPassed) {
 				pair.second.first = true;
-				pair.second.second += containerManagerSingleton->fResetDaysLong - containerManagerSingleton->fResetDaysShort;
+				pair.second.second += containerManagerSingleton->GetResetDays(false) - containerManagerSingleton->GetResetDays(true);
 			}
 		}
 		return RE::BSEventNotifyControl::kContinue;

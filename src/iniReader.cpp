@@ -41,7 +41,7 @@ namespace INISettings {
 		if (range < 0.0) range = 0.0;
 		if (range > 150000.0) range = 150000.0;
 
-		ContainerManager::ContainerManager::GetSingleton()->fMaxLookupRadius = range;
+		ContainerManager::ContainerManager::GetSingleton()->SetMaxLookupRange(range);
 		return true;
 	}
 }

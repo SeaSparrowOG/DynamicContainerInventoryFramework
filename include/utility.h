@@ -9,10 +9,7 @@ namespace Utility {
 	template <typename T>
 	T* GetObjectFromMod(std::string a_id, std::string a_mod) {
 		T* response = nullptr;
-
-		//Is mod present?
 		if (!IsModPresent(a_mod)) return response;
-		//Is the string a hex?
 		if (!IsHex(a_id)) return response;
 
 		RE::FormID formID = StringToFormID(a_id);
@@ -21,4 +18,6 @@ namespace Utility {
 	}
 
 	RE::TESForm* GetFormFromMod(std::string a_id, std::string a_mod);
+	void GetParentChain(RE::BGSLocation* a_child, std::vector<RE::BGSLocation*>* a_parentArray);
+	void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result);
 }
