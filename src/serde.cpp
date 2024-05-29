@@ -4,7 +4,7 @@
 namespace Serialization {
 	void SaveCallback(SKSE::SerializationInterface* a_intfc) {
 		if (a_intfc->OpenRecord(MapRecord, SaveVersion)) {
-			auto* map = &ContainerManager::ContainerManager::GetSingleton()->handledContainers;
+			auto* map = ContainerManager::ContainerManager::GetSingleton()->GetHandledContainers();
 			auto size = map->size();
 			a_intfc->WriteRecordData(&size, sizeof(size));
 			for (auto& container : *map) {
@@ -15,7 +15,7 @@ namespace Serialization {
 		}
 
 		if (a_intfc->OpenRecord(UnsafeMapRecord, SaveVersion)) {
-			auto* map = &ContainerManager::ContainerManager::GetSingleton()->handledUnsafeContainers;
+			auto* map = ContainerManager::ContainerManager::GetSingleton()->GetHandledUnsafeContainers();
 			auto size = map->size();
 			a_intfc->WriteRecordData(&size, sizeof(size));
 			for (auto& container : *map) {
@@ -29,10 +29,10 @@ namespace Serialization {
 		std::uint32_t type;
 		std::uint32_t size;
 		std::uint32_t version;
-		auto* map = &ContainerManager::ContainerManager::GetSingleton()->handledContainers;
+		auto* map = ContainerManager::ContainerManager::GetSingleton()->GetHandledContainers();
 		map->clear();
 
-		auto* unsafeMap = &ContainerManager::ContainerManager::GetSingleton()->handledUnsafeContainers;
+		auto* unsafeMap = ContainerManager::ContainerManager::GetSingleton()->GetHandledUnsafeContainers();
 		unsafeMap->clear();
 
 		while (a_intfc->GetNextRecordInfo(type, version, size)) {

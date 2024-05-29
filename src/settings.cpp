@@ -12,11 +12,12 @@ namespace {
 		std::string name;
 		std::string changesError;
 		std::string conditionsError;
+		std::string conditionsBadBypassError;
 		std::string conditionsPluginTypeError;
 		std::vector<std::string> badStringField;
-		std::vector<std::string> badStringFormat;
 		std::vector<std::string> missingForm;
 		std::vector<std::string> objectNotArray;
+		std::vector<std::string> badStringFormat;
 	};
 
 	void ReadReport(SwapData a_report) {
@@ -63,12 +64,17 @@ namespace {
 		}
 
 		if (!a_report.changesError.empty()) {
-			_loggerInfo("Changes error.");
+			_loggerInfo("There are no changes specified for this rule.");
 			_loggerInfo("");
 		}
 
 		if (!a_report.conditionsError.empty()) {
 			_loggerInfo("The condition field is unreadable, but present.");
+			_loggerInfo("");
+		}
+
+		if (!a_report.conditionsBadBypassError.empty()) {
+			_loggerInfo("The unsafe container bypass field is unreadable, but present.");
 			_loggerInfo("");
 		}
 
@@ -105,10 +111,22 @@ namespace Settings {
 				continue;
 			}
 
-			auto& friendlyName = data["friendlyName"];
-			auto& conditions = data["conditions"];
-			auto& changes = data["changes"];
+			auto& friendlyName = data["friendlyName"]; //Friendly Name
+			auto& conditions = data["conditions"];     //Conditions
+			auto& changes = data["changes"];           //Changes
 
+			bool conditionsAreValid = true;            //If conditions are present but invalid, this stops the rule from registering.
+			std::string ruleName = friendlyName.asString(); ruleName += a_reportName; //Rule name. Used for logging.
+
+			//Initializing condition results so that they may be used in changes.
+			bool bypassUnsafeContainers = false;       
+			std::vector<std::string> validLocationKeywords{};
+			std::vector<RE::BGSLocation*> validLocationIdentifiers{};
+			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
+			std::vector<RE::TESObjectCONT*> validContainers{};
+			std::vector<RE::FormID> validReferences{};
+
+			//Missing name check. Missing name is used in the back end for rule checking.
 			if (!friendlyName || !friendlyName.isString()) {
 				a_report->hasBatData = true;
 				a_report->hasError = true;
@@ -117,21 +135,13 @@ namespace Settings {
 			}
 			auto friendlyNameString = friendlyName.asString();
 
+			//Missing changes check. If there are no changes, there is no need to check conditions.
 			if (!changes || !changes.isArray()) {
 				a_report->changesError = friendlyNameString;
 				a_report->hasError = true;
 				a_report->noChanges = true;
 				continue;
 			}
-
-			bool conditionsAreValid = true;
-			bool bypassUnsafeContainers = false;
-			std::string ruleName = friendlyName.asString(); ruleName += a_reportName;
-			std::vector<std::string> validLocationKeywords;
-			std::vector<RE::BGSLocation*> validLocationIdentifiers;
-			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers;
-			std::vector<RE::TESObjectCONT*> validContainers;
-			std::vector<RE::FormID> validReferences;
 
 			if (conditions) {
 				if (!conditions.isObject()) {
@@ -166,11 +176,13 @@ namespace Settings {
 					}
 				} //End of plugins check
 
+				//Bypass Check.
 				auto& bypassField = conditions["bypassUnsafeContainers"];
 				if (bypassField) {
 					if (!bypassField.isBool()) {
 						a_report->conditionsPluginTypeError = friendlyNameString;
 						a_report->hasError = true;
+						a_report->conditionsBadBypassError = true;
 						conditionsAreValid = false;
 						continue;
 					}
@@ -197,22 +209,17 @@ namespace Settings {
 							continue;
 						}
 
-						auto components = clib_util::string::split(identifier.asString(), "|"sv);
-						if (components.size() != 2) {
-							std::string name = friendlyNameString; name += " -> containers -> "; name += identifier.asString();
-							a_report->badStringFormat.push_back(name);
-							a_report->hasError = true;
-							conditionsAreValid = false;
+						auto containerID = Utility::ParseFormID(identifier.asString());
+						if (containerID == 0) {
 							continue;
 						}
-						auto* container = Utility::GetObjectFromMod<RE::TESObjectCONT>(components.at(0), components.at(1));
+
+						auto* container = RE::TESForm::LookupByID<RE::TESObjectCONT>(containerID);
 						if (!container) {
-							if (Utility::IsModPresent(components.at(1))) {
-								std::string name = friendlyNameString; name += " -> containers -> "; name += identifier.asString();
-								a_report->missingForm.push_back(name);
-								a_report->hasError = true;
-								conditionsAreValid = false;
-							}
+							std::string name = friendlyNameString; name += " -> containers -> "; name += identifier.asString();
+							a_report->missingForm.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
 							continue;
 						}
 						validContainers.push_back(container);
@@ -220,7 +227,6 @@ namespace Settings {
 				}
 
 				//Location check.
-				//If a location is null, it will not error.
 				auto& locations = conditions["locations"];
 				if (locations) {
 					if (!locations.isArray()) {
@@ -239,22 +245,17 @@ namespace Settings {
 							continue;
 						}
 
-						auto components = clib_util::string::split(identifier.asString(), "|"sv);
-						if (components.size() != 2) {
-							std::string name = friendlyNameString; name += " -> locations -> "; name += identifier.asString();
-							a_report->badStringFormat.push_back(name);
-							a_report->hasError = true;
-							conditionsAreValid = false;
+						auto locationID = Utility::ParseFormID(identifier.asString());
+						if (locationID == 0) {
 							continue;
 						}
-						auto* location = Utility::GetObjectFromMod<RE::BGSLocation>(components.at(0), components.at(1));
+
+						auto* location = RE::TESForm::LookupByID<RE::BGSLocation>(locationID);
 						if (!location) {
-							if (Utility::IsModPresent(components.at(1))) {
-								std::string name = friendlyNameString; name += " -> locations -> "; name += identifier.asString();
-								a_report->missingForm.push_back(name);
-								a_report->hasError = true;
-								conditionsAreValid = false;
-							}
+							std::string name = friendlyNameString; name += " -> locations -> "; name += identifier.asString();
+							a_report->missingForm.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
 							continue;
 						}
 						validLocationIdentifiers.push_back(location);
@@ -281,22 +282,17 @@ namespace Settings {
 							conditionsAreValid = false;
 							continue;
 						}
-						auto components = clib_util::string::split(identifier.asString(), "|"sv);
-						if (components.size() != 2) {
-							std::string name = friendlyNameString; name += " -> worldspaces -> "; name += identifier.asString();
-							a_report->badStringFormat.push_back(name);
-							a_report->hasError = true;
-							conditionsAreValid = false;
+						auto worldspaceID = Utility::ParseFormID(identifier.asString());
+						if (worldspaceID == 0) {
 							continue;
 						}
-						auto* worldspace = Utility::GetObjectFromMod<RE::TESWorldSpace>(components.at(0), components.at(1));
+
+						auto* worldspace = RE::TESForm::LookupByID<RE::TESWorldSpace>(worldspaceID);
 						if (!worldspace) {
-							if (Utility::IsModPresent(components.at(1))) {
-								std::string name = friendlyNameString; name += " -> worldspaces -> "; name += identifier.asString();
-								a_report->missingForm.push_back(name);
-								a_report->hasError = true;
-								conditionsAreValid = false;
-							}
+							std::string name = friendlyNameString; name += " -> locations -> "; name += identifier.asString();
+							a_report->missingForm.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
 							continue;
 						}
 						validWorldspaceIdentifiers.push_back(worldspace);
@@ -348,8 +344,7 @@ namespace Settings {
 							continue;
 						}
 
-						auto* file = RE::TESDataHandler::GetSingleton()->LookupModByName(components.at(1));
-						if (!file) continue;
+						if (!Utility::IsModPresent(components.at(1))) continue;
 						validReferences.push_back(Utility::ParseFormID(identifier.asString()));
 					}
 				}
@@ -369,6 +364,16 @@ namespace Settings {
 				bool changesAreValid = true;
 
 				auto& oldId = change["remove"];
+				auto& newId = change["add"];
+				auto& countField = change["count"];
+				auto& removeKeywords = change["removeByKeywords"];
+				if (!(oldId || newId || removeKeywords)) {
+					a_report->hasBatData = true;
+					a_report->changesError = friendlyNameString;
+					changesAreValid = false;
+					continue;
+				}
+
 				if (oldId) {
 					if (!oldId.isString()) {
 						std::string name = friendlyNameString; name += " -> remove";
@@ -377,29 +382,17 @@ namespace Settings {
 						changesAreValid = false;
 						continue;
 					}
-
-					auto oldIdString = oldId.asString();
-					auto components = clib_util::string::split(oldIdString, "|"sv);
-					if (components.size() != 2) {
-						std::string name = friendlyNameString; name += " -> remove -> "; name += oldIdString;
-						a_report->badStringFormat.push_back(name);
-						a_report->hasError = true;
-						changesAreValid = false;
+					
+					auto parsedFormID = Utility::ParseFormID(oldId.asString());
+					if (parsedFormID == 0) {
 						continue;
 					}
 
-					auto* oldChangeForm = Utility::GetFormFromMod(components.at(0), components.at(1));
-					if (!oldChangeForm || !oldChangeForm->IsBoundObject()) {
-						std::string name = friendlyNameString; name += " -> remove -> "; name += oldIdString;
-						a_report->missingForm.push_back(name);
-						a_report->hasError = true;
-						changesAreValid = false;
-						continue;
-					}
-					newRule.oldForm = static_cast<RE::TESBoundObject*>(oldChangeForm);
+					auto* parsedForm = RE::TESForm::LookupByID<RE::TESBoundObject>(parsedFormID);
+					if (!parsedForm) continue;
+					newRule.oldForm = parsedForm;
 				} //Old object check.
 
-				auto& newId = change["add"];
 				if (newId) {
 					if (!newId.isArray()) {
 						std::string name = friendlyNameString; name += " -> add";
@@ -417,36 +410,24 @@ namespace Settings {
 							changesAreValid = false;
 							continue;
 						}
-						auto newIdString = addition.asString();
-						auto newComponents = clib_util::string::split(newIdString, "|"sv);
-						if (newComponents.size() != 2) {
-							std::string name = friendlyNameString; name += " -> add -> "; name += newIdString;
-							a_report->badStringFormat.push_back(name);
-							a_report->hasError = true;
-							changesAreValid = false;
+
+						auto parsedFormID = Utility::ParseFormID(addition.asString());
+						if (parsedFormID == 0) {
 							continue;
 						}
 
-						auto* newChangeForm = Utility::GetFormFromMod(newComponents.at(0), newComponents.at(1));
-						if (!newChangeForm || !newChangeForm->IsBoundObject()) {
-							std::string name = friendlyNameString; name += " -> remove -> "; name += newIdString;
-							a_report->missingForm.push_back(name);
-							a_report->hasError = true;
-							changesAreValid = false;
-							continue;
-						}
-						auto* newForm = static_cast<RE::TESBoundObject*>(newChangeForm);
-						newRule.newForm.push_back(newForm);
+						auto* parsedForm = RE::TESForm::LookupByID<RE::TESBoundObject>(parsedFormID);
+						if (!parsedForm) continue;
+						newRule.newForm.push_back(parsedForm);
 					}
 				} //New ID Check
-				if (!changesAreValid) continue;
 
-				auto& removeKeywords = change["removeByKeywords"];
 				if (removeKeywords) {
 					if (!removeKeywords.isArray()) {
 						a_report->conditionsPluginTypeError = friendlyNameString;
 						a_report->hasError = true;
 						conditionsAreValid = false;
+						changesAreValid = false;
 						continue;
 					}
 
@@ -463,15 +444,15 @@ namespace Settings {
 					}
 					newRule.removeKeywords = validRemoveKeywords;
 				}
+				if (!changesAreValid) continue;
 
-				auto& countField = change["count"];
 				if (countField && countField.isInt()) {
 					newRule.count = countField.asInt();
 				}
 				else {
 					newRule.count = -1;
 				}
-				if (!(oldId || newId || removeKeywords)) continue;
+
 				ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
 			} //End of changes check
 		} //End of data loop

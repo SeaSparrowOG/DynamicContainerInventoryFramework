@@ -1,23 +1,7 @@
 #include "containerManager.h"
+#include "utility.h"
 
 namespace {
-	void GetParentChain(RE::BGSLocation* a_child, std::vector<RE::BGSLocation*>* a_parentArray) {
-		auto* parent = a_child->parentLoc;
-		if (!parent) return;
-
-		if (std::find(a_parentArray->begin(), a_parentArray->end(), parent) != a_parentArray->end()) {
-			_loggerError("IMPORTANT - Recursive parent locations. Consider fixing this.");
-			_loggerError("Chain:");
-			for (auto* location : *a_parentArray) {
-				_loggerError("    {} ->", location->GetName());
-			}
-			return;
-		}
-		//_loggerInfo("    >{}", clib_util::editorID::get_editorID(parent));
-		a_parentArray->push_back(parent);
-		return GetParentChain(parent, a_parentArray);
-	}
-
 	uint32_t HandleContainerLeveledList(RE::TESLeveledList* a_leveledList, RE::TESObjectREFR* a_container, std::vector<std::string> a_keywords, int32_t a_count) {
 		uint32_t response = 0;
 		auto forms = a_leveledList->GetContainedForms();
@@ -53,30 +37,9 @@ namespace {
 		return response;
 	}
 
-	/*
-	Credit: ThirdEyeSqueegee
-	Github: https://github.com/ThirdEyeSqueegee/ContainerItemDistributor/blob/d9aae0a5e30e81db885cc28f3fcf7e11a2f97bf6/include/Utility.h#L124
-	Nexus: https://next.nexusmods.com/profile/ThirdEye3301/about-me?gameId=1704
-	*/
-	static void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result) {
-		RE::BSScrapArray<RE::CALCED_OBJECT> temp{};
-		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), 1, temp, 0, true);
-
-		for (auto& it : temp) {
-			auto* form = it.form;
-			auto* leveledForm = form->As<RE::TESLeveledList>();
-			if (leveledForm) {
-				ResolveLeveledList(leveledForm, a_result);
-			}
-			else {
-				a_result->push_back(it);
-			}
-		}
-	}
-
 	static void AddLeveledListToContainer(RE::TESLeveledList* list, RE::TESObjectREFR* a_container) {
 		RE::BSScrapArray<RE::CALCED_OBJECT> result{};
-		ResolveLeveledList(list, &result);
+		Utility::ResolveLeveledList(list, &result);
 		if (result.size() < 1) return;
 
 		for (auto& obj : result) {
@@ -88,6 +51,39 @@ namespace {
 }
 
 namespace ContainerManager {
+	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref, bool a_unsafeContainer) {
+		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
+		float dayToStore = daysPassed;
+		bool cleared = a_ref->GetCurrentLocation() ? a_ref->GetCurrentLocation()->IsCleared() : false;
+		if (cleared) {
+			dayToStore += this->fResetDaysLong;
+		}
+		else {
+			dayToStore += this->fResetDaysShort;
+		}
+
+		bool returnVal = false;
+
+		if (!a_unsafeContainer) {
+			if (this->handledContainers.contains(a_ref->formID)) {
+				float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
+				auto resetDay = this->handledContainers[a_ref->formID].second;
+
+				if (currentDay > resetDay) {
+					returnVal = true;
+				}
+			}
+		}
+		else {
+			if (this->handledUnsafeContainers.contains(a_ref->formID)) {
+				returnVal = true;
+			}
+		}
+
+		RegisterInMap(a_ref, cleared, dayToStore, a_unsafeContainer);
+		return returnVal;
+	}
+
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
 		auto* refLoc = a_ref->GetCurrentLocation();
 		auto* refWorldspace = a_ref->GetWorldspace();
@@ -190,107 +186,142 @@ namespace ContainerManager {
 		return (hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch && hasWorldspaceLocation);
 	}
 
-	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref, bool a_unsafeContainer) {
-		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
-		float dayToStore = daysPassed;
-		bool cleared = a_ref->GetCurrentLocation() ? a_ref->GetCurrentLocation()->IsCleared() : false;
-		if (cleared) {
-			dayToStore += this->fResetDaysLong;
-		}
-		else {
-			dayToStore += this->fResetDaysShort;
-		}
-
-		bool returnVal = false;
-
-		if (!a_unsafeContainer) {
-			if (this->handledContainers.contains(a_ref->formID)) {
-				float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
-				auto resetDay = this->handledContainers[a_ref->formID].second;
-
-				if (currentDay > resetDay) {
-					returnVal = true;
-				}
-			}
-		}
-		else {
-			if (this->handledUnsafeContainers.contains(a_ref->formID)) {
-				returnVal = true;
-			}
-		}
-
-		RegisterInMap(a_ref, cleared, dayToStore, a_unsafeContainer);
-		return returnVal;
-	}
-
 	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
+		enum type {
+			kAdd,
+			kRemove,
+			kReplace
+		};
+		type ruleType = kAdd;
+		bool removeByKeywirds = false;
+
 		if (a_rule.removeKeywords.empty()) {
 			if (!a_rule.oldForm) {
 				this->addRules.push_back(a_rule);
-				_loggerInfo("Registered new <Add> rule.");
-				_loggerInfo("    Form(s) that can be added:");
-				for (auto form : a_rule.newForm) {
-					_loggerInfo("        >{}.", form->GetName());
-				}
-				if (a_rule.count < 1) {
-					a_rule.count = 1;
-					_loggerInfo("    Ammount to be added: {}.", 1);
-				}
-				else {
-					_loggerInfo("    Ammount to be added: {}.", a_rule.count);
-				}
-				_loggerInfo("----------------------------------------------");
 			}
 			else if (a_rule.newForm.empty()) {
 				this->removeRules.push_back(a_rule);
-
-				_loggerInfo("Registered bew <Remove> rule.");
-				_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
-				if (a_rule.count < 1) {
-					_loggerInfo("    All instances of the item will be removed.");
-				}
-				else {
-					_loggerInfo("    Ammount to be removed: {}.", a_rule.count);
-				}
-				_loggerInfo("----------------------------------------------");
+				ruleType = kRemove;
 			}
 			else {
 				this->replaceRules.push_back(a_rule);
-
-				_loggerInfo("Registered bew <Replace> rule.");
-				_loggerInfo("    Form(s) that can be added:");
-				for (auto form : a_rule.newForm) {
-					_loggerInfo("        >{}.", form->GetName());
-				}
-				_loggerInfo("    Form that will be removed: {}.", a_rule.oldForm->GetName());
-				_loggerInfo("----------------------------------------------");
+				ruleType = kReplace;
 			}
 		}
 		else {
+			removeByKeywirds = true;
 			if (!a_rule.newForm.empty()) {
 				this->replaceRules.push_back(a_rule);
-				_loggerInfo("Registered bew <Replace> rule.");
-				_loggerInfo("    Form(s) that can be added:");
-				for (auto form : a_rule.newForm) {
-					_loggerInfo("        >{}.", form->GetName());
-				}
-				_loggerInfo("    Items marked with these keywords will be removed:");
-				for (auto& keyword : a_rule.removeKeywords) {
-					_loggerInfo("        >{}", keyword);
-				}
-				_loggerInfo("----------------------------------------------");
+				ruleType = kReplace;
 			}
 			else {
 				this->removeRules.push_back(a_rule);
-
-				_loggerInfo("Registered bew <Remove> rule.");
-				_loggerInfo("    Items marked with these keywords will be removed:");
-				for (auto& keyword : a_rule.removeKeywords) {
-					_loggerInfo("        >{}", keyword);
-				}
-				_loggerInfo("----------------------------------------------");
+				ruleType = kRemove;
 			}
 		}
+
+		_loggerInfo("Registered new rule of type: {}.", ruleType == kAdd ? "Add" : ruleType == kRemove ? "Remove" : "Replace");
+		_loggerInfo("    Rule name: {}", a_rule.ruleName);
+		if (ruleType == kRemove && removeByKeywirds) {
+			_loggerInfo("    Forms with these keywords will be removed:");
+			for (auto& keyword : a_rule.removeKeywords) {
+				_loggerInfo("        >{}", keyword);
+			}
+		}
+		else if (ruleType == kRemove) {
+			_loggerInfo("    This form will be removed: {}", strcmp(a_rule.oldForm->GetName(), "") == 0 ?
+				clib_util::editorID::get_editorID(a_rule.oldForm).empty() ? std::to_string(a_rule.oldForm->GetLocalFormID()) :
+				clib_util::editorID::get_editorID(a_rule.oldForm)
+				: a_rule.oldForm->GetName());
+			_loggerInfo("    Count: {}", a_rule.count > 0 ? std::to_string(a_rule.count) : "All");
+		}
+		else if (ruleType == kReplace && removeByKeywirds) {
+			_loggerInfo("    Forms with these keywords will be removed:");
+			for (auto& keyword : a_rule.removeKeywords) {
+				_loggerInfo("        >{}", keyword);
+			}
+
+			_loggerInfo("    And replaced by any of these:");
+			for (auto* form : a_rule.newForm) {
+				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(form)
+					: form->GetName());
+			}
+		}
+		else if (ruleType == kReplace) {
+			_loggerInfo("    This form will be removed: {}", strcmp(a_rule.oldForm->GetName(), "") == 0 ?
+				clib_util::editorID::get_editorID(a_rule.oldForm).empty() ? std::to_string(a_rule.oldForm->GetLocalFormID()) :
+				clib_util::editorID::get_editorID(a_rule.oldForm)
+				: a_rule.oldForm->GetName());
+
+			_loggerInfo("    And replaced by any of these:");
+			for (auto* form : a_rule.newForm) {
+				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(form)
+					: form->GetName());
+			}
+		}
+		else {
+			_loggerInfo("    Any of the following forms may be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
+			for (auto* form : a_rule.newForm) {
+				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(form)
+					: form->GetName());
+			}
+		}
+
+		if (a_rule.bypassSafeEdits) {
+			_loggerInfo("");
+			_loggerInfo("    This rule can distribute to safe containers.");
+		}
+		if (!a_rule.container.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these containers:");
+			for (auto* it : a_rule.container) {
+				_loggerInfo("        >{}", strcmp(it->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(it).empty() ? std::to_string(it->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(it)
+					: it->GetName());
+			}
+		}
+		if (!a_rule.validLocations.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these locations:");
+			for (auto* it : a_rule.validLocations) {
+				_loggerInfo("        >{}", strcmp(it->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(it).empty() ? std::to_string(it->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(it)
+					: it->GetName());
+			}
+		}
+		if (!a_rule.validWorldspaces.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these worldspaces:");
+			for (auto* it : a_rule.validWorldspaces) {
+				_loggerInfo("        >{}", strcmp(it->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(it).empty() ? std::to_string(it->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(it)
+					: it->GetName());
+			}
+		}
+		if (!a_rule.locationKeywords.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to locations with these keywords:");
+			for (auto& it : a_rule.locationKeywords) {
+				_loggerInfo("        >{}", it);
+			}
+		}
+		if (!a_rule.references.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these references:");
+			for (auto reference : a_rule.references) {
+				_loggerInfo("        >{}", reference);
+			}
+		}
+		_loggerInfo("---------------------------------------------------------");
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
@@ -487,7 +518,7 @@ namespace ContainerManager {
 			parents.push_back(parentLocation);
 			//_loggerInfo("Location: {} - Parents:", clib_util::editorID::get_editorID(location));
 			//_loggerInfo("    >{}", clib_util::editorID::get_editorID(parentLocation));
-			GetParentChain(parentLocation, &parents);
+			Utility::GetParentChain(parentLocation, &parents);
 			this->parentLocations[location] = parents;
 		}
 
@@ -524,5 +555,22 @@ namespace ContainerManager {
 		else {
 			this->handledUnsafeContainers[a_ref->formID] = false;
 		}
+	}
+
+	std::unordered_map<RE::FormID, std::pair<bool, float>>* ContainerManager::GetHandledContainers() {
+		return &this->handledContainers;
+	}
+
+	std::unordered_map<RE::FormID, bool>* ContainerManager::GetHandledUnsafeContainers() {
+		return &this->handledUnsafeContainers;
+	}
+
+	uint32_t ContainerManager::GetResetDays(bool a_short) {
+		if (a_short) return this->fResetDaysShort;
+		return this->fResetDaysLong;
+	}
+
+	void ContainerManager::ContainerManager::SetMaxLookupRange(float a_range) {
+		this->fMaxLookupRadius = a_range;
 	}
 }
