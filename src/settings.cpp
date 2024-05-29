@@ -125,6 +125,7 @@ namespace Settings {
 			}
 
 			bool conditionsAreValid = true;
+			bool bypassUnsafeContainers = false;
 			std::string ruleName = friendlyName.asString(); ruleName += a_reportName;
 			std::vector<std::string> validLocationKeywords;
 			std::vector<RE::BGSLocation*> validLocationIdentifiers;
@@ -164,6 +165,17 @@ namespace Settings {
 						}
 					}
 				} //End of plugins check
+
+				auto& bypassField = conditions["bypassUnsafeContainers"];
+				if (bypassField) {
+					if (!bypassField.isBool()) {
+						a_report->conditionsPluginTypeError = friendlyNameString;
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+					bypassUnsafeContainers = bypassField.asBool();
+				}
 
 				//Container check.
 				auto& containerField = conditions["containers"];
@@ -347,6 +359,7 @@ namespace Settings {
 			//Changes tracking here.
 			for (auto& change : changes) {
 				ContainerManager::SwapRule newRule;
+				newRule.bypassSafeEdits = bypassUnsafeContainers;
 				newRule.validLocations = validLocationIdentifiers;
 				newRule.validWorldspaces = validWorldspaceIdentifiers;
 				newRule.locationKeywords = validLocationKeywords;

@@ -3,6 +3,7 @@
 namespace ContainerManager {
 	struct SwapRule {
 		int                              count               { 1 };
+		bool                             bypassSafeEdits     { false };
 		std::string                      ruleName            { std::string() };
 		std::vector<std::string>         removeKeywords      { };
 		RE::TESBoundObject*              oldForm             { nullptr };
@@ -18,10 +19,10 @@ namespace ContainerManager {
 	public:
 		void CreateSwapRule(SwapRule a_rule);
 		void HandleContainer(RE::TESObjectREFR* a_ref);
-		bool HasRuleApplied(RE::TESObjectREFR* a_ref);
+		bool HasRuleApplied(RE::TESObjectREFR* a_ref, bool a_unsafeContainer);
 		bool IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref);
 		void InitializeData();
-		void RegisterInMap(RE::TESObjectREFR* a_ref, bool a_cleared, float a_resetTime);
+		void RegisterInMap(RE::TESObjectREFR* a_ref, bool a_cleared, float a_resetTime, bool a_unsafeContainer);
 
 		float fMaxLookupRadius;
 		uint32_t fResetDaysLong;
@@ -30,6 +31,7 @@ namespace ContainerManager {
 		std::vector<SwapRule> removeRules;
 		std::vector<SwapRule> replaceRules;
 		std::unordered_map<RE::FormID, std::pair<bool, float>> handledContainers;
+		std::unordered_map < RE::FormID, bool> handledUnsafeContainers;
 		std::unordered_map<RE::BGSLocation*, std::vector<RE::BGSLocation*>> parentLocations;
 		std::unordered_map<RE::TESWorldSpace*, std::vector<RE::TESObjectREFR*>> worldspaceMarker;
 	};

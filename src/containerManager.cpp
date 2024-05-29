@@ -60,7 +60,7 @@ namespace {
 	*/
 	static void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result) {
 		RE::BSScrapArray<RE::CALCED_OBJECT> temp{};
-		//a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), 1, temp, 0, true);
+		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), 1, temp, 0, true);
 
 		for (auto& it : temp) {
 			auto* form = it.form;
@@ -190,7 +190,7 @@ namespace ContainerManager {
 		return (hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch && hasWorldspaceLocation);
 	}
 
-	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref) {
+	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref, bool a_unsafeContainer) {
 		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
 		float dayToStore = daysPassed;
 		bool cleared = a_ref->GetCurrentLocation() ? a_ref->GetCurrentLocation()->IsCleared() : false;
@@ -202,16 +202,24 @@ namespace ContainerManager {
 		}
 
 		bool returnVal = false;
-		if (this->handledContainers.contains(a_ref->formID)) {
-			float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
-			auto resetDay = this->handledContainers[a_ref->formID].second;
 
-			if (currentDay > resetDay) {
+		if (!a_unsafeContainer) {
+			if (this->handledContainers.contains(a_ref->formID)) {
+				float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
+				auto resetDay = this->handledContainers[a_ref->formID].second;
+
+				if (currentDay > resetDay) {
+					returnVal = true;
+				}
+			}
+		}
+		else {
+			if (this->handledUnsafeContainers.contains(a_ref->formID)) {
 				returnVal = true;
 			}
 		}
 
-		RegisterInMap(a_ref, cleared, dayToStore);
+		RegisterInMap(a_ref, cleared, dayToStore, a_unsafeContainer);
 		return returnVal;
 	}
 
@@ -291,18 +299,20 @@ namespace ContainerManager {
 			return;
 		}
 
-		if (HasRuleApplied(a_ref)) return;
-
+		bool isContainerUnsafe = false;
 		auto* containerBase = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
 		if (containerBase && !(containerBase->data.flags & RE::CONT_DATA::Flag::kRespawn)) {
-			return;
+			isContainerUnsafe = true;
 		}
 		auto* parentEncounterZone = a_ref->parentCell->extraList.GetEncounterZone();
 		if (parentEncounterZone && parentEncounterZone->data.flags & RE::ENCOUNTER_ZONE_DATA::Flag::kNeverResets) {
-			return;
+			isContainerUnsafe = true;
 		}
 
+		if (HasRuleApplied(a_ref, isContainerUnsafe)) return;
+
 		for (auto& rule : this->replaceRules) {
+			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			if (rule.removeKeywords.empty()) {
@@ -314,9 +324,17 @@ namespace ContainerManager {
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				if (thingToAdd->As<RE::TESLeveledList>()) {
 					AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
+
+					if (isContainerUnsafe) {
+						this->handledUnsafeContainers[a_ref->formID] = true;
+					}
 				}
 				else {
 					a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+
+					if (isContainerUnsafe) {
+						this->handledUnsafeContainers[a_ref->formID] = true;
+					}
 				}
 			}
 			else {
@@ -346,10 +364,18 @@ namespace ContainerManager {
 						if (inventoryCount < ruleCount && ruleCount > 0) {
 							itemCount += inventoryCount;
 							a_ref->RemoveItem(baseObj, inventoryCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+
+							if (isContainerUnsafe) {
+								this->handledUnsafeContainers[a_ref->formID] = true;
+							}
 						}
 						else {
 							itemCount += ruleCount;
 							a_ref->RemoveItem(baseObj, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+
+							if (isContainerUnsafe) {
+								this->handledUnsafeContainers[a_ref->formID] = true;
+							}
 						}
 					}
 					else {
@@ -373,6 +399,7 @@ namespace ContainerManager {
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
+			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			int32_t ruleCount = rule.count;
 
 			if (rule.removeKeywords.empty()) {
@@ -384,6 +411,10 @@ namespace ContainerManager {
 					ruleCount = itemCount;
 				}
 				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+
+				if (isContainerUnsafe) {
+					this->handledUnsafeContainers[a_ref->formID] = true;
+				}
 			}
 			else {
 				auto* container = a_ref->GetContainer();
@@ -407,6 +438,10 @@ namespace ContainerManager {
 							itemCount = rule.count;
 						}
 						a_ref->RemoveItem(baseObj, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+
+						if (isContainerUnsafe) {
+							this->handledUnsafeContainers[a_ref->formID] = true;
+						}
 					}
 					else {
 						HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeywords, ruleCount);
@@ -418,6 +453,7 @@ namespace ContainerManager {
 		} //Remove rule reading end.
 
 		for (auto& rule : this->addRules) {
+			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 			int32_t ruleCount = rule.count;
 			if (rule.count < 1) {
@@ -433,6 +469,10 @@ namespace ContainerManager {
 			}
 			else {
 				a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+			}
+
+			if (isContainerUnsafe) {
+				this->handledUnsafeContainers[a_ref->formID] = true;
 			}
 		} //Add rule reading end.
 	}
@@ -476,8 +516,13 @@ namespace ContainerManager {
 		this->fResetDaysLong = longDelay;
 	}
 
-	void ContainerManager::RegisterInMap(RE::TESObjectREFR* a_ref, bool a_cleared, float a_resetTime) {
-		auto newVal = std::pair<bool, float>(a_cleared, a_resetTime);
-		this->handledContainers[a_ref->formID] = newVal;
+	void ContainerManager::RegisterInMap(RE::TESObjectREFR* a_ref, bool a_cleared, float a_resetTime, bool a_unsafeContainer) {
+		if (!a_unsafeContainer) {
+			auto newVal = std::pair<bool, float>(a_cleared, a_resetTime);
+			this->handledContainers[a_ref->formID] = newVal;
+		}
+		else {
+			this->handledUnsafeContainers[a_ref->formID] = false;
+		}
 	}
 }
