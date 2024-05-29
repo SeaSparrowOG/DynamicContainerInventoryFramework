@@ -187,25 +187,141 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
+		enum type {
+			kAdd,
+			kRemove,
+			kReplace
+		};
+		type ruleType = kAdd;
+		bool removeByKeywirds = false;
+
 		if (a_rule.removeKeywords.empty()) {
 			if (!a_rule.oldForm) {
 				this->addRules.push_back(a_rule);
 			}
 			else if (a_rule.newForm.empty()) {
 				this->removeRules.push_back(a_rule);
+				ruleType = kRemove;
 			}
 			else {
 				this->replaceRules.push_back(a_rule);
+				ruleType = kReplace;
 			}
 		}
 		else {
+			removeByKeywirds = true;
 			if (!a_rule.newForm.empty()) {
 				this->replaceRules.push_back(a_rule);
+				ruleType = kReplace;
 			}
 			else {
 				this->removeRules.push_back(a_rule);
+				ruleType = kRemove;
 			}
 		}
+
+		_loggerInfo("Registered new rule of type: {}.", ruleType == kAdd ? "Add" : ruleType == kRemove ? "Remove" : "Replace");
+		_loggerInfo("    Rule name: {}", a_rule.ruleName);
+		if (ruleType == kRemove && removeByKeywirds) {
+			_loggerInfo("    Forms with these keywords will be removed:");
+			for (auto& keyword : a_rule.removeKeywords) {
+				_loggerInfo("        >{}", keyword);
+			}
+		}
+		else if (ruleType == kRemove) {
+			_loggerInfo("    This form will be removed: {}", strcmp(a_rule.oldForm->GetName(), "") == 0 ?
+				clib_util::editorID::get_editorID(a_rule.oldForm).empty() ? std::to_string(a_rule.oldForm->GetLocalFormID()) :
+				clib_util::editorID::get_editorID(a_rule.oldForm)
+				: a_rule.oldForm->GetName());
+			_loggerInfo("    Count: {}", a_rule.count > 0 ? std::to_string(a_rule.count) : "All");
+		}
+		else if (ruleType == kReplace && removeByKeywirds) {
+			_loggerInfo("    Forms with these keywords will be removed:");
+			for (auto& keyword : a_rule.removeKeywords) {
+				_loggerInfo("        >{}", keyword);
+			}
+
+			_loggerInfo("    And replaced by any of these:");
+			for (auto* form : a_rule.newForm) {
+				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(form)
+					: form->GetName());
+			}
+		}
+		else if (ruleType == kReplace) {
+			_loggerInfo("    This form will be removed: {}", strcmp(a_rule.oldForm->GetName(), "") == 0 ?
+				clib_util::editorID::get_editorID(a_rule.oldForm).empty() ? std::to_string(a_rule.oldForm->GetLocalFormID()) :
+				clib_util::editorID::get_editorID(a_rule.oldForm)
+				: a_rule.oldForm->GetName());
+
+			_loggerInfo("    And replaced by any of these:");
+			for (auto* form : a_rule.newForm) {
+				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(form)
+					: form->GetName());
+			}
+		}
+		else {
+			_loggerInfo("    Any of the following forms may be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
+			for (auto* form : a_rule.newForm) {
+				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(form)
+					: form->GetName());
+			}
+		}
+
+		if (a_rule.bypassSafeEdits) {
+			_loggerInfo("");
+			_loggerInfo("    This rule can distribute to safe containers.");
+		}
+		if (!a_rule.container.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these containers:");
+			for (auto* it : a_rule.container) {
+				_loggerInfo("        >{}", strcmp(it->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(it).empty() ? std::to_string(it->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(it)
+					: it->GetName());
+			}
+		}
+		if (!a_rule.validLocations.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these locations:");
+			for (auto* it : a_rule.validLocations) {
+				_loggerInfo("        >{}", strcmp(it->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(it).empty() ? std::to_string(it->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(it)
+					: it->GetName());
+			}
+		}
+		if (!a_rule.validWorldspaces.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these worldspaces:");
+			for (auto* it : a_rule.validWorldspaces) {
+				_loggerInfo("        >{}", strcmp(it->GetName(), "") == 0 ?
+					clib_util::editorID::get_editorID(it).empty() ? std::to_string(it->GetLocalFormID()) :
+					clib_util::editorID::get_editorID(it)
+					: it->GetName());
+			}
+		}
+		if (!a_rule.locationKeywords.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to locations with these keywords:");
+			for (auto& it : a_rule.locationKeywords) {
+				_loggerInfo("        >{}", it);
+			}
+		}
+		if (!a_rule.references.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply to these references:");
+			for (auto reference : a_rule.references) {
+				_loggerInfo("        >{}", reference);
+			}
+		}
+		_loggerInfo("---------------------------------------------------------");
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
