@@ -1,4 +1,5 @@
 set(sources ${sources}
+	src/containerCache.cpp
 	src/containerManager.cpp
 	src/eventManager.cpp
 	src/iniReader.cpp

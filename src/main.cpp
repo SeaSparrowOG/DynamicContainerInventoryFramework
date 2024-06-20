@@ -1,4 +1,5 @@
 #include <spdlog/sinks/basic_file_sink.h>
+#include "containerCache.h"
 #include "containerManager.h"
 #include "eventManager.h"
 #include "iniReader.h"
@@ -25,6 +26,7 @@ void SetupLog() {
 void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     switch (a_message->type) {
     case SKSE::MessagingInterface::kDataLoaded:
+        ContainerCache::CachedData::GetSingleton()->BuildCache();
         ContainerManager::ContainerManager::GetSingleton()->InitializeData();
         Events::ContainerLoadedEvent::GetSingleton()->RegisterListener();
         Events::LocationClearedEvent::GetSingleton()->RegisterListener();

@@ -1,42 +1,8 @@
+#include "containerCache.h"
 #include "containerManager.h"
 #include "utility.h"
 
 namespace {
-	uint32_t HandleContainerLeveledList(RE::TESLeveledList* a_leveledList, RE::TESObjectREFR* a_container, std::vector<std::string> a_keywords, int32_t a_count) {
-		uint32_t response = 0;
-		auto forms = a_leveledList->GetContainedForms();
-
-		for (auto* form : forms) {
-			auto* leveledForm = form->As<RE::TESLeveledList>();
-			if (leveledForm) {
-				response += HandleContainerLeveledList(leveledForm, a_container, a_keywords, a_count);
-			}
-			else {
-				auto* boundObject = static_cast<RE::TESBoundObject*>(form);
-				if (!boundObject) continue;
-
-				auto inventoryCount = a_container->GetInventoryCounts().find(boundObject) != a_container->GetInventoryCounts().end() ?
-					a_container->GetInventoryCounts()[boundObject] : 0;
-				if (inventoryCount < 1) continue;
-
-				bool missingKeyword = false;
-				for (auto it = a_keywords.begin(); it != a_keywords.end() && !missingKeyword; ++it) {
-					if (boundObject->HasKeywordByEditorID(*it)) continue;
-					missingKeyword = true;
-				}
-				if (missingKeyword) continue;
-
-				if (inventoryCount > a_count && a_count > 0) {
-					inventoryCount = a_count;
-				}
-				a_container->RemoveItem(boundObject, inventoryCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				response += inventoryCount;
-			}
-		}
-
-		return response;
-	}
-
 	static void AddLeveledListToContainer(RE::TESLeveledList* list, RE::TESObjectREFR* a_container) {
 		RE::BSScrapArray<RE::CALCED_OBJECT> result{};
 		Utility::ResolveLeveledList(list, &result);
@@ -342,6 +308,8 @@ namespace ContainerManager {
 
 		if (HasRuleApplied(a_ref, isContainerUnsafe)) return;
 
+		auto* containerItems = ContainerCache::CachedData::GetSingleton()->GetContainerItems(containerBase);
+
 		for (auto& rule : this->replaceRules) {
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
@@ -373,37 +341,19 @@ namespace ContainerManager {
 			}
 			else {
 				uint32_t itemCount = 0;
-				auto* container = a_ref->GetContainer();
-				if (!container) continue;
-
-				container->ForEachContainerObject([&](RE::ContainerObject& a_obj) {
-					auto* baseObj = a_obj.obj;
-					if (!baseObj) return RE::BSContainer::ForEachResult::kContinue;
-
-					auto inventoryCount = a_ref->GetInventoryCounts().find(baseObj) != a_ref->GetInventoryCounts().end() ?
-						a_ref->GetInventoryCounts()[baseObj] : 0;
-					if (inventoryCount < 1) return RE::BSContainer::ForEachResult::kContinue;
-
-					auto* leveledBase = baseObj->As<RE::TESLeveledList>();
-					if (!leveledBase) {
-						bool missingKeyword = false;
-						for (auto it = rule.removeKeywords.begin(); it != rule.removeKeywords.end() && !missingKeyword; ++it) {
-							if (baseObj->HasKeywordByEditorID(*it)) continue;
-							return RE::BSContainer::ForEachResult::kContinue;
-						}
-
-						itemCount += inventoryCount;
-						a_ref->RemoveItem(baseObj, inventoryCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-
-						if (isContainerUnsafe) {
-							this->handledUnsafeContainers[a_ref->formID] = true;
-						}
+				for (auto* item : *containerItems) {
+					bool missingKeyword = false;
+					for (auto it = rule.removeKeywords.begin(); it != rule.removeKeywords.end() && !missingKeyword; ++it) {
+						if (item->HasKeywordByEditorID(*it)) continue;
+						missingKeyword = true;
 					}
-					else {
-						itemCount += HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeywords, itemCount);
-					}
-					return RE::BSContainer::ForEachResult::kContinue;
-					});
+					if (missingKeyword) continue;
+
+					auto oldItemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+					if (oldItemCount < 1) continue;
+					itemCount += oldItemCount;
+					a_ref->RemoveItem(item, oldItemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+				}
 
 				for (uint32_t i = 0; i < itemCount; ++i) {
 					size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
@@ -441,35 +391,18 @@ namespace ContainerManager {
 				auto* container = a_ref->GetContainer();
 				if (!container) continue;
 
-				container->ForEachContainerObject([&](RE::ContainerObject& a_obj) {
-					auto* baseObj = a_obj.obj;
-					if (!baseObj) return RE::BSContainer::ForEachResult::kContinue;
-
-					auto* leveledBase = baseObj->As<RE::TESLeveledList>();
-					if (!leveledBase) {
-						bool missingKeyword = false;
-						for (auto it = rule.removeKeywords.begin(); it != rule.removeKeywords.end() && !missingKeyword; ++it) {
-							if (baseObj->HasKeywordByEditorID(*it)) continue;
-							missingKeyword = true;
-						}
-						if (missingKeyword) return RE::BSContainer::ForEachResult::kContinue;
-
-						auto itemCount = a_ref->GetInventoryCounts()[baseObj];
-						if (itemCount > rule.count && ruleCount > 0) {
-							itemCount = rule.count;
-						}
-						a_ref->RemoveItem(baseObj, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-
-						if (isContainerUnsafe) {
-							this->handledUnsafeContainers[a_ref->formID] = true;
-						}
+				for (auto* item : *containerItems) {
+					bool missingKeyword = false;
+					for (auto it = rule.removeKeywords.begin(); it != rule.removeKeywords.end() && !missingKeyword; ++it) {
+						if (item->HasKeywordByEditorID(*it)) continue;
+						missingKeyword = true;
 					}
-					else {
-						HandleContainerLeveledList(leveledBase, a_ref, rule.removeKeywords, ruleCount);
-					}
+					if (missingKeyword) continue;
 
-					return RE::BSContainer::ForEachResult::kContinue;
-					});
+					auto oldItemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+					if (oldItemCount < 1) continue;
+					a_ref->RemoveItem(item, oldItemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+				}
 			}
 		} //Remove rule reading end.
 
