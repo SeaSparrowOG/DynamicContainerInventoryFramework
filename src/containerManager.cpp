@@ -399,7 +399,7 @@ namespace ContainerManager {
 					}
 					if (missingKeyword) continue;
 
-					auto oldItemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+					auto oldItemCount = a_ref->GetInventoryCounts()[item];
 					if (oldItemCount < 1) continue;
 					a_ref->RemoveItem(item, oldItemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				}

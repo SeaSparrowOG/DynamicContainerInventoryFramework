@@ -35,7 +35,7 @@ namespace ContainerCache {
 
 					for (auto* item : objects) {
 						if (this->cachedContainers.contains(container)) {
-							this->cachedContainers.at(container).push_back(item);
+							this->cachedContainers[container].push_back(item);
 						}
 						else {
 							std::vector<RE::TESBoundObject*> newItems{ item };
@@ -45,7 +45,7 @@ namespace ContainerCache {
 				}
 				else {
 					if (this->cachedContainers.contains(container)) {
-						this->cachedContainers.at(container).push_back(baseObject);
+						this->cachedContainers[container].push_back(baseObject);
 					}
 					else {
 						std::vector<RE::TESBoundObject*> newItems{ baseObject };
