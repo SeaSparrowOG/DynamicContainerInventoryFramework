@@ -13,6 +13,7 @@ namespace {
 		std::string changesError;
 		std::string conditionsError;
 		std::string conditionsBadBypassError;
+		std::string conditionsVendorsError;
 		std::string conditionsPluginTypeError;
 		std::vector<std::string> badStringField;
 		std::vector<std::string> missingForm;
@@ -78,6 +79,11 @@ namespace {
 			_loggerInfo("");
 		}
 
+		if (!a_report.conditionsVendorsError.empty()) {
+			_loggerInfo("The allow vendors field is unreadable, but present.");
+			_loggerInfo("");
+		}
+
 		if (!a_report.conditionsPluginTypeError.empty()) {
 			_loggerInfo("The plugins field is unreadable, but present.");
 			_loggerInfo("");
@@ -119,7 +125,8 @@ namespace Settings {
 			std::string ruleName = friendlyName.asString(); ruleName += a_reportName; //Rule name. Used for logging.
 
 			//Initializing condition results so that they may be used in changes.
-			bool bypassUnsafeContainers = false;       
+			bool bypassUnsafeContainers = false;   
+			bool distributeToVendors = false;
 			std::vector<std::string> validLocationKeywords{};
 			std::vector<RE::BGSLocation*> validLocationIdentifiers{};
 			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
@@ -187,6 +194,19 @@ namespace Settings {
 						continue;
 					}
 					bypassUnsafeContainers = bypassField.asBool();
+				}
+
+				//Vendors Check.
+				auto& vendorsField = conditions["allowVendors"];
+				if (vendorsField) {
+					if (!vendorsField.isBool()) {
+						a_report->conditionsPluginTypeError = friendlyNameString;
+						a_report->hasError = true;
+						a_report->conditionsBadBypassError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+					distributeToVendors = bypassField.asBool();
 				}
 
 				//Container check.
@@ -355,6 +375,7 @@ namespace Settings {
 			for (auto& change : changes) {
 				ContainerManager::SwapRule newRule;
 				newRule.bypassSafeEdits = bypassUnsafeContainers;
+				newRule.allowVendors = distributeToVendors;
 				newRule.validLocations = validLocationIdentifiers;
 				newRule.validWorldspaces = validWorldspaceIdentifiers;
 				newRule.locationKeywords = validLocationKeywords;

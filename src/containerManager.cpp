@@ -17,39 +17,6 @@ namespace {
 }
 
 namespace ContainerManager {
-	bool ContainerManager::HasRuleApplied(RE::TESObjectREFR* a_ref, bool a_unsafeContainer) {
-		float daysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
-		float dayToStore = daysPassed;
-		bool cleared = a_ref->GetCurrentLocation() ? a_ref->GetCurrentLocation()->IsCleared() : false;
-		if (cleared) {
-			dayToStore += this->fResetDaysLong;
-		}
-		else {
-			dayToStore += this->fResetDaysShort;
-		}
-
-		bool returnVal = false;
-
-		if (!a_unsafeContainer) {
-			if (this->handledContainers.contains(a_ref->formID)) {
-				float currentDay = RE::Calendar::GetSingleton()->GetDaysPassed();
-				auto resetDay = this->handledContainers[a_ref->formID].second;
-
-				if (currentDay > resetDay) {
-					returnVal = true;
-				}
-			}
-		}
-		else {
-			if (this->handledUnsafeContainers.contains(a_ref->formID)) {
-				returnVal = true;
-			}
-		}
-
-		RegisterInMap(a_ref, cleared, dayToStore, a_unsafeContainer);
-		return returnVal;
-	}
-
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
 		auto* refLoc = a_ref->GetCurrentLocation();
 		auto* refWorldspace = a_ref->GetWorldspace();
@@ -291,26 +258,23 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
-		auto* ownerFaction = a_ref->GetFactionOwner();
-		if (ownerFaction && ownerFaction->IsVendor()) {
-			return;
-		}
+		bool merchantContainer = a_ref->GetFactionOwner() ? a_ref->GetFactionOwner()->IsVendor() : false;
 
 		bool isContainerUnsafe = false;
 		auto* containerBase = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
 		if (containerBase && !(containerBase->data.flags & RE::CONT_DATA::Flag::kRespawn)) {
 			isContainerUnsafe = true;
 		}
-		auto* parentEncounterZone = a_ref->parentCell->extraList.GetEncounterZone();
+
+		bool hasParentCell = a_ref->parentCell ? true : false;
+		auto* parentEncounterZone = hasParentCell ? a_ref->parentCell->extraList.GetEncounterZone() : nullptr;
 		if (parentEncounterZone && parentEncounterZone->data.flags & RE::ENCOUNTER_ZONE_DATA::Flag::kNeverResets) {
 			isContainerUnsafe = true;
 		}
 
-		if (HasRuleApplied(a_ref, isContainerUnsafe)) return;
-
 		auto* containerItems = ContainerCache::CachedData::GetSingleton()->GetContainerItems(containerBase);
-
 		for (auto& rule : this->replaceRules) {
+			if (merchantContainer && !rule.allowVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
@@ -324,17 +288,9 @@ namespace ContainerManager {
 					RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 					if (thingToAdd->As<RE::TESLeveledList>()) {
 						AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
-
-						if (isContainerUnsafe) {
-							this->handledUnsafeContainers[a_ref->formID] = true;
-						}
 					}
 					else {
 						a_ref->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
-
-						if (isContainerUnsafe) {
-							this->handledUnsafeContainers[a_ref->formID] = true;
-						}
 					}
 					--itemCount;
 				}
@@ -370,6 +326,7 @@ namespace ContainerManager {
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
+			if (merchantContainer && !rule.allowVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			int32_t ruleCount = rule.count;
 
@@ -382,10 +339,6 @@ namespace ContainerManager {
 					ruleCount = itemCount;
 				}
 				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-
-				if (isContainerUnsafe) {
-					this->handledUnsafeContainers[a_ref->formID] = true;
-				}
 			}
 			else {
 				auto* container = a_ref->GetContainer();
@@ -407,6 +360,7 @@ namespace ContainerManager {
 		} //Remove rule reading end.
 
 		for (auto& rule : this->addRules) {
+			if (merchantContainer && !rule.allowVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 			int32_t ruleCount = rule.count;
@@ -426,9 +380,6 @@ namespace ContainerManager {
 					a_ref->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
 				}
 				--ruleCount;
-			}
-			if (isContainerUnsafe) {
-				this->handledUnsafeContainers[a_ref->formID] = true;
 			}
 		} //Add rule reading end.
 	}
@@ -463,36 +414,6 @@ namespace ContainerManager {
 
 			this->worldspaceMarker[worldspace] = references;
 		}
-
-		auto* longGS = RE::GameSettingCollection::GetSingleton()->GetSetting("iHoursToRespawnCellCleared");
-		uint32_t longDelay = longGS->GetUInt() / 24;
-		auto* shortGS = RE::GameSettingCollection::GetSingleton()->GetSetting("iHoursToRespawnCell");
-		uint32_t shortDelay = shortGS->GetUInt() / 24;
-		this->fResetDaysShort = shortDelay;
-		this->fResetDaysLong = longDelay;
-	}
-
-	void ContainerManager::RegisterInMap(RE::TESObjectREFR* a_ref, bool a_cleared, float a_resetTime, bool a_unsafeContainer) {
-		if (!a_unsafeContainer) {
-			auto newVal = std::pair<bool, float>(a_cleared, a_resetTime);
-			this->handledContainers[a_ref->formID] = newVal;
-		}
-		else {
-			this->handledUnsafeContainers[a_ref->formID] = false;
-		}
-	}
-
-	std::unordered_map<RE::FormID, std::pair<bool, float>>* ContainerManager::GetHandledContainers() {
-		return &this->handledContainers;
-	}
-
-	std::unordered_map<RE::FormID, bool>* ContainerManager::GetHandledUnsafeContainers() {
-		return &this->handledUnsafeContainers;
-	}
-
-	uint32_t ContainerManager::GetResetDays(bool a_short) {
-		if (a_short) return this->fResetDaysShort;
-		return this->fResetDaysLong;
 	}
 
 	void ContainerManager::ContainerManager::SetMaxLookupRange(float a_range) {
