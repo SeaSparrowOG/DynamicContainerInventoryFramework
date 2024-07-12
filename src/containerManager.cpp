@@ -210,6 +210,12 @@ namespace ContainerManager {
 			_loggerInfo("");
 			_loggerInfo("    This rule can distribute to safe containers.");
 		}
+
+		if (a_rule.allowVendors) {
+			_loggerInfo("");
+			_loggerInfo("    This rule can distribute to vendor containers.");
+		}
+
 		if (!a_rule.container.empty()) {
 			_loggerInfo("");
 			_loggerInfo("    This rule will only apply to these containers:");
@@ -254,7 +260,7 @@ namespace ContainerManager {
 				_loggerInfo("        >{}", reference);
 			}
 		}
-		_loggerInfo("---------------------------------------------------------");
+		_loggerInfo("-------------------------------------------------------------------------------------");
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {

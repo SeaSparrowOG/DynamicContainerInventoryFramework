@@ -122,7 +122,7 @@ namespace Settings {
 			auto& changes = data["changes"];           //Changes
 
 			bool conditionsAreValid = true;            //If conditions are present but invalid, this stops the rule from registering.
-			std::string ruleName = friendlyName.asString(); ruleName += a_reportName; //Rule name. Used for logging.
+			std::string ruleName = friendlyName.asString(); ruleName += " >> ";  ruleName += a_reportName; //Rule name. Used for logging.
 
 			//Initializing condition results so that they may be used in changes.
 			bool bypassUnsafeContainers = false;   

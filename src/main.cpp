@@ -83,7 +83,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 #else
     _loggerInfo("    >1.5 Version. Do not report ANY issues with this version.");
 #endif
-    _loggerInfo("---------------------------------------------------------");
+    _loggerInfo("-------------------------------------------------------------------------------------");
     SKSE::Init(a_skse);
 
     auto messaging = SKSE::GetMessagingInterface();
