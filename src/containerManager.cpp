@@ -18,6 +18,56 @@ namespace {
 
 namespace ContainerManager {
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		//Reference check.
+		bool hasReferenceMatch = a_rule->references.empty() ? true : false;
+		if (!hasReferenceMatch) {
+			std::stringstream stream;
+			stream << std::hex << a_ref->formID;
+			if (std::find(a_rule->references.begin(), a_rule->references.end(), a_ref->formID) != a_rule->references.end()) {
+				hasReferenceMatch = true;
+			}
+		}
+		if (!hasReferenceMatch) return false;
+
+		//Container check.
+		bool hasContainerMatch = a_rule->container.empty() ? true : false;
+		auto* refBaseContainer = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
+		if (!hasContainerMatch && refBaseContainer) {
+			for (auto it = a_rule->container.begin(); it != a_rule->container.end() && !hasContainerMatch; ++it) {
+				if (refBaseContainer == *it) hasContainerMatch = true;
+			}
+		}
+		if (!hasContainerMatch) return false;
+
+		bool hasAVMatch = a_rule->requiredAVs.empty() ? true : false;
+		if (!hasAVMatch) {
+			auto* player = RE::PlayerCharacter::GetSingleton();
+			bool hasFullMatch = false;
+
+			for (auto it = a_rule->requiredAVs.begin(); it != a_rule->requiredAVs.end() && !hasAVMatch; ++it) {
+				auto& valueSet = *it;
+				if (player->GetActorValue(valueSet.first) >= valueSet.second.first) {
+					hasFullMatch = true;
+				}
+				if (hasFullMatch && valueSet.second.second > -1.0f) {
+					if (player->GetActorValue(valueSet.first) > valueSet.second.second) {
+						hasFullMatch = false;
+					}
+				}
+				hasAVMatch = hasFullMatch;
+			}
+		}
+		if (!hasAVMatch) return false;
+
+		//We can get lazy here, since this is the last condition.
+		bool hasGlobalMatch = a_rule->requiredGlobalValues.empty() ? true : false;
+		if (!hasGlobalMatch) {
+			for (auto it = a_rule->requiredGlobalValues.begin(); it != a_rule->requiredGlobalValues.end() && !hasGlobalMatch; ++it) {
+				if ((*it).first->value == (*it).second) hasGlobalMatch = true;
+			}
+		}
+		if (!hasGlobalMatch) return false;
+
 		auto* refLoc = a_ref->GetCurrentLocation();
 		auto* refWorldspace = a_ref->GetWorldspace();
 
@@ -28,9 +78,10 @@ namespace ContainerManager {
 			}
 		}
 
+		//The following are SLOW because they have a lot to check.
+		//Thus, they are moved to the end of the validation to give the first a chance to fail early.
 		//Parent Location check. If the current location is NOT a match, this finds its parents.
 		bool hasParentLocation = a_rule->validLocations.empty() ? true : false;
-
 		if (!hasParentLocation && refLoc) {
 			if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), refLoc) != a_rule->validLocations.end()) {
 				hasParentLocation = true;
@@ -96,46 +147,6 @@ namespace ContainerManager {
 			}
 		}
 		if (!hasLocationKeywordMatch) return false;
-
-		//Reference check.
-		bool hasReferenceMatch = a_rule->references.empty() ? true : false;
-		if (!hasReferenceMatch) {
-			std::stringstream stream;
-			stream << std::hex << a_ref->formID;
-			if (std::find(a_rule->references.begin(), a_rule->references.end(), a_ref->formID) != a_rule->references.end()) {
-				hasReferenceMatch = true;
-			}
-		}
-		if (!hasReferenceMatch) return false;
-
-		//Container check.
-		bool hasContainerMatch = a_rule->container.empty() ? true : false;
-		auto* refBaseContainer = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
-		if (!hasContainerMatch && refBaseContainer) {
-			for (auto& container : a_rule->container) {
-				if (refBaseContainer == container) {
-					hasContainerMatch = true;
-				}
-			}
-		}
-		if (!hasContainerMatch) return false;
-
-		bool hasAVMatch = a_rule->requiredAVs.empty() ? true : false;
-		if (!hasAVMatch) {
-			auto* player = RE::PlayerCharacter::GetSingleton();
-
-			for (auto& valueSet : a_rule->requiredAVs) {
-				if (player->GetActorValue(valueSet.first) < valueSet.second.first) return false;
-				if (valueSet.second.second > -1.0f) {
-					if (player->GetActorValue(valueSet.first) > valueSet.second.second) return false;
-				}
-			}
-		}
-		if (!hasAVMatch) return false;
-
-		bool hasGlobalMatch = a_rule->requiredGlobalValues.empty() ? true : false;
-		if (!hasGlobalMatch) {}
-		if (!hasGlobalMatch) return false;
 
 		return true;
 	}
@@ -518,6 +529,13 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::ContainerManager::SetMaxLookupRange(float a_range) {
+		if (a_range < 2500.0f) {
+			a_range = 2500.0f;
+		}
+		else if (a_range > 50000.0f) {
+			a_range = 50000.0f;
+		}
+
 		this->fMaxLookupRadius = a_range;
 	}
 }
