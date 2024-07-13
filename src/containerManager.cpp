@@ -281,6 +281,13 @@ namespace ContainerManager {
 				_loggerInfo("        >{}", reference);
 			}
 		}
+		if (!a_rule.requiredGlobalValues.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply if these globals have these values:");
+			for (auto pair : a_rule.requiredGlobalValues) {
+				_loggerInfo("        >Global: {}, Value: {}", pair.first->GetFormEditorID(), pair.second);
+			}
+		}
 		if (!a_rule.requiredAVs.empty()) {
 			_loggerInfo("");
 			_loggerInfo("    This rule will only apply while these actor values are all valid");
@@ -343,7 +350,7 @@ namespace ContainerManager {
 					break;
 				}
 
-				_loggerInfo("        >Value: {} -> Min Level: {}, Max Level", valueName, 
+				_loggerInfo("        >Value: {} -> Min Level: {}, Max Level: {}", valueName, 
 					pair.second.first, 
 					pair.second.second > -1.0f ? std::to_string(pair.second.second) : "MAX");
 			}

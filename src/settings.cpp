@@ -372,7 +372,7 @@ namespace Settings {
 				}
 
 				//Player skill check.
-				auto& playerSkillsField = conditions["playerSkill"];
+				auto& playerSkillsField = conditions["playerSkills"];
 				if (playerSkillsField) {
 					if (!playerSkillsField.isArray()) {
 						std::string name = friendlyNameString; name += " -> playerSkills";
@@ -528,7 +528,7 @@ namespace Settings {
 						float globalValueFloat = -1.0f;
 
 						try {
-							globalValueFloat = std::stof(globalValueStr);
+							globalValueFloat = std::stof(globalValueStr) / 1.0f;
 						}
 						catch (std::exception e) {
 							_loggerError("Exception {} caught while reading config: {} -> globals. Make sure everything is formatted correctly.", e.what(), friendlyNameString);
