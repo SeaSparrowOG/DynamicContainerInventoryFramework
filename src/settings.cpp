@@ -132,6 +132,8 @@ namespace Settings {
 			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
 			std::vector<RE::TESObjectCONT*> validContainers{};
 			std::vector<RE::FormID> validReferences{};
+			std::vector<std::pair<RE::ActorValue, std::pair<float, float>>> requiredAVs{};
+			std::vector<std::pair<RE::TESGlobal*, float>> requiredGlobals{};
 
 			//Missing name check. Missing name is used in the back end for rule checking.
 			if (!friendlyName || !friendlyName.isString()) {
@@ -368,6 +370,183 @@ namespace Settings {
 						validReferences.push_back(Utility::ParseFormID(identifier.asString()));
 					}
 				}
+
+				//Player skill check.
+				auto& playerSkillsField = conditions["playerSkill"];
+				if (playerSkillsField) {
+					if (!playerSkillsField.isArray()) {
+						std::string name = friendlyNameString; name += " -> playerSkills";
+						a_report->objectNotArray.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					for (auto& identifier : playerSkillsField) {
+						if (!identifier.isString()) {
+							std::string name = friendlyNameString; name += " -> playerSkills";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+						auto components = clib_util::string::split(identifier.asString(), "|"sv);
+						if (components.size() != 2 && components.size() != 3) {
+							std::string name = friendlyNameString; name += " -> playerSkills -> "; name += identifier.asString();
+							a_report->badStringFormat.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+						//Format is: 1 Skill, 2 min level, 3 (optional) max level. Valid skills are HARDCODED skill values, such as conjuration and one-handed.
+						auto skillName = clib_util::string::tolower(components.at(0));
+						auto skillLevelMin = components.at(1);
+						std::string skillLevelMax = "";
+						if (components.size() == 3) skillLevelMax = components.at(2);
+
+						float skillNumLevel = -1.0f;
+						float skillNumLevelMax = -1.0f;
+						try {
+							skillNumLevel = std::stof(skillLevelMin);
+						}
+						catch (std::exception e) {
+							_loggerError("Exception {} caught while reading config: {} -> playerSkills. Make sure everything is formatted correctly.", e.what(), friendlyNameString);
+							continue;
+						}
+
+						if (!skillLevelMax.empty()) {
+							try {
+								skillNumLevelMax = std::stof(skillLevelMax);
+							}
+							catch (std::exception e) {
+								_loggerError("Exception {} caught while reading config: {} -> playerSkills. Make sure everything is formatted correctly.", e.what(), friendlyNameString);
+								continue;
+							}
+						}
+
+						auto requiredAV = RE::ActorValue::kAggression;
+						if (skillName == "illusion") {
+							requiredAV = RE::ActorValue::kIllusion;
+						}
+						else if (skillName == "conjuration") {
+							requiredAV = RE::ActorValue::kConjuration;
+						}
+						else if (skillName == "destruction") {
+							requiredAV = RE::ActorValue::kDestruction;
+						}
+						else if (skillName == "restoration") {
+							requiredAV = RE::ActorValue::kRestoration;
+						}
+						else if (skillName == "alteration") {
+							requiredAV = RE::ActorValue::kAlteration;
+						}
+						else if (skillName == "enchanting") {
+							requiredAV = RE::ActorValue::kEnchanting;
+						}
+						else if (skillName == "smithing") {
+							requiredAV = RE::ActorValue::kSmithing;
+						}
+						else if (skillName == "heavyarmor") {
+							requiredAV = RE::ActorValue::kHeavyArmor;
+						}
+						else if (skillName == "block") {
+							requiredAV = RE::ActorValue::kBlock;
+						}
+						else if (skillName == "twohanded") {
+							requiredAV = RE::ActorValue::kTwoHanded;
+						}
+						else if (skillName == "onehanded") {
+							requiredAV = RE::ActorValue::kOneHanded;
+						}
+						else if (skillName == "marksman") {
+							requiredAV = RE::ActorValue::kArchery;
+						}
+						else if (skillName == "lightarmor") {
+							requiredAV = RE::ActorValue::kLightArmor;
+						}
+						else if (skillName == "sneak") {
+							requiredAV = RE::ActorValue::kSneak;
+						}
+						else if (skillName == "speechcraft") {
+							requiredAV = RE::ActorValue::kSpeech;
+						}
+						else if (skillName == "lockpicking") {
+							requiredAV = RE::ActorValue::kLockpicking;
+						}
+						else if (skillName == "pickpocket") {
+							requiredAV = RE::ActorValue::kPickpocket;
+						}
+						else if (skillName == "alchemy") {
+							requiredAV = RE::ActorValue::kAlchemy;
+						}
+
+						if (requiredAV == RE::ActorValue::kAggression) {
+							std::string name = friendlyNameString; name += " -> playerSkills -> "; name += identifier.asString();
+							a_report->missingForm.push_back(name);
+							continue;
+						}
+						auto floatPair = std::make_pair(skillNumLevel, skillNumLevelMax);
+						auto newPair = std::make_pair(requiredAV, floatPair);
+						requiredAVs.push_back(newPair);
+					}
+				}
+
+				//Global check. Note: has optimization that can be done. Check at the end.
+				auto& globalsField = conditions["globals"];
+				if (globalsField) {
+					if (!globalsField.isArray()) {
+						std::string name = friendlyNameString; name += " -> globals";
+						a_report->objectNotArray.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					for (auto& identifier : globalsField) {
+						if (!identifier.isString()) {
+							std::string name = friendlyNameString; name += " -> globals";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+						auto components = clib_util::string::split(identifier.asString(), "|"sv);
+						if (components.size() != 2) {
+							std::string name = friendlyNameString; name += " -> globals -> "; name += identifier.asString();
+							a_report->badStringFormat.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+						//Format is: 1 Global EDID, 2 Rerquired val (float). This will FLOOR the value if the global needs a long/short.
+						auto globalName = clib_util::string::tolower(components.at(0));
+						auto globalValueStr = components.at(1);
+						float globalValueFloat = -1.0f;
+
+						try {
+							globalValueFloat = std::stof(globalValueStr);
+						}
+						catch (std::exception e) {
+							_loggerError("Exception {} caught while reading config: {} -> globals. Make sure everything is formatted correctly.", e.what(), friendlyNameString);
+							continue;
+						}
+
+						auto* requiredGlobal = RE::TESForm::LookupByEditorID<RE::TESGlobal>(globalName);
+						if (!requiredGlobal) {
+							std::string name = friendlyNameString; name += " -> globals -> "; name += globalName;
+							a_report->missingForm.push_back(name);
+							continue;
+						}
+						
+						//Potential optimization: Constant form flag evaluated HERE, not in container manager. How do I get constant flag?
+						auto newPair = std::make_pair(requiredGlobal, globalValueFloat);
+						requiredGlobals.push_back(newPair);
+					}
+				}
 			} //End of conditions check
 			if (!conditionsAreValid) continue;
 
@@ -382,6 +561,9 @@ namespace Settings {
 				newRule.container = validContainers;
 				newRule.references = validReferences;
 				newRule.ruleName = ruleName;
+				newRule.requiredAVs = requiredAVs;
+				newRule.requiredGlobalValues = requiredGlobals;
+
 				bool changesAreValid = true;
 
 				auto& oldId = change["remove"];

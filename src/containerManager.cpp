@@ -70,7 +70,7 @@ namespace ContainerManager {
 				}
 			}
 		}
-		
+		if (!hasWorldspaceLocation) return false;
 
 		//Location keyword search. If these do not exist, check the parents..
 		bool hasLocationKeywordMatch = a_rule->locationKeywords.empty() ? true : false;
@@ -95,6 +95,7 @@ namespace ContainerManager {
 				}
 			}
 		}
+		if (!hasLocationKeywordMatch) return false;
 
 		//Reference check.
 		bool hasReferenceMatch = a_rule->references.empty() ? true : false;
@@ -105,6 +106,7 @@ namespace ContainerManager {
 				hasReferenceMatch = true;
 			}
 		}
+		if (!hasReferenceMatch) return false;
 
 		//Container check.
 		bool hasContainerMatch = a_rule->container.empty() ? true : false;
@@ -116,7 +118,26 @@ namespace ContainerManager {
 				}
 			}
 		}
-		return (hasReferenceMatch && hasLocationKeywordMatch && hasParentLocation && hasContainerMatch && hasWorldspaceLocation);
+		if (!hasContainerMatch) return false;
+
+		bool hasAVMatch = a_rule->requiredAVs.empty() ? true : false;
+		if (!hasAVMatch) {
+			auto* player = RE::PlayerCharacter::GetSingleton();
+
+			for (auto& valueSet : a_rule->requiredAVs) {
+				if (player->GetActorValue(valueSet.first) < valueSet.second.first) return false;
+				if (valueSet.second.second > -1.0f) {
+					if (player->GetActorValue(valueSet.first) > valueSet.second.second) return false;
+				}
+			}
+		}
+		if (!hasAVMatch) return false;
+
+		bool hasGlobalMatch = a_rule->requiredGlobalValues.empty() ? true : false;
+		if (!hasGlobalMatch) {}
+		if (!hasGlobalMatch) return false;
+
+		return true;
 	}
 
 	void ContainerManager::CreateSwapRule(SwapRule a_rule) {
@@ -258,6 +279,73 @@ namespace ContainerManager {
 			_loggerInfo("    This rule will only apply to these references:");
 			for (auto reference : a_rule.references) {
 				_loggerInfo("        >{}", reference);
+			}
+		}
+		if (!a_rule.requiredAVs.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply while these actor values are all valid");
+			for (auto& pair : a_rule.requiredAVs) {
+				std::string valueName = "";
+				switch (pair.first) {
+				case RE::ActorValue::kIllusion:
+					valueName = "Illusion";
+					break;
+				case RE::ActorValue::kConjuration:
+					valueName = "Conjuration";
+					break;
+				case RE::ActorValue::kDestruction:
+					valueName = "Destruction";
+					break;
+				case RE::ActorValue::kRestoration:
+					valueName = "Restoration";
+					break;
+				case RE::ActorValue::kAlteration:
+					valueName = "Ateration";
+					break;
+				case RE::ActorValue::kEnchanting:
+					valueName = "Enchanting";
+					break;
+				case RE::ActorValue::kSmithing:
+					valueName = "Smithing";
+					break;
+				case RE::ActorValue::kHeavyArmor:
+					valueName = "Heavy Armor";
+					break;
+				case RE::ActorValue::kBlock:
+					valueName = "Block";
+					break;
+				case RE::ActorValue::kTwoHanded:
+					valueName = "Two Handed";
+					break;
+				case RE::ActorValue::kOneHanded:
+					valueName = "One Handed";
+					break;
+				case RE::ActorValue::kArchery:
+					valueName = "Archery";
+					break;
+				case RE::ActorValue::kLightArmor:
+					valueName = "Light Armor";
+					break;
+				case RE::ActorValue::kSneak:
+					valueName = "Sneak";
+					break;
+				case RE::ActorValue::kLockpicking:
+					valueName = "Lockpicking";
+					break;
+				case RE::ActorValue::kPickpocket:
+					valueName = "Pickpocket";
+					break;
+				case RE::ActorValue::kSpeech:
+					valueName = "Speech";
+					break;
+				default:
+					valueName = "Alchemy";
+					break;
+				}
+
+				_loggerInfo("        >Value: {} -> Min Level: {}, Max Level", valueName, 
+					pair.second.first, 
+					pair.second.second > -1.0f ? std::to_string(pair.second.second) : "MAX");
 			}
 		}
 		_loggerInfo("-------------------------------------------------------------------------------------");
