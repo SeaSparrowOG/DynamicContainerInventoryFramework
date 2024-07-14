@@ -4,9 +4,7 @@ set(NAME "ContainerDistributionFramework" CACHE STRING "")
 set(VERSION 2.0.0 CACHE STRING "")
 
 # ---- Options ----
-option(SUPPORT_VR "Build for VR." OFF)
-option(BUILD_SKYRIMVR "Build for Skyrim VR" OFF)
-option(BUILD_SKYRIMAE "Build for Skyrim AE" OFF)
+option(BUILD_TEST "Sets log level to debug." OFF)
 
 # ---- Cache build vars ----
 macro(set_from_environment VARIABLE)
@@ -17,14 +15,14 @@ endmacro()
 
 macro(find_commonlib_path)
 	if (CommonLibName AND NOT ${CommonLibName} STREQUAL "")
-		# Check extern
-		find_path(CommonLibPath
-		include/REL/Relocation.h
-		PATHS extern/${CommonLibName})
+		# Check path
+		set_from_environment(${CommonLibName}Path)
+		set(CommonLibPath ${${CommonLibName}Path})
 		if (${CommonLibPath} STREQUAL "CommonLibPath-NOTFOUND")
-			#Check path
-			set_from_environment(${CommonLibName}Path)
-			set(CommonLibPath ${${CommonLibName}Path})
+			#Check extern
+			find_path(CommonLibPath
+			include/REL/Relocation.h
+			PATHS extern/${CommonLibName})
 		endif()
 	endif()
 endmacro()
@@ -37,9 +35,10 @@ set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
 set(Boost_USE_STATIC_RUNTIME OFF CACHE BOOL "")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "")
 
-if (BUILD_SKYRIMAE)
-	add_compile_definitions(SKYRIM_AE)
-	add_compile_definitions(SKYRIM_SUPPORT_AE)
+add_compile_definitions(SKYRIM_AE)
+add_compile_definitions(SKYRIM_SUPPORT_AE)
+if (BUILD_TEST)
+	add_compile_definitions(DEBUG)
 endif()
 
 # ---- Project ----
