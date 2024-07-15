@@ -1,4 +1,3 @@
-#include "containerCache.h"
 #include "containerManager.h"
 #include "utility.h"
 
@@ -370,8 +369,12 @@ namespace ContainerManager {
 	}
 
 	void ContainerManager::HandleContainer(RE::TESObjectREFR* a_ref) {
-		bool merchantContainer = a_ref->GetFactionOwner() ? a_ref->GetFactionOwner()->IsVendor() : false;
+#ifdef DEBUG
+		auto then = std::chrono::high_resolution_clock::now();
+		size_t rulesApplied = 0;
+#endif 
 
+		bool merchantContainer = a_ref->GetFactionOwner() ? a_ref->GetFactionOwner()->IsVendor() : false;
 		bool isContainerUnsafe = false;
 		auto* containerBase = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
 		if (containerBase && !(containerBase->data.flags & RE::CONT_DATA::Flag::kRespawn)) {
@@ -384,7 +387,7 @@ namespace ContainerManager {
 			isContainerUnsafe = true;
 		}
 
-		auto* containerItems = ContainerCache::CachedData::GetSingleton()->GetContainerItems(containerBase);
+		auto inventoryCounts = a_ref->GetInventoryCounts();
 		for (auto& rule : this->replaceRules) {
 			if (merchantContainer && !rule.allowVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
@@ -395,21 +398,20 @@ namespace ContainerManager {
 				if (itemCount < 1) continue;
 
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				for (; itemCount > 0;) {
-					size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
-					RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-					if (thingToAdd->As<RE::TESLeveledList>()) {
-						AddLeveledListToContainer(thingToAdd->As<RE::TESLeveledList>(), a_ref);
+				for (auto* obj : rule.newForm) {
+					auto leveledThing = obj->As<RE::TESLeveledList>();
+					if (leveledThing) {
+						AddLeveledListToContainer(leveledThing, a_ref);
 					}
 					else {
-						a_ref->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
+						a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
 					}
-					--itemCount;
 				}
 			}
 			else {
 				uint32_t itemCount = 0;
-				for (auto* item : *containerItems) {
+				for (auto& pair : inventoryCounts) {
+					auto* item = pair.first;
 					bool missingKeyword = false;
 					for (auto it = rule.removeKeywords.begin(); it != rule.removeKeywords.end() && !missingKeyword; ++it) {
 						if (item->HasKeywordByEditorID(*it)) continue;
@@ -417,10 +419,8 @@ namespace ContainerManager {
 					}
 					if (missingKeyword) continue;
 
-					auto oldItemCount = a_ref->GetInventoryCounts()[rule.oldForm];
-					if (oldItemCount < 1) continue;
-					itemCount += oldItemCount;
-					a_ref->RemoveItem(item, oldItemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+					itemCount += pair.second;
+					a_ref->RemoveItem(item, pair.second, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				}
 
 				for (uint32_t i = 0; i < itemCount; ++i) {
@@ -435,6 +435,9 @@ namespace ContainerManager {
 					}
 				}
 			}
+#ifdef DEBUG
+			rulesApplied++;
+#endif
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
@@ -451,12 +454,13 @@ namespace ContainerManager {
 					ruleCount = itemCount;
 				}
 				a_ref->RemoveItem(rule.oldForm, ruleCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+#ifdef DEBUG
+				rulesApplied++;
+#endif
 			}
 			else {
-				auto* container = a_ref->GetContainer();
-				if (!container) continue;
-
-				for (auto* item : *containerItems) {
+				for (auto& pair : inventoryCounts) {
+					auto* item = pair.first;
 					bool missingKeyword = false;
 					for (auto it = rule.removeKeywords.begin(); it != rule.removeKeywords.end() && !missingKeyword; ++it) {
 						if (item->HasKeywordByEditorID(*it)) continue;
@@ -464,10 +468,11 @@ namespace ContainerManager {
 					}
 					if (missingKeyword) continue;
 
-					auto oldItemCount = a_ref->GetInventoryCounts()[item];
-					if (oldItemCount < 1) continue;
-					a_ref->RemoveItem(item, oldItemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+					a_ref->RemoveItem(item, pair.second, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				}
+#ifdef DEBUG
+				rulesApplied++;
+#endif
 			}
 		} //Remove rule reading end.
 
@@ -480,20 +485,25 @@ namespace ContainerManager {
 				ruleCount = 1;
 			}
 
-			for (; ruleCount > 0;) {
-				size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
-				RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
-				auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
-
+			for (auto* obj : rule.newForm) {
+				auto leveledThing = obj->As<RE::TESLeveledList>();
 				if (leveledThing) {
 					AddLeveledListToContainer(leveledThing, a_ref);
 				}
 				else {
-					a_ref->AddObjectToContainer(thingToAdd, nullptr, 1, nullptr);
+					a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
 				}
-				--ruleCount;
 			}
+#ifdef DEBUG
+			rulesApplied++;
+#endif
 		} //Add rule reading end.
+
+#ifdef DEBUG
+		auto now = std::chrono::high_resolution_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - then).count();
+		_loggerDebug("Finished processing container: {}.\n    Applied {} rules in {} nanoseconds.", _debugEDID(containerBase), rulesApplied, elapsed);
+#endif
 	}
 
 	void ContainerManager::InitializeData() {
