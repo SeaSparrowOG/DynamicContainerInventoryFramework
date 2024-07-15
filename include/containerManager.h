@@ -4,6 +4,7 @@ namespace ContainerManager {
 	struct SwapRule {
 		int                                                             count               { 1 };
 		bool                                                            allowVendors        { false };
+		bool                                                            onlyVendors         { false };
 		bool                                                            bypassSafeEdits     { false };
 		std::string                                                     ruleName            { std::string() };
 		std::vector<std::string>                                        removeKeywords      { };

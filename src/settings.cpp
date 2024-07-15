@@ -127,6 +127,7 @@ namespace Settings {
 			//Initializing condition results so that they may be used in changes.
 			bool bypassUnsafeContainers = false;   
 			bool distributeToVendors = false;
+			bool onlyVendors = false;
 			std::vector<std::string> validLocationKeywords{};
 			std::vector<RE::BGSLocation*> validLocationIdentifiers{};
 			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
@@ -209,6 +210,26 @@ namespace Settings {
 						continue;
 					}
 					distributeToVendors = bypassField.asBool();
+				}
+
+				//Vendors only Check.
+				auto& vendorsOnlyField = conditions["onlyVendors"];
+				if (vendorsOnlyField) {
+					if (!vendorsOnlyField.isBool()) {
+						a_report->conditionsPluginTypeError = friendlyNameString;
+						a_report->hasError = true;
+						a_report->conditionsBadBypassError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (!distributeToVendors && vendorsOnlyField.asBool()) {
+						distributeToVendors = true;
+						onlyVendors = true;
+					}
+					 else if (vendorsOnlyField.asBool()) {
+						onlyVendors = true;
+					}
 				}
 
 				//Container check.
@@ -555,6 +576,7 @@ namespace Settings {
 				ContainerManager::SwapRule newRule;
 				newRule.bypassSafeEdits = bypassUnsafeContainers;
 				newRule.allowVendors = distributeToVendors;
+				newRule.onlyVendors = onlyVendors;
 				newRule.validLocations = validLocationIdentifiers;
 				newRule.validWorldspaces = validWorldspaceIdentifiers;
 				newRule.locationKeywords = validLocationKeywords;

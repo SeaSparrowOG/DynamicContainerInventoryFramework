@@ -407,6 +407,9 @@ namespace ContainerManager {
 						a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
 					}
 				}
+#ifdef DEBUG
+				rulesApplied++;
+#endif
 			}
 			else {
 				uint32_t itemCount = 0;
@@ -434,10 +437,10 @@ namespace ContainerManager {
 						a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
 					}
 				}
-			}
 #ifdef DEBUG
-			rulesApplied++;
+				rulesApplied++;
 #endif
+			}
 		} //Replace Rule reading end.
 
 		for (auto& rule : this->removeRules) {
