@@ -2,6 +2,7 @@
 #include "containerManager.h"
 #include "hooks.h"
 #include "iniReader.h"
+#include "merchantFactionCache.h"
 #include "settings.h"
 
 void SetupLog() {
@@ -29,6 +30,7 @@ void SetupLog() {
 void MessageHandler(SKSE::MessagingInterface::Message* a_message) {
     switch (a_message->type) {
     case SKSE::MessagingInterface::kDataLoaded:
+        MerchantCache::MerchantCache::GetSingleton()->BuildCache();
         ContainerManager::ContainerManager::GetSingleton()->InitializeData();
         Hooks::Install();
         Settings::ReadSettings();

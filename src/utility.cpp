@@ -54,9 +54,13 @@ namespace Utility {
 			auto* form = it.form;
 			auto* leveledForm = form->As<RE::TESLeveledList>();
 			if (leveledForm) {
+#ifdef DEBUG
+				_loggerDebug("    >Sublist found, resolving that...");
+#endif
 				ResolveLeveledList(leveledForm, a_result, it.count);
 			}
 			else {
+				_loggerDebug("    >Resolved: {} -> {}", _debugEDID(it.form), it.count);
 				a_result->push_back(it);
 			}
 		}

@@ -1,4 +1,5 @@
 #include "containerManager.h"
+#include "merchantFactionCache.h"
 #include "utility.h"
 
 namespace {
@@ -373,10 +374,13 @@ namespace ContainerManager {
 		auto then = std::chrono::high_resolution_clock::now();
 		size_t rulesApplied = 0;
 #endif 
-
 		bool merchantContainer = a_ref->GetFactionOwner() ? a_ref->GetFactionOwner()->IsVendor() : false;
+		if (!merchantContainer) {
+			merchantContainer = MerchantCache::MerchantCache::GetSingleton()->IsMerchantContainer(a_ref);
+		}
+
+		auto* containerBase = a_ref->GetBaseObject() ? a_ref->GetBaseObject()->As<RE::TESObjectCONT>() : nullptr;
 		bool isContainerUnsafe = false;
-		auto* containerBase = a_ref->GetBaseObject()->As<RE::TESObjectCONT>();
 		if (containerBase && !(containerBase->data.flags & RE::CONT_DATA::Flag::kRespawn)) {
 			isContainerUnsafe = true;
 		}
@@ -390,6 +394,7 @@ namespace ContainerManager {
 		auto inventoryCounts = a_ref->GetInventoryCounts();
 		for (auto& rule : this->replaceRules) {
 			if (merchantContainer && !rule.allowVendors) continue;
+			if (!merchantContainer && rule.onlyVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
@@ -401,10 +406,13 @@ namespace ContainerManager {
 				for (auto* obj : rule.newForm) {
 					auto leveledThing = obj->As<RE::TESLeveledList>();
 					if (leveledThing) {
+#ifdef DEBUG
+						_loggerDebug("Adding leveled list to container:");
+#endif
 						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
 					}
 					else {
-						a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
+						a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
 					}
 				}
 #ifdef DEBUG
@@ -426,11 +434,12 @@ namespace ContainerManager {
 					a_ref->RemoveItem(item, pair.second, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				}
 
-				for (uint32_t i = 0; i < itemCount; ++i) {
-					size_t rng = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
-					RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
+				for (auto* thingToAdd : rule.newForm) {
 					auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 					if (leveledThing) {
+#ifdef DEBUG
+						_loggerDebug("Adding leveled list to container:");
+#endif
 						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
 					}
 					else {
@@ -445,6 +454,7 @@ namespace ContainerManager {
 
 		for (auto& rule : this->removeRules) {
 			if (merchantContainer && !rule.allowVendors) continue;
+			if (!merchantContainer && rule.onlyVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			int32_t ruleCount = rule.count;
 
@@ -481,6 +491,7 @@ namespace ContainerManager {
 
 		for (auto& rule : this->addRules) {
 			if (merchantContainer && !rule.allowVendors) continue;
+			if (!merchantContainer && rule.onlyVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
 			int32_t ruleCount = rule.count;
@@ -491,6 +502,9 @@ namespace ContainerManager {
 			for (auto* obj : rule.newForm) {
 				auto leveledThing = obj->As<RE::TESLeveledList>();
 				if (leveledThing) {
+#ifdef DEBUG
+					_loggerDebug("Adding leveled list to container:");
+#endif
 					AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
 				}
 				else {
@@ -505,7 +519,9 @@ namespace ContainerManager {
 #ifdef DEBUG
 		auto now = std::chrono::high_resolution_clock::now();
 		auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - then).count();
-		_loggerDebug("Finished processing container: {}.\n    Applied {} rules in {} nanoseconds.", _debugEDID(containerBase), rulesApplied, elapsed);
+		if (rulesApplied > 0) {
+			_loggerDebug("Finished processing container: {}.\n    Applied {} rules in {} nanoseconds.", _debugEDID(containerBase), rulesApplied, elapsed);
+		}
 #endif
 	}
 
