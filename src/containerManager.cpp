@@ -2,9 +2,9 @@
 #include "utility.h"
 
 namespace {
-	static void AddLeveledListToContainer(RE::TESLeveledList* list, RE::TESObjectREFR* a_container) {
+	static void AddLeveledListToContainer(RE::TESLeveledList* list, RE::TESObjectREFR* a_container, uint32_t a_count) {
 		RE::BSScrapArray<RE::CALCED_OBJECT> result{};
-		Utility::ResolveLeveledList(list, &result);
+		Utility::ResolveLeveledList(list, &result, a_count);
 		if (result.size() < 1) return;
 
 		for (auto& obj : result) {
@@ -401,7 +401,7 @@ namespace ContainerManager {
 				for (auto* obj : rule.newForm) {
 					auto leveledThing = obj->As<RE::TESLeveledList>();
 					if (leveledThing) {
-						AddLeveledListToContainer(leveledThing, a_ref);
+						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
 					}
 					else {
 						a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
@@ -431,7 +431,7 @@ namespace ContainerManager {
 					RE::TESBoundObject* thingToAdd = rule.newForm.at(rng);
 					auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 					if (leveledThing) {
-						AddLeveledListToContainer(leveledThing, a_ref);
+						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
 					}
 					else {
 						a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
@@ -491,7 +491,7 @@ namespace ContainerManager {
 			for (auto* obj : rule.newForm) {
 				auto leveledThing = obj->As<RE::TESLeveledList>();
 				if (leveledThing) {
-					AddLeveledListToContainer(leveledThing, a_ref);
+					AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
 				}
 				else {
 					a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);

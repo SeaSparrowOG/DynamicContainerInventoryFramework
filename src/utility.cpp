@@ -18,16 +18,6 @@ namespace Utility {
 		return result;
 	}
 
-	RE::TESForm* GetFormFromMod(std::string a_id, std::string a_mod) {
-		RE::TESForm* response = nullptr;
-		if (!IsModPresent(a_mod)) return response;
-		if (!IsHex(a_id)) return response;
-
-		RE::FormID formID = StringToFormID(a_id);
-		response = RE::TESDataHandler::GetSingleton()->LookupForm(formID, a_mod);
-		return response;
-	}
-
 	RE::FormID ParseFormID(const std::string& a_identifier) {
 		if (const auto splitID = clib_util::string::split(a_identifier, "|"); splitID.size() == 2) {
 			const auto  formID = clib_util::string::to_num<RE::FormID>(splitID[0], true);
@@ -56,15 +46,15 @@ namespace Utility {
 		return GetParentChain(parent, a_parentArray);
 	}
 
-	void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result) {
+	void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result, uint32_t a_count) {
 		RE::BSScrapArray<RE::CALCED_OBJECT> temp{};
-		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), 1, temp, 0, true);
+		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), a_count, temp, 0, true);
 
 		for (auto& it : temp) {
 			auto* form = it.form;
 			auto* leveledForm = form->As<RE::TESLeveledList>();
 			if (leveledForm) {
-				ResolveLeveledList(leveledForm, a_result);
+				ResolveLeveledList(leveledForm, a_result, it.count);
 			}
 			else {
 				a_result->push_back(it);

@@ -17,7 +17,6 @@ namespace Utility {
 		return response;
 	}
 
-	RE::TESForm* GetFormFromMod(std::string a_id, std::string a_mod);
 	void GetParentChain(RE::BGSLocation* a_child, std::vector<RE::BGSLocation*>* a_parentArray);
-	void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result);
+	void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result, uint32_t a_count);
 }
