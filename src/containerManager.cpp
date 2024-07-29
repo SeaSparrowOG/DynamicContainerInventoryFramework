@@ -59,6 +59,32 @@ namespace ContainerManager {
 		}
 		if (!hasAVMatch) return false;
 
+
+
+
+		bool hasQuestStageMatch = a_rule->requiredQuestStages.empty() ? true : false;
+		if (!hasQuestStageMatch) {
+			for (auto & it : a_rule->requiredQuestStages) {
+
+				auto & [wantedStage, comparator] = it.second;				
+
+				if (Comparison::CompareResult(it.first->currentStage, comparator, wantedStage)) {					
+
+					hasQuestStageMatch = true;
+					break;
+				}
+			}			
+		}
+		if (hasQuestStageMatch == false) return false;
+
+
+
+
+
+
+
+
+
 		//We can get lazy here, since this is the last condition.
 		bool hasGlobalMatch = a_rule->requiredGlobalValues.empty() ? true : false;
 		if (!hasGlobalMatch) {
@@ -129,6 +155,10 @@ namespace ContainerManager {
 			for (auto& locationKeyword : a_rule->locationKeywords) {
 				if (refLoc->HasKeywordString(locationKeyword)) {
 					hasLocationKeywordMatch = true;
+
+
+					/* can terminate early, since one valid = valid */
+					break;
 				}
 			}
 
@@ -141,6 +171,9 @@ namespace ContainerManager {
 					for (auto& locationKeyword : a_rule->locationKeywords) {
 						if ((*it)->HasKeywordString(locationKeyword)) {
 							hasLocationKeywordMatch = true;
+
+							/* ditto */
+							break;
 						}
 					}
 				}
@@ -229,14 +262,29 @@ namespace ContainerManager {
 			}
 		}
 		else {
-			_loggerInfo("    Any of the following forms may be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
+
+			/* added & changed: depending on "pickAtRandom" setting, different message is displayed */
+
+			if (a_rule.isPickAtRandom) {
+				_loggerInfo("    One of the following forms will be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
+			}
+			else {
+				_loggerInfo("    All of the following forms will be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
+			}
+
+
 			for (auto* form : a_rule.newForm) {
 				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
 					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
 					clib_util::editorID::get_editorID(form)
 					: form->GetName());
 			}
+
+
+			/* end of add & change */
+
 		}
+
 
 		if (a_rule.bypassSafeEdits) {
 			_loggerInfo("");
@@ -292,6 +340,28 @@ namespace ContainerManager {
 				_loggerInfo("        >{}", reference);
 			}
 		}
+
+
+		if (!a_rule.requiredQuestStages.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply if at least one of these quest conditions is fulfilled:");
+			for (auto pair : a_rule.requiredQuestStages) {
+
+				auto & [wantedStage, comparator] = pair.second;
+
+				_loggerInfo("        >Quest: {} ; Its Current Stage Must: {} {}",
+					pair.first->GetFormEditorID(),
+					Comparison::OperatorToString(pair.second.second),
+					wantedStage
+				);
+			}
+
+		}
+
+
+
+
+
 		if (!a_rule.requiredGlobalValues.empty()) {
 			_loggerInfo("");
 			_loggerInfo("    This rule will only apply if these globals have these values:");
@@ -403,17 +473,49 @@ namespace ContainerManager {
 				if (itemCount < 1) continue;
 
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				for (auto* obj : rule.newForm) {
-					auto leveledThing = obj->As<RE::TESLeveledList>();
-					if (leveledThing) {
+
+
+
+
+
+
+				if (rule.isPickAtRandom) {
+
+					const int index = clib_util::RNG().Generate(0, (int) rule.newForm.size() - 1);
+
+					_loggerInfo(">> start = 0, end = {}; end result = {}", rule.newForm.size() - 1, index);
+
+					if (index >= 0 && index < rule.newForm.size())
+					{
+						
+						auto obj = rule.newForm[index];
+
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
 #ifdef DEBUG
-						_loggerDebug("Adding leveled list to container:");
+							_loggerDebug("Adding leveled list to container:");
 #endif
-						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
+							AddLeveledListToContainer(leveledThing, a_ref, rule.count);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
+						}
 					}
-					else {
-						a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
+				}
+				else {
+					for (auto* obj : rule.newForm) {
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
+#ifdef DEBUG
+							_loggerDebug("Adding leveled list to container:");
+#endif
+							AddLeveledListToContainer(leveledThing, a_ref, rule.count);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
+						}
 					}
+
 				}
 #ifdef DEBUG
 				rulesApplied++;
@@ -498,19 +600,50 @@ namespace ContainerManager {
 			if (rule.count < 1) {
 				ruleCount = 1;
 			}
+			
 
-			for (auto* obj : rule.newForm) {
-				auto leveledThing = obj->As<RE::TESLeveledList>();
-				if (leveledThing) {
+
+
+
+
+
+
+				if (rule.isPickAtRandom) {
+
+					const int index = clib_util::RNG().Generate(0, (int) rule.newForm.size() - 1);
+
+					if (index >= 0 && index < rule.newForm.size())
+					{
+						
+						auto obj = rule.newForm[index];
+
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
 #ifdef DEBUG
-					_loggerDebug("Adding leveled list to container:");
+							_loggerDebug("Adding leveled list to container:");
 #endif
-					AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
+							AddLeveledListToContainer(leveledThing, a_ref, rule.count);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
+						}
+					}
 				}
 				else {
-					a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
+
+					for (auto* obj : rule.newForm) {
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
+#ifdef DEBUG
+							_loggerDebug("Adding leveled list to container:");
+#endif
+							AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
+						}
+					}
 				}
-			}
 #ifdef DEBUG
 			rulesApplied++;
 #endif

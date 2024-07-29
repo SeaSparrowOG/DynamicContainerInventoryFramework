@@ -6,6 +6,14 @@ namespace ContainerManager {
 		bool                                                            allowVendors        { false };
 		bool                                                            onlyVendors         { false };
 		bool                                                            bypassSafeEdits     { false };
+
+		/*
+			If set to true, this reverts distribution to pre-2.0 behavior (one of the array items)
+			But must be set explicitly. Therefore, if not set, 2.0+ behavior (distribute ALL) still applies.
+		*/
+		bool															isPickAtRandom		= false;
+
+
 		std::string                                                     ruleName            { std::string() };
 		std::vector<std::string>                                        removeKeywords      { };
 		RE::TESBoundObject*                                             oldForm             { nullptr };
@@ -15,6 +23,9 @@ namespace ContainerManager {
 		std::vector<RE::TESWorldSpace*>                                 validWorldspaces    { std::vector<RE::TESWorldSpace*>() };
 		std::vector<RE::TESBoundObject*>                                newForm             { std::vector<RE::TESBoundObject*>() };
 		std::vector<RE::FormID>                                         references          { std::vector<RE::FormID>() };
+
+		std::vector<QuestCondition>										requiredQuestStages { std::vector<QuestCondition>() };
+
 		std::vector<std::pair<RE::ActorValue, std::pair<float, float>>> requiredAVs         { std::vector<std::pair<RE::ActorValue, std::pair<float, float>>>() };
 		std::vector<std::pair<RE::TESGlobal*, float>>                   requiredGlobalValues{ std::vector<std::pair<RE::TESGlobal*, float>>() };
 	};
