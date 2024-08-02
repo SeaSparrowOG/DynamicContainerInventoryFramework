@@ -481,7 +481,7 @@ namespace ContainerManager {
 
 				if (rule.isPickAtRandom) {
 
-					const int index = clib_util::RNG().Generate(0, (int) rule.newForm.size() - 1);
+					const int index = clib_util::RNG().generate<int>(0, rule.newForm.size() - 1);
 
 					_loggerInfo(">> start = 0, end = {}; end result = {}", rule.newForm.size() - 1, index);
 
@@ -610,7 +610,7 @@ namespace ContainerManager {
 
 				if (rule.isPickAtRandom) {
 
-					const int index = clib_util::RNG().Generate(0, (int) rule.newForm.size() - 1);
+					const int index = clib_util::RNG().generate<int>(0, rule.newForm.size() - 1);
 
 					if (index >= 0 && index < rule.newForm.size())
 					{
