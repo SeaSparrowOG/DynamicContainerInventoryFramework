@@ -61,6 +61,32 @@ namespace ContainerManager {
 		}
 		if (!hasAVMatch) return false;
 
+
+
+
+		bool hasQuestStageMatch = a_rule->requiredQuestStages.empty() ? true : false;
+		if (!hasQuestStageMatch) {
+			for (auto & it : a_rule->requiredQuestStages) {
+
+				auto & [wantedStage, comparator] = it.second;				
+
+				if (Comparison::CompareResult(it.first->currentStage, comparator, wantedStage)) {					
+
+					hasQuestStageMatch = true;
+					break;
+				}
+			}			
+		}
+		if (hasQuestStageMatch == false) return false;
+
+
+
+
+
+
+
+
+
 		//We can get lazy here, since this is the last condition.
 		bool hasGlobalMatch = a_rule->requiredGlobalValues.empty() ? true : false;
 		if (!hasGlobalMatch) {
@@ -79,6 +105,7 @@ namespace ContainerManager {
 				hasWorldspaceLocation = true;
 			}
 		}
+		if (!hasWorldspaceLocation) return false;
 
 		//The following are SLOW because they have a lot to check.
 		//Thus, they are moved to the end of the validation to give the first a chance to fail early.
@@ -133,6 +160,10 @@ namespace ContainerManager {
 			for (auto& locationKeyword : a_rule->locationKeywords) {
 				if (refLoc->HasKeywordString(locationKeyword)) {
 					hasLocationKeywordMatch = true;
+
+
+					/* can terminate early, since one valid = valid */
+					break;
 				}
 			}
 
@@ -145,6 +176,9 @@ namespace ContainerManager {
 					for (auto& locationKeyword : a_rule->locationKeywords) {
 						if ((*it)->HasKeywordString(locationKeyword)) {
 							hasLocationKeywordMatch = true;
+
+							/* ditto */
+							break;
 						}
 					}
 				}
@@ -232,16 +266,7 @@ namespace ContainerManager {
 					: form->GetName());
 			}
 		}
-		else {
-			_loggerInfo("    Any of the following forms may be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
-			for (auto* form : a_rule.newForm) {
-				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
-					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
-					clib_util::editorID::get_editorID(form)
-					: form->GetName());
-			}
-		}
-
+    
 		if (a_rule.bypassSafeEdits) {
 			_loggerInfo("");
 			_loggerInfo("    This rule can distribute to safe containers.");
@@ -250,6 +275,11 @@ namespace ContainerManager {
 		if (a_rule.allowVendors) {
 			_loggerInfo("");
 			_loggerInfo("    This rule can distribute to vendor containers.");
+		}
+
+		if (a_rule.randomAdd) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will randomly add a random item in the add field.");
 		}
 
 		if (!a_rule.container.empty()) {
@@ -296,6 +326,24 @@ namespace ContainerManager {
 				_loggerInfo("        >{}", reference);
 			}
 		}
+
+
+		if (!a_rule.requiredQuestStages.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply if at least one of these quest conditions is fulfilled:");
+			for (auto pair : a_rule.requiredQuestStages) {
+
+				auto & [wantedStage, comparator] = pair.second;
+
+				_loggerInfo("        >Quest: {} ; Its Current Stage Must: {} {}",
+					pair.first->GetFormEditorID(),
+					Comparison::OperatorToString(pair.second.second),
+					wantedStage
+				);
+			}
+
+		}
+
 		if (!a_rule.requiredGlobalValues.empty()) {
 			_loggerInfo("");
 			_loggerInfo("    This rule will only apply if these globals have these values:");
@@ -407,7 +455,7 @@ namespace ContainerManager {
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			if (rule.removeKeywords.empty()) {
-				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+				auto itemCount = a_ref->GetInventory()[rule.oldForm].first;
 				if (itemCount < 1) continue;
 
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
@@ -436,6 +484,21 @@ namespace ContainerManager {
 							a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
 						}
 					}
+				}
+				else {
+					for (auto* obj : rule.newForm) {
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
+#ifdef DEBUG
+							_loggerDebug("Adding leveled list to container:");
+#endif
+							AddLeveledListToContainer(leveledThing, a_ref, itemCount);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
+						}
+					}
+
 				}
 #ifdef DEBUG
 				rulesApplied++;
@@ -533,14 +596,14 @@ namespace ContainerManager {
 			if (rule.count < 1) {
 				ruleCount = 1;
 			}
-
+      
 			if (rule.randomAdd) {
 				size_t index = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 				auto* thingToAdd = rule.newForm.at(index);
 				auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 				if (leveledThing) {
 					AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
-				}
+			}
 				else {
 					a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
 				}
@@ -559,6 +622,19 @@ namespace ContainerManager {
 					}
 				}
 			}
+			else {
+				for (auto* obj : rule.newForm) {
+					auto leveledThing = obj->As<RE::TESLeveledList>();
+					if (leveledThing) {
+#ifdef DEBUG
+						_loggerDebug("Adding leveled list to container:");
+#endif
+						AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
+					}
+					else {
+						a_ref->AddObjectToContainer(obj, nullptr, ruleCount, nullptr);
+					}
+				}
 #ifdef DEBUG
 			rulesApplied++;
 #endif

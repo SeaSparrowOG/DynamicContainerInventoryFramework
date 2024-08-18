@@ -15,10 +15,19 @@ namespace {
 		std::string conditionsBadBypassError;
 		std::string conditionsVendorsError;
 		std::string conditionsPluginTypeError;
+		std::string conditionsQuestFieldError;
 		std::vector<std::string> badStringField;
 		std::vector<std::string> missingForm;
 		std::vector<std::string> objectNotArray;
+		std::vector<std::string> objectNotObject;
 		std::vector<std::string> badStringFormat;
+
+
+
+
+		std::vector<std::string> conditionsNotAnIntegerError;
+		std::vector<std::string> conditionsNotABoolError;
+
 	};
 
 	void ReadReport(SwapData a_report) {
@@ -89,6 +98,11 @@ namespace {
 			_loggerInfo("");
 		}
 
+		if (!a_report.conditionsQuestFieldError.empty()) {
+			_loggerInfo("The conditions field is unreadable, but present.");
+			_loggerInfo("");
+		}
+
 		if (!a_report.missingForm.empty()) {
 			_loggerInfo("The following fields specify a form in a plugin that is loaded, but the form doesn't exist:");
 			for (auto it : a_report.missingForm) {
@@ -101,6 +115,33 @@ namespace {
 			_loggerInfo("Unable to open the config. Make sure the JSON is valid (no missing commas, brackets are closed...)");
 			_loggerInfo("");
 		}
+
+
+
+
+
+
+
+
+		if (!a_report.conditionsNotABoolError.empty()) {
+			_loggerInfo("The following should have boolean values (true or false), but do not:");
+			for (auto it : a_report.conditionsNotABoolError) {
+				_loggerInfo("    >{}", it);
+			}
+			_loggerInfo("");
+		}
+
+		if (!a_report.conditionsNotAnIntegerError.empty()) {
+			_loggerInfo("The following should have integer values, but do not:");
+			for (auto it : a_report.conditionsNotAnIntegerError) {
+				_loggerInfo("    >{}", it);
+			}
+			_loggerInfo("");
+		}
+
+
+
+
 	}
 }
 
@@ -126,6 +167,7 @@ namespace Settings {
 
 			//Initializing condition results so that they may be used in changes.
 			bool bypassUnsafeContainers = false;   
+			bool randomAdd = false;
 			bool distributeToVendors = false;
 			bool onlyVendors = false;
 			bool randomAdd = false;
@@ -137,6 +179,9 @@ namespace Settings {
 			std::vector<RE::FormID> validReferences{};
 			std::vector<std::pair<RE::ActorValue, std::pair<float, float>>> requiredAVs{};
 			std::vector<std::pair<RE::TESGlobal*, float>> requiredGlobals{};
+			std::vector<QuestCondition> requiredQuestStages{};
+
+
 
 			//Missing name check. Missing name is used in the back end for rule checking.
 			if (!friendlyName || !friendlyName.isString()) {
@@ -214,6 +259,19 @@ namespace Settings {
 					distributeToVendors = bypassField.asBool();
 				}
 
+				//Random add check.
+				auto& randomAddField = conditions["randomAdd"];
+				if (randomAddField) {
+					if (!randomAddField.isBool()) {
+						a_report->conditionsPluginTypeError = friendlyNameString;
+						a_report->hasError = true;
+						a_report->conditionsBadBypassError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+					randomAdd = randomAddField.asBool();
+				}
+
 				//Vendors only Check.
 				auto& vendorsOnlyField = conditions["onlyVendors"];
 				if (vendorsOnlyField) {
@@ -282,6 +340,64 @@ namespace Settings {
 						}
 						validContainers.push_back(container);
 					}
+				}
+
+				auto& questConditionField = conditions["questConditions"];
+				if (questConditionField) {
+					if (!questConditionField.isObject()) {
+						std::string name = friendlyNameString; name += " -> questConditions";
+						a_report->objectNotObject.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (!questConditionField["QuestID"] || questConditionField["QuestID"].isString()) {
+						std::string name = friendlyNameString; name += " -> questConditions -> QuestID";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (!(!questConditionField["Completed"] || !questConditionField["Completed"].isBool()) ||
+						(questConditionField["QuestStage"] || !questConditionField["QuestStage"].isUInt64())) {
+						std::string name = friendlyNameString; name += " -> questConditions -> Completed (OR) QuestStage";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (questConditionField["QuestStage"] && 
+						(!questConditionField["Operator"] || questConditionField["Operator"].isString())) {
+						std::string name = friendlyNameString; name += " -> questConditions -> Operator";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					ContainerManager::QuestCondition newCondition{};
+
+					newCondition.questEDID = questConditionField["QuestID"].asString();
+					if (questConditionField["Completed"]) {
+						newCondition.questCompleted = questConditionField["Completed"].asBool();
+					}
+					else {
+						ContainerManager::QuestCondition::Comparison comparisonValue = 
+							ContainerManager::QuestCondition::GetComparison(questConditionField["Operator"].asString());
+						if (comparisonValue == ContainerManager::QuestCondition::Comparison::Invalid) {
+							std::string name = friendlyNameString; name += " -> questConditions -> Operator";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						newCondition.questStage = questConditionField["QuestStage"].isUInt64();
+						newCondition.comparisonValue = comparisonValue;
+					}
+					questCondition = newCondition;
 				}
 
 				//Location check.
@@ -406,6 +522,97 @@ namespace Settings {
 						validReferences.push_back(Utility::ParseFormID(identifier.asString()));
 					}
 				}
+
+
+
+
+				//quest stage check
+				auto& questStageField = conditions["questConditions"];
+				if (questStageField && questStageField.isArray()) {
+
+
+
+					for (auto & identifier : questStageField) {
+
+						// parse: quest, stage, comparator
+
+						// ************ quest
+						auto questString = identifier["quest"];
+						if (!questString.isString()) {
+							std::string name = friendlyNameString; name += " -> questConditions";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+
+
+						RE::FormID questFormID = Utility::ParseFormID(questString.asString());
+
+						auto questForm = RE::TESForm::LookupByID<RE::TESQuest>(questFormID);
+						if (!questForm) {
+							std::string name = friendlyNameString; name += " -> questConditions";
+							a_report->missingForm.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+
+
+
+						// ************ stage
+
+
+						auto stageUInt = identifier["stage"];
+
+						// NOTE: since RE::TESQuest stage number is u16, its max val is 65535, cannot be more than that
+						if (!stageUInt.isUInt() || stageUInt.asUInt() > 65535) {
+							std::string name = friendlyNameString; name += " -> questConditions";
+							a_report->conditionsNotAnIntegerError.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						uint16_t wantedStage = (uint16_t) stageUInt.asUInt();
+
+
+						// ************ comparator
+
+						auto comparatorString = identifier["comparator"];
+						if (!comparatorString.isString()) {
+							std::string name = friendlyNameString; name += " -> questConditions";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						auto comparator = Comparison::ParseOperator(comparatorString.asString());
+						if (comparator == Comparison::CompareOp::kUndefined) {
+							std::string name = friendlyNameString; name += " -> questConditions";
+							a_report->badStringFormat.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						
+						
+						// reaching here, this quest condition is valid, add.
+
+						requiredQuestStages.push_back(
+							std::make_pair(
+								questForm,
+								std::make_pair(wantedStage, comparator)
+							)
+						);
+					}
+
+				}
+
+
+
+
+
 
 				//Player skill check.
 				auto& playerSkillsField = conditions["playerSkills"];
@@ -661,13 +868,17 @@ namespace Settings {
 				newRule.ruleName = ruleName;
 				newRule.requiredAVs = requiredAVs;
 				newRule.requiredGlobalValues = requiredGlobals;
+				newRule.requiredQuestStages = requiredQuestStages;
+
 
 				bool changesAreValid = true;
 
 				auto& oldId = change["remove"];
 				auto& newId = change["add"];
 				auto& countField = change["count"];
-				auto& removeKeywords = change["removeByKeywords"];
+				auto& removeKeywords = change["removeByKeywords"];	
+				auto& pickAtRandomField = change["randomAdd"];
+
 				if (!(oldId || newId || removeKeywords)) {
 					a_report->hasBatData = true;
 					a_report->changesError = friendlyNameString;
@@ -746,6 +957,13 @@ namespace Settings {
 					newRule.removeKeywords = validRemoveKeywords;
 				}
 				if (!changesAreValid) continue;
+
+
+				if (pickAtRandomField && pickAtRandomField.isBool()) {
+					newRule.isPickAtRandom = pickAtRandomField.asBool();
+				}
+
+
 
 				if (countField && countField.isInt()) {
 					newRule.count = countField.asInt();

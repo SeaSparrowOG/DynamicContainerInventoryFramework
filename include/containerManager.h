@@ -85,6 +85,9 @@ namespace ContainerManager {
 		std::vector<RE::TESWorldSpace*>                                 validWorldspaces    { std::vector<RE::TESWorldSpace*>() };
 		std::vector<RE::TESBoundObject*>                                newForm             { std::vector<RE::TESBoundObject*>() };
 		std::vector<RE::FormID>                                         references          { std::vector<RE::FormID>() };
+
+		std::vector<QuestCondition>										requiredQuestStages { std::vector<QuestCondition>() };
+
 		std::vector<std::pair<RE::ActorValue, std::pair<float, float>>> requiredAVs         { std::vector<std::pair<RE::ActorValue, std::pair<float, float>>>() };
 		std::vector<std::pair<RE::TESGlobal*, float>>                   requiredGlobalValues{ std::vector<std::pair<RE::TESGlobal*, float>>() };
 	};
