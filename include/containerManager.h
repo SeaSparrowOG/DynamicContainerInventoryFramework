@@ -48,7 +48,7 @@ namespace ContainerManager {
 			auto* quest = RE::TESForm::LookupByEditorID<RE::TESQuest>(questEDID);
 			if (!quest) return false;
 
-			switch (comparisonValue){
+			switch (comparisonValue) {
 			case Equal:
 				return quest->GetCurrentStageID() == questStage;
 			case NotEqual:
@@ -76,7 +76,7 @@ namespace ContainerManager {
 		bool                                                            bypassSafeEdits     { false };
 		bool                                                            randomAdd           { false };
 		std::string                                                     ruleName            { std::string() };
-		QuestCondition                                                  questCondition      {};
+		QuestCondition                                                  questCondition      { };
 		std::vector<std::string>                                        removeKeywords      { };
 		RE::TESBoundObject*                                             oldForm             { nullptr };
 		std::vector<std::string>                                        locationKeywords    { std::vector<std::string>() };

@@ -117,9 +117,9 @@ namespace ContainerManager {
 			}
 
 			//Check parents.
+			auto settingsParents = this->parentLocations.find(refLoc) != this->parentLocations.end() ? this->parentLocations[refLoc] : std::vector<RE::BGSLocation*>();
+			RE::BGSLocation* parent = refLoc->parentLoc;
 			if (!hasParentLocation) {
-				auto settingsParents = this->parentLocations.find(refLoc) != this->parentLocations.end() ? this->parentLocations[refLoc] : std::vector<RE::BGSLocation*>();
-				RE::BGSLocation* parent = refLoc->parentLoc;
 				for (auto it = settingsParents.begin(); it != settingsParents.end() && !hasParentLocation && parent; ++it) {
 					if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), parent) != a_rule->validLocations.end()) {
 						hasParentLocation = true;
@@ -266,31 +266,7 @@ namespace ContainerManager {
 					: form->GetName());
 			}
 		}
-		else {
-
-			/* added & changed: depending on "pickAtRandom" setting, different message is displayed */
-
-			if (a_rule.isPickAtRandom) {
-				_loggerInfo("    One of the following forms will be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
-			}
-			else {
-				_loggerInfo("    All of the following forms will be added, with a count of {}:", a_rule.count > 1 ? a_rule.count : 1);
-			}
-
-
-			for (auto* form : a_rule.newForm) {
-				_loggerInfo("        >{}", strcmp(form->GetName(), "") == 0 ?
-					clib_util::editorID::get_editorID(form).empty() ? std::to_string(form->GetLocalFormID()) :
-					clib_util::editorID::get_editorID(form)
-					: form->GetName());
-			}
-
-
-			/* end of add & change */
-
-		}
-
-
+    
 		if (a_rule.bypassSafeEdits) {
 			_loggerInfo("");
 			_loggerInfo("    This rule can distribute to safe containers.");
@@ -368,16 +344,16 @@ namespace ContainerManager {
 
 		}
 
-
-
-
-
 		if (!a_rule.requiredGlobalValues.empty()) {
 			_loggerInfo("");
 			_loggerInfo("    This rule will only apply if these globals have these values:");
 			for (auto pair : a_rule.requiredGlobalValues) {
 				_loggerInfo("        >Global: {}, Value: {}", pair.first->GetFormEditorID(), pair.second);
 			}
+		}
+		if (a_rule.randomAdd) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will randomly add a random item in the add field.");
 		}
 		if (!a_rule.requiredAVs.empty()) {
 			_loggerInfo("");
@@ -489,17 +465,24 @@ namespace ContainerManager {
 					auto* thingToAdd = rule.newForm.at(index);
 					auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 					if (leveledThing) {
-#ifdef DEBUG
-							_loggerDebug("Adding leveled list to container:");
-#endif
-							AddLeveledListToContainer(leveledThing, a_ref, rule.count);
-						}
-						else {
-							a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
-						}
+						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
 					}
 					else {
 						a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+					}
+				}
+				else {
+					for (auto* obj : rule.newForm) {
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
+#ifdef DEBUG
+							_loggerDebug("Adding leveled list to container:");
+#endif
+							AddLeveledListToContainer(leveledThing, a_ref, itemCount);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
+						}
 					}
 				}
 				else {
@@ -536,16 +519,29 @@ namespace ContainerManager {
 					a_ref->RemoveItem(item, pair.second, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 				}
 
-				for (auto* thingToAdd : rule.newForm) {
+				if (rule.randomAdd) {
+					size_t index = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+					auto* thingToAdd = rule.newForm.at(index);
 					auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 					if (leveledThing) {
-#ifdef DEBUG
-						_loggerDebug("Adding leveled list to container:");
-#endif
 						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
 					}
 					else {
 						a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+					}
+				}
+				else {
+					for (auto* obj : rule.newForm) {
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
+#ifdef DEBUG
+							_loggerDebug("Adding leveled list to container:");
+#endif
+							AddLeveledListToContainer(leveledThing, a_ref, itemCount);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
+						}
 					}
 				}
 #ifdef DEBUG
@@ -561,7 +557,7 @@ namespace ContainerManager {
 			int32_t ruleCount = rule.count;
 
 			if (rule.removeKeywords.empty()) {
-				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+				auto itemCount = a_ref->GetInventory()[rule.oldForm].first;
 				if (itemCount < 1) continue;
 				if (!IsRuleValid(&rule, a_ref)) continue;
 
@@ -600,30 +596,30 @@ namespace ContainerManager {
 			if (rule.count < 1) {
 				ruleCount = 1;
 			}
-			
-
-
-
-
-
-
-
-				if (rule.isPickAtRandom) {
-
-					const int index = clib_util::RNG().generate<int>(0, rule.newForm.size() - 1);
-
+      
 			if (rule.randomAdd) {
 				size_t index = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
 				auto* thingToAdd = rule.newForm.at(index);
 				auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 				if (leveledThing) {
-#ifdef DEBUG
-							_loggerDebug("Adding leveled list to container:");
-#endif
 					AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
 			}
 				else {
 					a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+				}
+			}
+			else {
+				for (auto* obj : rule.newForm) {
+					auto leveledThing = obj->As<RE::TESLeveledList>();
+					if (leveledThing) {
+#ifdef DEBUG
+						_loggerDebug("Adding leveled list to container:");
+#endif
+						AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
+					}
+					else {
+						a_ref->AddObjectToContainer(obj, nullptr, ruleCount, nullptr);
+					}
 				}
 			}
 			else {
