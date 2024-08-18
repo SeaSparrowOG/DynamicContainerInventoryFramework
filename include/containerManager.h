@@ -1,20 +1,82 @@
 #pragma once
 
 namespace ContainerManager {
+	struct QuestCondition {
+		std::string questEDID;
+		uint16_t questStage;
+		bool questCompleted{ false };
+
+		enum Comparison {
+			Equal,
+			NotEqual,
+			Greater,
+			GreaterOrEqual,
+			Smaller,
+			SmallerOrEqual,
+			Completed,
+			Invalid
+		};
+		Comparison comparisonValue{ Invalid };
+
+		static Comparison GetComparison(std::string a_str) {
+			if (a_str == "==") {
+				return Comparison::Equal;
+			}
+			else if (a_str == "!=") {
+				return Comparison::NotEqual;
+			}
+			else if (a_str == ">=") {
+				return Comparison::GreaterOrEqual;
+			}
+			else if (a_str == ">") {
+				return Comparison::Greater;
+			}
+			else if (a_str == "<=") {
+				return Comparison::SmallerOrEqual;
+			}
+			else if (a_str == "<") {
+				return Comparison::Smaller;
+			}
+			else {
+				return Comparison::Invalid;
+			}
+		}
+
+		bool IsValid() {
+			if (comparisonValue == Invalid) return true;
+
+			auto* quest = RE::TESForm::LookupByEditorID<RE::TESQuest>(questEDID);
+			if (!quest) return false;
+
+			switch (comparisonValue){
+			case Equal:
+				return quest->GetCurrentStageID() == questStage;
+			case NotEqual:
+				return quest->GetCurrentStageID() != questStage;
+			case Greater:
+				return quest->GetCurrentStageID() > questStage;
+			case GreaterOrEqual:
+				return quest->GetCurrentStageID() >= questStage;
+			case Smaller:
+				return quest->GetCurrentStageID() < questStage;
+			case SmallerOrEqual:
+				return quest->GetCurrentStageID() <= questStage;
+			case Completed:
+				return quest->IsCompleted();
+			default:
+				return false;
+			}
+		}
+	};
+
 	struct SwapRule {
 		int                                                             count               { 1 };
 		bool                                                            allowVendors        { false };
 		bool                                                            onlyVendors         { false };
 		bool                                                            bypassSafeEdits     { false };
-
-		/*
-			If set to true, this reverts distribution to pre-2.0 behavior (one of the array items)
-			But must be set explicitly. Therefore, if not set, 2.0+ behavior (distribute ALL) still applies.
-		*/
-		bool															isPickAtRandom		= false;
-
-
+		bool                                                            randomAdd           { false };
 		std::string                                                     ruleName            { std::string() };
+		QuestCondition                                                  questCondition      {};
 		std::vector<std::string>                                        removeKeywords      { };
 		RE::TESBoundObject*                                             oldForm             { nullptr };
 		std::vector<std::string>                                        locationKeywords    { std::vector<std::string>() };
