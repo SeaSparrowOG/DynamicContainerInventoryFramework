@@ -307,6 +307,10 @@ namespace ContainerManager {
 			_loggerInfo("");
 			_loggerInfo("    This rule will randomly add a random item in the add field.");
 		}
+		if (!a_rule.questCondition.questEDID.empty()) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will only apply if certain quest conditions are met.");
+		}
 		if (!a_rule.requiredAVs.empty()) {
 			_loggerInfo("");
 			_loggerInfo("    This rule will only apply while these actor values are all valid");

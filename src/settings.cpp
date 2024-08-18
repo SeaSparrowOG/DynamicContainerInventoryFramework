@@ -16,6 +16,7 @@ namespace {
 		std::string conditionsVendorsError;
 		std::string conditionsPluginTypeError;
 		std::vector<std::string> badStringField;
+		std::vector<std::string> badObjectField;
 		std::vector<std::string> missingForm;
 		std::vector<std::string> objectNotArray;
 		std::vector<std::string> badStringFormat;
@@ -589,13 +590,13 @@ namespace Settings {
 				if (questConditionField) {
 					if (!questConditionField.isObject()) {
 						std::string name = friendlyNameString; name += " -> questConditions";
-						//a_report->objectNotObject.push_back(name);
+						a_report->badObjectField.push_back(name);
 						a_report->hasError = true;
 						conditionsAreValid = false;
 						continue;
 					}
 
-					if (!questConditionField["QuestID"] || questConditionField["QuestID"].isString()) {
+					if (!questConditionField["QuestID"] || !questConditionField["QuestID"].isString()) {
 						std::string name = friendlyNameString; name += " -> questConditions -> QuestID";
 						a_report->badStringField.push_back(name);
 						a_report->hasError = true;
@@ -603,9 +604,16 @@ namespace Settings {
 						continue;
 					}
 
-					if (!(!questConditionField["Completed"] || !questConditionField["Completed"].isBool()) ||
-						(questConditionField["QuestStage"] || !questConditionField["QuestStage"].isUInt64())) {
-						std::string name = friendlyNameString; name += " -> questConditions -> Completed (OR) QuestStage";
+					if (questConditionField["QuestStage"] && !questConditionField["QuestStage"].isUInt64()) {
+						std::string name = friendlyNameString; name += " -> questConditions -> QuestStage";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (questConditionField["Completed"] && !questConditionField["Completed"].isBool()) {
+						std::string name = friendlyNameString; name += " -> questConditions -> Completed";
 						a_report->badStringField.push_back(name);
 						a_report->hasError = true;
 						conditionsAreValid = false;
@@ -626,6 +634,7 @@ namespace Settings {
 					newCondition.questEDID = questConditionField["QuestID"].asString();
 					if (questConditionField["Completed"]) {
 						newCondition.questCompleted = questConditionField["Completed"].asBool();
+						newCondition.comparisonValue = ContainerManager::QuestCondition::Completed;
 					}
 					else {
 						ContainerManager::QuestCondition::Comparison comparisonValue =

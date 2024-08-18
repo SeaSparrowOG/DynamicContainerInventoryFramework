@@ -62,7 +62,7 @@ namespace ContainerManager {
 			case SmallerOrEqual:
 				return quest->GetCurrentStageID() <= questStage;
 			case Completed:
-				return quest->IsCompleted();
+				return quest->IsCompleted() == questCompleted;
 			default:
 				return false;
 			}
