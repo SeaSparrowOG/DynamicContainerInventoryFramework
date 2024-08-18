@@ -128,6 +128,8 @@ namespace Settings {
 			bool bypassUnsafeContainers = false;   
 			bool distributeToVendors = false;
 			bool onlyVendors = false;
+			bool randomAdd = false;
+			ContainerManager::QuestCondition questCondition{};
 			std::vector<std::string> validLocationKeywords{};
 			std::vector<RE::BGSLocation*> validLocationIdentifiers{};
 			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
@@ -230,6 +232,19 @@ namespace Settings {
 					 else if (vendorsOnlyField.asBool()) {
 						onlyVendors = true;
 					}
+				}
+
+				//Random add check.
+				auto& randomAddField = conditions["randomAdd"];
+				if (randomAddField) {
+					if (!randomAddField.isBool()) {
+						a_report->conditionsPluginTypeError = friendlyNameString;
+						a_report->hasError = true;
+						a_report->conditionsBadBypassError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+					randomAdd = randomAddField.asBool();
 				}
 
 				//Container check.
@@ -568,6 +583,65 @@ namespace Settings {
 						requiredGlobals.push_back(newPair);
 					}
 				}
+
+				//Quest condition check.
+				auto& questConditionField = conditions["questConditions"];
+				if (questConditionField) {
+					if (!questConditionField.isObject()) {
+						std::string name = friendlyNameString; name += " -> questConditions";
+						//a_report->objectNotObject.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (!questConditionField["QuestID"] || questConditionField["QuestID"].isString()) {
+						std::string name = friendlyNameString; name += " -> questConditions -> QuestID";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (!(!questConditionField["Completed"] || !questConditionField["Completed"].isBool()) ||
+						(questConditionField["QuestStage"] || !questConditionField["QuestStage"].isUInt64())) {
+						std::string name = friendlyNameString; name += " -> questConditions -> Completed (OR) QuestStage";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (questConditionField["QuestStage"] &&
+						(!questConditionField["Operator"] || questConditionField["Operator"].isString())) {
+						std::string name = friendlyNameString; name += " -> questConditions -> Operator";
+						a_report->badStringField.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					ContainerManager::QuestCondition newCondition{};
+
+					newCondition.questEDID = questConditionField["QuestID"].asString();
+					if (questConditionField["Completed"]) {
+						newCondition.questCompleted = questConditionField["Completed"].asBool();
+					}
+					else {
+						ContainerManager::QuestCondition::Comparison comparisonValue =
+							ContainerManager::QuestCondition::GetComparison(questConditionField["Operator"].asString());
+						if (comparisonValue == ContainerManager::QuestCondition::Comparison::Invalid) {
+							std::string name = friendlyNameString; name += " -> questConditions -> Operator";
+							a_report->badStringField.push_back(name);
+							a_report->hasError = true;
+							conditionsAreValid = false;
+							continue;
+						}
+						newCondition.questStage = questConditionField["QuestStage"].isUInt64();
+						newCondition.comparisonValue = comparisonValue;
+					}
+					questCondition = newCondition;
+				}
 			} //End of conditions check
 			if (!conditionsAreValid) continue;
 
@@ -575,8 +649,10 @@ namespace Settings {
 			for (auto& change : changes) {
 				ContainerManager::SwapRule newRule;
 				newRule.bypassSafeEdits = bypassUnsafeContainers;
+				newRule.randomAdd = randomAdd;
 				newRule.allowVendors = distributeToVendors;
 				newRule.onlyVendors = onlyVendors;
+				newRule.questCondition = questCondition;
 				newRule.validLocations = validLocationIdentifiers;
 				newRule.validWorldspaces = validWorldspaceIdentifiers;
 				newRule.locationKeywords = validLocationKeywords;
