@@ -6,4 +6,6 @@ set(headers ${headers}
 	include/merchantFactionCache.h
 	include/settings.h
 	include/utility.h
+
+	include/questConditions.h
 )
