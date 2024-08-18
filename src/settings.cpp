@@ -596,60 +596,73 @@ namespace Settings {
 						continue;
 					}
 
-					if (!questConditionField["QuestID"] || !questConditionField["QuestID"].isString()) {
-						std::string name = friendlyNameString; name += " -> questConditions -> QuestID";
+					if (!questConditionField["questID"] || !questConditionField["questID"].isString()) {
+						std::string name = friendlyNameString; name += " -> questConditions";
+						a_report->badStringFormat.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if (!(questConditionField["stage"] || questConditionField["completed"])) {
+						std::string name = friendlyNameString; name += " -> questConditions";
+						a_report->missingForm.push_back(name);
+						a_report->hasError = true;
+						conditionsAreValid = false;
+						continue;
+					}
+
+					if ((questConditionField["stage"] && !questConditionField["stage"].isString()) ||
+						(questConditionField["completed"] && !questConditionField["completed"].isString())) {
+						std::string name = friendlyNameString; name += " -> questConditions -> completed OR stage";
 						a_report->badStringField.push_back(name);
 						a_report->hasError = true;
 						conditionsAreValid = false;
 						continue;
 					}
 
-					if (questConditionField["QuestStage"] && !questConditionField["QuestStage"].isUInt64()) {
-						std::string name = friendlyNameString; name += " -> questConditions -> QuestStage";
-						a_report->badStringField.push_back(name);
-						a_report->hasError = true;
-						conditionsAreValid = false;
-						continue;
+					questCondition.questEDID = questConditionField["questID"].asString();
+
+					uint16_t questMin = 0;
+					uint16_t questMax = UINT16_MAX;
+					if (questConditionField["completed"]) {
+						questCondition.questCompleted = questConditionField["completed"].asBool();
 					}
 
-					if (questConditionField["Completed"] && !questConditionField["Completed"].isBool()) {
-						std::string name = friendlyNameString; name += " -> questConditions -> Completed";
-						a_report->badStringField.push_back(name);
-						a_report->hasError = true;
-						conditionsAreValid = false;
-						continue;
-					}
-
-					if (questConditionField["QuestStage"] &&
-						(!questConditionField["Operator"] || questConditionField["Operator"].isString())) {
-						std::string name = friendlyNameString; name += " -> questConditions -> Operator";
-						a_report->badStringField.push_back(name);
-						a_report->hasError = true;
-						conditionsAreValid = false;
-						continue;
-					}
-
-					ContainerManager::QuestCondition newCondition{};
-
-					newCondition.questEDID = questConditionField["QuestID"].asString();
-					if (questConditionField["Completed"]) {
-						newCondition.questCompleted = questConditionField["Completed"].asBool();
-						newCondition.comparisonValue = ContainerManager::QuestCondition::Completed;
-					}
-					else {
-						ContainerManager::QuestCondition::Comparison comparisonValue =
-							ContainerManager::QuestCondition::GetComparison(questConditionField["Operator"].asString());
-						if (comparisonValue == ContainerManager::QuestCondition::Comparison::Invalid) {
-							std::string name = friendlyNameString; name += " -> questConditions -> Operator";
-							a_report->badStringField.push_back(name);
+					if (questConditionField["stage"]) {
+						auto parts = clib_util::string::split(questConditionField["stage"].asString(), "|");
+						if (parts.size() == 1) {
+							if (!clib_util::string::is_only_digit(parts.at(0))) {
+								std::string name = friendlyNameString; name += " -> questConditions -> stage";
+								a_report->badStringField.push_back(name);
+								a_report->hasError = true;
+								conditionsAreValid = false;
+								continue;
+							}
+							questMax = questConditionField["stage"].asUInt64();
+						}
+						else if (parts.size() == 2) {
+							if (!clib_util::string::is_only_digit(parts.at(0)) || !clib_util::string::is_only_digit(parts.at(1))) {
+								std::string name = friendlyNameString; name += " -> questConditions -> stage";
+								a_report->badStringField.push_back(name);
+								a_report->hasError = true;
+								conditionsAreValid = false;
+								continue;
+							}
+						}
+						else {
+							std::string name = friendlyNameString; name += " -> questConditions -> stage";
+							a_report->badStringFormat.push_back(name);
 							a_report->hasError = true;
 							conditionsAreValid = false;
 							continue;
 						}
-						newCondition.questStage = questConditionField["QuestStage"].isUInt64();
-						newCondition.comparisonValue = comparisonValue;
+						questMin = clib_util::string::to_num<uint16_t>(parts.at(0));
+						questMax = clib_util::string::to_num<uint16_t>(parts.at(1));
 					}
-					questCondition = newCondition;
+
+					questCondition.questStageMax = questMax;
+					questCondition.questStageMin = questMin;
 				}
 			} //End of conditions check
 			if (!conditionsAreValid) continue;

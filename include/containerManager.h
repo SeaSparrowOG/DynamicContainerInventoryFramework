@@ -2,70 +2,18 @@
 
 namespace ContainerManager {
 	struct QuestCondition {
-		std::string questEDID;
-		uint16_t questStage;
+		std::string questEDID{};
+		uint16_t questStageMin{ 0 };
+		uint16_t questStageMax{ UINT16_MAX };
 		bool questCompleted{ false };
 
-		enum Comparison {
-			Equal,
-			NotEqual,
-			Greater,
-			GreaterOrEqual,
-			Smaller,
-			SmallerOrEqual,
-			Completed,
-			Invalid
-		};
-		Comparison comparisonValue{ Invalid };
-
-		static Comparison GetComparison(std::string a_str) {
-			if (a_str == "==") {
-				return Comparison::Equal;
-			}
-			else if (a_str == "!=") {
-				return Comparison::NotEqual;
-			}
-			else if (a_str == ">=") {
-				return Comparison::GreaterOrEqual;
-			}
-			else if (a_str == ">") {
-				return Comparison::Greater;
-			}
-			else if (a_str == "<=") {
-				return Comparison::SmallerOrEqual;
-			}
-			else if (a_str == "<") {
-				return Comparison::Smaller;
-			}
-			else {
-				return Comparison::Invalid;
-			}
-		}
-
 		bool IsValid() {
-			if (comparisonValue == Invalid) return true;
-
+			if (questEDID.empty()) return true;
 			auto* quest = RE::TESForm::LookupByEditorID<RE::TESQuest>(questEDID);
 			if (!quest) return false;
 
-			switch (comparisonValue) {
-			case Equal:
-				return quest->GetCurrentStageID() == questStage;
-			case NotEqual:
-				return quest->GetCurrentStageID() != questStage;
-			case Greater:
-				return quest->GetCurrentStageID() > questStage;
-			case GreaterOrEqual:
-				return quest->GetCurrentStageID() >= questStage;
-			case Smaller:
-				return quest->GetCurrentStageID() < questStage;
-			case SmallerOrEqual:
-				return quest->GetCurrentStageID() <= questStage;
-			case Completed:
-				return quest->IsCompleted() == questCompleted;
-			default:
-				return false;
-			}
+			if (questCompleted && quest->IsCompleted()) return true;
+			return quest->currentStage >= questStageMin && quest->currentStage <= questStageMax;
 		}
 	};
 
