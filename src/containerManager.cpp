@@ -18,6 +18,8 @@ namespace {
 
 namespace ContainerManager {
 	bool ContainerManager::IsRuleValid(SwapRule* a_rule, RE::TESObjectREFR* a_ref) {
+		if (!a_rule->questCondition.IsValid()) return false;
+
 		//Reference check.
 		bool hasReferenceMatch = a_rule->references.empty() ? true : false;
 		if (!hasReferenceMatch) {
@@ -77,6 +79,7 @@ namespace ContainerManager {
 				hasWorldspaceLocation = true;
 			}
 		}
+		if (!hasWorldspaceLocation) return false;
 
 		//The following are SLOW because they have a lot to check.
 		//Thus, they are moved to the end of the validation to give the first a chance to fail early.
@@ -88,13 +91,15 @@ namespace ContainerManager {
 			}
 
 			//Check parents.
-			auto settingsParents = this->parentLocations.find(refLoc) != this->parentLocations.end() ? this->parentLocations[refLoc] : std::vector<RE::BGSLocation*>();
-			RE::BGSLocation* parent = refLoc->parentLoc;
-			for (auto it = settingsParents.begin(); it != settingsParents.end() && !hasParentLocation && parent; ++it) {
-				if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), parent) != a_rule->validLocations.end()) {
-					hasParentLocation = true;
+			if (!hasParentLocation) {
+				auto settingsParents = this->parentLocations.find(refLoc) != this->parentLocations.end() ? this->parentLocations[refLoc] : std::vector<RE::BGSLocation*>();
+				RE::BGSLocation* parent = refLoc->parentLoc;
+				for (auto it = settingsParents.begin(); it != settingsParents.end() && !hasParentLocation && parent; ++it) {
+					if (std::find(a_rule->validLocations.begin(), a_rule->validLocations.end(), parent) != a_rule->validLocations.end()) {
+						hasParentLocation = true;
+					}
+					parent = parent->parentLoc;
 				}
-				parent = parent->parentLoc;
 			}
 		}
 		else if (!hasParentLocation && !refLoc) {
@@ -121,7 +126,7 @@ namespace ContainerManager {
 				}
 			}
 		}
-		if (!hasWorldspaceLocation) return false;
+		if (!hasParentLocation) return false;
 
 		//Location keyword search. If these do not exist, check the parents..
 		bool hasLocationKeywordMatch = a_rule->locationKeywords.empty() ? true : false;
@@ -246,6 +251,11 @@ namespace ContainerManager {
 		if (a_rule.allowVendors) {
 			_loggerInfo("");
 			_loggerInfo("    This rule can distribute to vendor containers.");
+		}
+
+		if (a_rule.randomAdd) {
+			_loggerInfo("");
+			_loggerInfo("    This rule will randomly add a random item in the add field.");
 		}
 
 		if (!a_rule.container.empty()) {
@@ -399,12 +409,15 @@ namespace ContainerManager {
 			if (!IsRuleValid(&rule, a_ref)) continue;
 
 			if (rule.removeKeywords.empty()) {
-				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
+				auto itemCount = a_ref->GetInventory()[rule.oldForm].first;
 				if (itemCount < 1) continue;
 
 				a_ref->RemoveItem(rule.oldForm, itemCount, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
-				for (auto* obj : rule.newForm) {
-					auto leveledThing = obj->As<RE::TESLeveledList>();
+
+				if (rule.randomAdd) {
+					size_t index = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+					auto* thingToAdd = rule.newForm.at(index);
+					auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 					if (leveledThing) {
 #ifdef DEBUG
 						_loggerDebug("Adding leveled list to container:");
@@ -412,7 +425,21 @@ namespace ContainerManager {
 						AddLeveledListToContainer(leveledThing, a_ref, itemCount);
 					}
 					else {
-						a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
+						a_ref->AddObjectToContainer(thingToAdd, nullptr, itemCount, nullptr);
+					}
+				}
+				else {
+					for (auto* obj : rule.newForm) {
+						auto leveledThing = obj->As<RE::TESLeveledList>();
+						if (leveledThing) {
+#ifdef DEBUG
+							_loggerDebug("Adding leveled list to container:");
+#endif
+							AddLeveledListToContainer(leveledThing, a_ref, itemCount);
+						}
+						else {
+							a_ref->AddObjectToContainer(obj, nullptr, itemCount, nullptr);
+						}
 					}
 				}
 #ifdef DEBUG
@@ -499,16 +526,32 @@ namespace ContainerManager {
 				ruleCount = 1;
 			}
 
-			for (auto* obj : rule.newForm) {
-				auto leveledThing = obj->As<RE::TESLeveledList>();
+			if (rule.randomAdd) {
+				size_t index = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
+				auto* thingToAdd = rule.newForm.at(index);
+				auto* leveledThing = thingToAdd->As<RE::TESLeveledList>();
 				if (leveledThing) {
 #ifdef DEBUG
 					_loggerDebug("Adding leveled list to container:");
 #endif
 					AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
-				}
+			}
 				else {
-					a_ref->AddObjectToContainer(obj, nullptr, rule.count, nullptr);
+					a_ref->AddObjectToContainer(thingToAdd, nullptr, ruleCount, nullptr);
+				}
+			}
+			else {
+				for (auto* obj : rule.newForm) {
+					auto leveledThing = obj->As<RE::TESLeveledList>();
+					if (leveledThing) {
+#ifdef DEBUG
+						_loggerDebug("Adding leveled list to container:");
+#endif
+						AddLeveledListToContainer(leveledThing, a_ref, ruleCount);
+					}
+					else {
+						a_ref->AddObjectToContainer(obj, nullptr, ruleCount, nullptr);
+					}
 				}
 			}
 #ifdef DEBUG
