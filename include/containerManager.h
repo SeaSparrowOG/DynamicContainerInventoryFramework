@@ -2,18 +2,48 @@
 
 namespace ContainerManager {
 	struct QuestCondition {
+		enum QuestCompletion {
+			kCompleted,
+			kOngoing,
+			kIgnored
+		};
+
+		static bool IsStageDone(RE::TESQuest* a_quest, int a_stage)
+		{
+			using func_t = decltype(&IsStageDone);
+			static REL::Relocation<func_t> func{ REL::ID(25011) };
+			return func(a_quest, a_stage);
+		}
+
 		std::string questEDID{};
-		uint16_t questStageMin{ 0 };
-		uint16_t questStageMax{ UINT16_MAX };
-		bool questCompleted{ false };
+		std::vector<uint16_t> requiredStages{};
+		QuestCompletion questCompleted{ kIgnored };
 
 		bool IsValid() {
 			if (questEDID.empty()) return true;
 			auto* quest = RE::TESForm::LookupByEditorID<RE::TESQuest>(questEDID);
 			if (!quest) return false;
 
-			if (questCompleted && quest->IsCompleted()) return true;
-			return quest->currentStage >= questStageMin && quest->currentStage <= questStageMax;
+			if (questCompleted != kIgnored) {
+				if (questCompleted == kCompleted && !quest->IsCompleted()) {
+					return false;
+				}
+				else if (questCompleted == kOngoing && quest->IsCompleted()) {
+					return false;
+				}
+			}
+
+			if (requiredStages.empty()) return true;
+
+			using IsStageDone_t = bool (*)(
+				RE::TESQuest*,
+				uint16_t);
+
+			for (auto requiredStage : requiredStages) {
+				if (!IsStageDone(quest, requiredStage)) return false;
+			}
+
+			return true;
 		}
 	};
 
