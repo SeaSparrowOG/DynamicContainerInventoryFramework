@@ -24,6 +24,10 @@ namespace ContainerManager {
 			auto* quest = RE::TESForm::LookupByEditorID<RE::TESQuest>(questEDID);
 			if (!quest) return false;
 
+			if (questCompleted == kIgnored && requiredStages.empty()) {
+				return quest->IsCompleted();
+			}
+
 			if (questCompleted != kIgnored) {
 				if (questCompleted == kCompleted && !quest->IsCompleted()) {
 					return false;
@@ -32,12 +36,7 @@ namespace ContainerManager {
 					return false;
 				}
 			}
-
 			if (requiredStages.empty()) return true;
-
-			using IsStageDone_t = bool (*)(
-				RE::TESQuest*,
-				uint16_t);
 
 			for (auto requiredStage : requiredStages) {
 				if (!IsStageDone(quest, requiredStage)) return false;
