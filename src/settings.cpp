@@ -212,7 +212,7 @@ namespace Settings {
 						conditionsAreValid = false;
 						continue;
 					}
-					distributeToVendors = bypassField.asBool();
+					distributeToVendors = vendorsField.asBool();
 				}
 
 				//Vendors only Check.
