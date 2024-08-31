@@ -23,8 +23,6 @@ namespace ContainerManager {
 		//Reference check.
 		bool hasReferenceMatch = a_rule->references.empty() ? true : false;
 		if (!hasReferenceMatch) {
-			std::stringstream stream;
-			stream << std::hex << a_ref->formID;
 			if (std::find(a_rule->references.begin(), a_rule->references.end(), a_ref->formID) != a_rule->references.end()) {
 				hasReferenceMatch = true;
 			}
@@ -152,6 +150,16 @@ namespace ContainerManager {
 		}
 		if (!hasLocationKeywordMatch) return false;
 
+		bool hasParentWorldspaceMatch = a_rule->validWorldspaces.empty() ? true : false;
+		if (!hasParentWorldspaceMatch) {
+			auto* refWorldSpace = a_ref->GetWorldspace();
+
+			for (auto* ruleWorld : a_rule->validWorldspaces) {
+				if (refWorldSpace == ruleWorld) return true;
+			}
+		}
+		if (!hasParentWorldspaceMatch) return false;
+		
 		return true;
 	}
 
