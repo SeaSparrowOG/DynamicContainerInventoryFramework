@@ -4,14 +4,70 @@
 
 namespace {
 	static void AddLeveledListToContainer(RE::TESLeveledList* list, RE::TESObjectREFR* a_container, uint32_t a_count) {
+
+		auto chanceNone = list->chanceNone;
+		if (chanceNone >= 100) return;	   // no one would ever set a LL's chanceNone to 100, would they? But if yes, our work is done here
+
+
+		/*
+			AFAIK, CalculateCurrentFormList() (which is called in Utility::ResolveLeveledList() later)
+			only returns a list of items that *can* be selected given player's current level etc.
+
+			i.e. it does not calculate ChanceNone
+			so we may have to imitate that calc here
+		*/
+		auto random = clib_util::RNG().generate<short>(0, 100);
+		if (random < chanceNone) return;
+
+
+
 		RE::BSScrapArray<RE::CALCED_OBJECT> result{};
 		Utility::ResolveLeveledList(list, &result, a_count);
 		if (result.size() < 1) return;
+		
+
+		/*
+			The code below is meant to simply pick an item then add to container
+
+			we *could* just generate a random index then fetch the item
+			but the ThingToAdd could be null
+
+			workaround: shuffle the whole thing
+			then go from begin to end, get the first that is valid
+
+			there may be less compute heavy ways?
+		*/				
+
+
+		/*
+			The lambda func below is entirely because I could not get this
+				std::shuffle(result.begin(), result.end(), std::default_random_engine(...));
+			to work. If can get it to work, would no longer need the lambda.
+		*/
+		constexpr auto ShuffleResult = [&](RE::BSScrapArray<RE::CALCED_OBJECT> arr, auto seed) {
+			int startIdx = 0;
+			int endIdx = arr.size();
+
+			if (endIdx <= 1) return;	// obviously
+
+			for (int i = endIdx - 1; i > 0; --i) {
+				std::uniform_int_distribution<int> d(startIdx, i);
+				std::swap(arr[i], arr[d(seed)]);
+			}
+			
+		};
+
+		ShuffleResult(result, std::default_random_engine( (unsigned int) std::chrono::steady_clock::now().time_since_epoch().count()  ));
+
+
 
 		for (auto& obj : result) {
 			auto* thingToAdd = static_cast<RE::TESBoundObject*>(obj.form);
+			
 			if (!thingToAdd) continue;
 			a_container->AddObjectToContainer(thingToAdd, nullptr, obj.count, nullptr);
+
+			return; // one item in, we done
 		}
 	}
 }
