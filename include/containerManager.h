@@ -48,6 +48,7 @@ namespace ContainerManager {
 
 	struct SwapRule {
 		int                                                             count               { 1 };
+		unsigned int													chance				{ 100 };
 		bool                                                            allowVendors        { false };
 		bool                                                            onlyVendors         { false };
 		bool                                                            bypassSafeEdits     { false };

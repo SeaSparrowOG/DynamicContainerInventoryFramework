@@ -367,6 +367,10 @@ namespace ContainerManager {
 				_loggerInfo("        >Global: {}, Value: {}", pair.first->GetFormEditorID(), pair.second);
 			}
 		}
+		if (a_rule.chance != 0) {
+			_loggerInfo("");
+			_loggerInfo("    This rule has a {}% chance to trigger (for each valid container).", a_rule.chance);
+		}
 		if (a_rule.randomAdd) {
 			_loggerInfo("");
 			_loggerInfo("    This rule will randomly add a random item in the add field.");
@@ -473,6 +477,18 @@ namespace ContainerManager {
 			if (!merchantContainer && rule.onlyVendors) continue;
 			if (!rule.bypassSafeEdits && isContainerUnsafe) continue;
 			if (!IsRuleValid(&rule, a_ref)) continue;
+
+			/* proposed behavior of "chance" in replace rules:
+				if random fails, do NOT replace			
+
+				(can also be set to: ignore "chance" field
+				if a rule is replacer rule)
+			 */
+			if (rule.chance != 100) {
+				auto random = clib_util::RNG().generate<short>(0, 100);
+				if (random > rule.chance) continue;
+			}
+
 
 			if (rule.removeKeywords.empty()) {
 				auto itemCount = a_ref->GetInventoryCounts()[rule.oldForm];
@@ -601,6 +617,15 @@ namespace ContainerManager {
 			if (rule.count < 1) {
 				ruleCount = 1;
 			}
+
+			/*	proposed behavior of "chance" in add rules:
+				if random fails, do not add
+			*/
+			if (rule.chance != 100) {
+				auto random = clib_util::RNG().generate<short>(0, 100);
+				if (random > rule.chance) continue;
+			}
+
 
 			if (rule.randomAdd) {
 				size_t index = clib_util::RNG().generate<size_t>(0, rule.newForm.size() - 1);
