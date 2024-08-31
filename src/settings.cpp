@@ -681,6 +681,7 @@ namespace Settings {
 				auto& oldId = change["remove"];
 				auto& newId = change["add"];
 				auto& countField = change["count"];
+				auto& chanceField = change["chance"];
 				auto& removeKeywords = change["removeByKeywords"];
 				if (!(oldId || newId || removeKeywords)) {
 					a_report->hasBatData = true;
@@ -766,6 +767,16 @@ namespace Settings {
 				}
 				else {
 					newRule.count = -1;
+				}
+
+
+				if (chanceField && chanceField.isUInt()) {
+					newRule.chance = (uint8_t) std::min((int) chanceField.asUInt(), 100); // if user entered a number higher than 100, default to 100
+
+					if (newRule.chance == 0) newRule.chance = 100; // proposed default behavior: do NOT allow chance to ever be 0, default = 100
+				}
+				else {
+					newRule.chance = 100;	// proposed default behavior: do NOT allow chance to be negative, default = 100
 				}
 
 				ContainerManager::ContainerManager::GetSingleton()->CreateSwapRule(newRule);
