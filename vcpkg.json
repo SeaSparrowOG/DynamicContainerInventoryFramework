@@ -1,14 +1,13 @@
 {
-  "name": "replaceme",
-  "version-string": "1.0.0",
-  "description": "Template for SKSE plugin built using my commonlib. MIT License by default.",
+  "name": "container-distribution-framework",
+  "version-string": "3.0.0",
+  "description": "DLL that allows for dynamic coin addition to containers based on conditions for SkyrimSE. ",
   "homepage": "",
   "license": "MIT",
   "dependencies": [
     "fmt",
     "rsm-binary-io",
     "spdlog",
-    "clib-util",
     "jsoncpp",
     "simpleini",
     "xbyak"
