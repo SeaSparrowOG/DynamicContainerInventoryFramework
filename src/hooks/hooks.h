@@ -1,14 +1,6 @@
 #pragma once
 
 #include "conditions/condition.h"
-#include "conditions/actorValueCondition.h"
-#include "conditions/containerCondition.h"
-#include "conditions/globalCondition.h"
-#include "conditions/locationCondition.h"
-#include "conditions/locationKeywordCondition.h"
-#include "conditions/questCondition.h"
-#include "conditions/referenceCondition.h"
-#include "conditions/worldspaceCondition.h"
 #include "utilities/utilities.h"
 
 namespace Hooks {
