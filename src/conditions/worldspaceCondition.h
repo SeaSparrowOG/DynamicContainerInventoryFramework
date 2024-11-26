@@ -9,7 +9,9 @@ namespace Conditions
 	public:
 		bool IsValid(RE::TESObjectREFR* a_container) override;
 
+		WorldspaceCondition(std::vector<RE::TESWorldSpace*> a_worldspaces);
+
 	private:
-		std::vector<RE::TESWorldSpace*> validWorldSpaces; //Also contains parent worldspaces
+		std::vector<RE::TESWorldSpace*> validWorldSpaces;
 	};
 }

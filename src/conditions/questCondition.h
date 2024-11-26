@@ -9,16 +9,16 @@ namespace Conditions
 	public:
 		bool IsValid(RE::TESObjectREFR* a_container) override;
 
+		QuestCondition(RE::TESQuest* a_quest, std::vector<uint16_t> a_stages, bool a_completed);
+
 	private:
 		enum QuestState {
 			kCompleted,
-			kOngoing,
-			kIgnored
+			kOngoing
 		};
 
 		QuestState state;
-		uint16_t stageMax;
-		uint16_t stageMin;
-		RE::TESQuest quest;
+		std::vector<uint16_t> completedStages;
+		RE::TESQuest* quest;
 	};
 }

@@ -1,6 +1,7 @@
 #include "Hooks/hooks.h"
 
 #include "utilities/utilities.h"
+#include "RE/offset.h"
 
 namespace Hooks {
 	void Install()
@@ -12,8 +13,8 @@ namespace Hooks {
 	void ContainerManager::Install()
 	{
 		auto& trampoline = SKSE::GetTrampoline();
-		REL::Relocation<std::uintptr_t> initializeTarget{ REL::ID(19507), 0x78C };
-		REL::Relocation<std::uintptr_t> resetTarget{ REL::ID(19802), 0x12B };
+		REL::Relocation<std::uintptr_t> initializeTarget{ RE::Offset::TESObjectREFR::Initialize, 0x78C };
+		REL::Relocation<std::uintptr_t> resetTarget{ RE::Offset::TESObjectREFR::Reset, 0x12B };
 
 		_initialize = trampoline.write_call<5>(initializeTarget.address(), Initialize);
 		_reset = trampoline.write_call<5>(resetTarget.address(), Reset);

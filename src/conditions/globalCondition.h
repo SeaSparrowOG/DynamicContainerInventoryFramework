@@ -9,6 +9,8 @@ namespace Conditions
 	public:
 		bool IsValid(RE::TESObjectREFR* a_container) override;
 
+		GlobalCondition(RE::TESGlobal* a_global, float a_value);
+
 	private:
 		RE::TESGlobal* global;
 		float value;

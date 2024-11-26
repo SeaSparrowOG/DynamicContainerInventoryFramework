@@ -9,6 +9,8 @@ namespace Conditions
 	public:
 		bool IsValid(RE::TESObjectREFR* a_container) override;
 
+		LocationCondition(std::vector<RE::BGSLocation*> a_locations);
+
 	private:
 		std::vector<RE::BGSLocation*> validLocations;
 	};
