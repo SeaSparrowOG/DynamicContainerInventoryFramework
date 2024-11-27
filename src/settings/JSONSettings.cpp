@@ -57,7 +57,7 @@ namespace Settings::JSON
 			bool distributeToVendors = false;
 			bool onlyVendors = false;
 			bool randomAdd = false;
-			std::vector<Conditions::Condition> newConditions{};
+			std::vector<std::unique_ptr<Conditions::Condition>> newConditions{};
 			std::vector<RE::BGSKeyword*> validLocationKeywords{};
 			std::vector<RE::BGSLocation*> validLocationIdentifiers{};
 			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
@@ -163,7 +163,8 @@ namespace Settings::JSON
 						}
 						validContainers.push_back(container);
 						Conditions::ContainerCondition newCondition{ validContainers };
-						newConditions.push_back(std::move(newCondition));
+						auto newConditionPtr = std::make_unique<Conditions::ContainerCondition>(newCondition);
+						newConditions.push_back(std::move(newConditionPtr));
 					}
 				}
 
@@ -187,7 +188,8 @@ namespace Settings::JSON
 						}
 						validLocationIdentifiers.push_back(location);
 						Conditions::LocationCondition newCondition{ validLocationIdentifiers };
-						newConditions.push_back(std::move(newCondition));
+						auto newConditionPtr = std::make_unique<Conditions::LocationCondition>(newCondition);
+						newConditions.push_back(std::move(newConditionPtr));
 					}
 				}
 
@@ -212,7 +214,8 @@ namespace Settings::JSON
 						}
 						validWorldspaceIdentifiers.push_back(worldspace);
 						Conditions::WorldspaceCondition newCondition{ validWorldspaceIdentifiers };
-						newConditions.push_back(std::move(newCondition));
+						auto newConditionPtr = std::make_unique<Conditions::WorldspaceCondition>(newCondition);
+						newConditions.push_back(std::move(newConditionPtr));
 					}
 				}
 
@@ -238,7 +241,8 @@ namespace Settings::JSON
 						validLocationKeywords.push_back(keyword);
 					}
 					Conditions::LocationKeywordCondition newCondition{ validLocationKeywords };
-					newConditions.push_back(std::move(newCondition));
+					auto newConditionPtr = std::make_unique<Conditions::LocationKeywordCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
 				}
 
 				//player skill check
@@ -276,7 +280,8 @@ namespace Settings::JSON
 					}
 					for (const auto& pair : requiredAVs) {
 						Conditions::AVCondition newCondition{ pair.first, pair.second };
-						newConditions.push_back(std::move(newCondition));
+						auto newConditionPtr = std::make_unique<Conditions::AVCondition>(newCondition);
+						newConditions.push_back(std::move(newConditionPtr));
 					}
 				}
 
@@ -321,7 +326,8 @@ namespace Settings::JSON
 					}
 					for (const auto& pair : requiredGlobals) {
 						Conditions::GlobalCondition newCondition{ pair.first, pair.second };
-						newConditions.push_back(std::move(newCondition));
+						auto newConditionPtr = std::make_unique<Conditions::GlobalCondition>(newCondition);
+						newConditions.push_back(std::move(newConditionPtr));
 					}
 				}
 
@@ -366,7 +372,8 @@ namespace Settings::JSON
 						}
 					}
 					Conditions::QuestCondition newCondition{ quest, candidate.completedStages, completed };
-					newConditions.push_back(std::move(newCondition));
+					auto newConditionPtr = std::make_unique<Conditions::QuestCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
 				}
 			} //End of Conditions
 
@@ -451,7 +458,7 @@ namespace Settings::JSON
 						continue;
 					}
 				}
-				Hooks::ContainerManager::GetSingleton()->RegisterRule(change, newConditions, bypassUnsafeContainers, distributeToVendors, onlyVendors, randomAdd);
+				Hooks::ContainerManager::GetSingleton()->RegisterRule(change, std::move(newConditions), bypassUnsafeContainers, distributeToVendors, onlyVendors, randomAdd);
 			}
 		}
 	}

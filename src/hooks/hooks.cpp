@@ -20,15 +20,15 @@ namespace Hooks {
 		_reset = trampoline.write_call<5>(resetTarget.address(), Reset);
 	}
 
-	void ContainerManager::RegisterRule(Json::Value& raw, std::vector<Conditions::Condition> a_conditions, bool a_safe, bool a_vendors, bool a_onlyVendors, bool a_random)
+	void ContainerManager::RegisterRule(Json::Value& raw, std::vector<std::unique_ptr<Conditions::Condition>> a_conditions, bool a_safe, bool a_vendors, bool a_onlyVendors, bool a_random)
 	{
 		//json is valid here, checked in Settings::JSON::Read()
 		const auto& add = raw["add"];
 		const auto& remove = raw["remove"];
-		const auto& removeKeywords = raw["removeByKeywords"];
+		const auto& removeKeywordsField = raw["removeByKeywords"];
 		const auto& count = raw["count"];
 
-		if (add && removeKeywords) {
+		if (add && removeKeywordsField) {
 			ReplaceKeywordRule newRule{};
 			newRule.conditions = std::move(a_conditions);
 			newRule.allowSafeBypass = a_safe;
@@ -39,7 +39,7 @@ namespace Hooks {
 				const auto obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
 				newRule.newForms.push_back(obj);
 			}
-			for (const auto& entry : removeKeywords) {
+			for (const auto& entry : removeKeywordsField) {
 				const auto keyword = Utilities::Forms::GetFormFromString<RE::BGSKeyword>(entry.asString());
 				newRule.keywordsToRemove.push_back(keyword);
 			}
@@ -59,14 +59,14 @@ namespace Hooks {
 				newRule.oldForm = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
 			}
 		}
-		else if (removeKeywords) {
+		else if (removeKeywordsField) {
 			RemoveKeywordRule newRule{};
 			newRule.conditions = std::move(a_conditions);
 			newRule.allowSafeBypass = a_safe;
 			newRule.allowVendors = a_vendors;
 			newRule.onlyVendors = a_onlyVendors;
 			newRule.randomAdd = a_random;
-			for (const auto& entry : removeKeywords) {
+			for (const auto& entry : removeKeywordsField) {
 				const auto keyword = Utilities::Forms::GetFormFromString<RE::BGSKeyword>(entry.asString());
 				newRule.keywordsToRemove.push_back(keyword);
 			}
@@ -157,7 +157,7 @@ namespace Hooks {
 		}
 		if (randomAdd) {
 			for (auto i = (size_t)0; i < count; ++i) {
-				const auto index = clib_util::RNG<size_t>().generate((size_t)0, newForms.size() - 1);
+				const auto index = clib_util::RNG().generate((size_t)0, newForms.size() - 1);
 				a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
 			}
 		}
@@ -198,7 +198,7 @@ namespace Hooks {
 		a_container->RemoveItem(oldForm, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 		if (randomAdd) {
 			for (auto i = (size_t)0; i < count; ++i) {
-				const auto index = clib_util::RNG<size_t>().generate((size_t)0, newForms.size() - 1);
+				const auto index = clib_util::RNG().generate((size_t)0, newForms.size() - 1);
 				a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
 			}
 		}
@@ -240,7 +240,7 @@ namespace Hooks {
 		}
 
 		for (auto& condition : conditions) {
-			if (!condition.IsValid(a_container)) {
+			if (!condition->IsValid(a_container)) {
 				return false;
 			}
 		}
@@ -321,7 +321,7 @@ namespace Hooks {
 		}
 		if (randomAdd) {
 			for (auto i = (size_t)0; i < count; ++i) {
-				const auto index = clib_util::RNG<size_t>().generate((size_t)0, newForms.size() - 1);
+				const auto index = clib_util::RNG().generate((size_t)0, newForms.size() - 1);
 				a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
 			}
 		}
