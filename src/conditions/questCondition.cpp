@@ -57,4 +57,19 @@ namespace Conditions
 			this->state = kOngoing;
 		}
 	}
+
+	void QuestCondition::Print()
+	{
+		logger::info("=====================/");
+		logger::info("|  Quest Conditions /");
+		logger::info("===================/");
+		logger::info("  ->{}{}: [{}]", inverted ? "Not " : "", quest->GetName(), state == kCompleted ? "Completed" : "Ongoing");
+		if (!completedStages.empty()) {
+			logger::info("    Required Stages:");
+			for (const auto& stage : completedStages) {
+				logger::info("      <{}>", stage);
+			}
+		}
+		logger::info("");
+	}
 }

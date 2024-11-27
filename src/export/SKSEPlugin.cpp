@@ -25,7 +25,7 @@ namespace
 		log->flush_on(level);
 
 		spdlog::set_default_logger(std::move(log));
-		spdlog::set_pattern("%s(%#): [%^%l%$] %v"s);
+		spdlog::set_pattern("[%^%l%$] %v"s);
 	}
 }
 
@@ -65,7 +65,11 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 {
 	switch (a_msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
+		Hooks::ContainerManager::GetSingleton()->WarmCache();
+		logger::info("If there are any config errors, they'll show here:");
 		Settings::JSON::Read();
+		logger::info("=================================================");
+		Hooks::ContainerManager::GetSingleton()->PrettyPrint();
 		break;
 	default:
 		break;
@@ -75,8 +79,10 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
 	InitializeLog();
+	logger::info("=================================================");
 	logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
-
+	logger::info("Author: SeaSparrow");
+	logger::info("=================================================");
 	SKSE::Init(a_skse);
 	SKSE::AllocTrampoline(28);
 

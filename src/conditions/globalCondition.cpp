@@ -16,4 +16,13 @@ namespace Conditions
 		this->global = a_global;
 		this->value = a_value;
 	}
+
+	void GlobalCondition::Print()
+	{
+		logger::info("======================/");
+		logger::info("|  Global Conditions /");
+		logger::info("====================/");
+		logger::info("  ->{}{}: [{}]", inverted ? "Not " : "", global->GetFormEditorID(), value);
+		logger::info("");
+	}
 }

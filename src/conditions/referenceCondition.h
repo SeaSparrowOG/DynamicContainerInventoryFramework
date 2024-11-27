@@ -11,6 +11,7 @@ namespace Conditions
 
 		ReferenceCondition(std::vector<RE::FormID> a_references);
 
+		void Print() override;
 	private:
 		std::vector<RE::FormID> validReferences;
 	};

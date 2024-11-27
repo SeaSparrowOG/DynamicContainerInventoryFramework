@@ -20,6 +20,36 @@ namespace Hooks {
 		_reset = trampoline.write_call<5>(resetTarget.address(), Reset);
 	}
 
+	RE::BGSLocation* ContainerManager::GetNearestMarkerLocation(RE::TESObjectREFR* a_container)
+	{
+		const auto containerWorld = a_container->GetWorldspace();
+		if (containerWorld && this->worldspaceMarkers.contains(containerWorld)) {
+			const auto& vec = worldspaceMarkers[containerWorld];
+			float lastDistance = maxLookupDistance;
+			RE::BGSLocation* lastLocation = nullptr;
+			for (const auto ref : vec) {
+				if (const auto currentDistance = ref->GetDistance(a_container) < lastDistance) {
+					lastLocation = ref->GetCurrentLocation();
+					lastDistance = currentDistance;
+				}
+			}
+			return lastLocation;
+		}
+		return nullptr;
+	}
+
+	void ContainerManager::RegisterDistance(float a_newDistance)
+	{
+		if (a_newDistance < 10000.0f) {
+			a_newDistance = 10000.0f;
+		}
+		else if (a_newDistance > 150000.0f) {
+			a_newDistance = 150000.0f;
+		}
+
+		maxLookupDistance = a_newDistance;
+	}
+
 	void ContainerManager::RegisterRule(Json::Value& raw, std::vector<size_t> a_conditions, bool a_safe, bool a_vendors, bool a_onlyVendors, bool a_random)
 	{
 		//json is valid here, checked in Settings::JSON::Read()
@@ -111,6 +141,61 @@ namespace Hooks {
 		}
 	}
 
+	void ContainerManager::WarmCache()
+	{
+		auto& worldspaceArray = RE::TESDataHandler::GetSingleton()->GetFormArray<RE::TESWorldSpace>();
+		for (auto* worldspace : worldspaceArray) {
+			auto* persistentCell = worldspace->persistentCell;
+			if (!persistentCell) continue;
+			std::vector<RE::TESObjectREFR*> references{};
+
+			persistentCell->ForEachReference([&](RE::TESObjectREFR* a_marker) {
+				auto* markerLoc = a_marker->GetCurrentLocation();
+				if (!markerLoc) return RE::BSContainer::ForEachResult::kContinue;
+				if (!a_marker->extraList.GetByType(RE::ExtraDataType::kMapMarker)) return RE::BSContainer::ForEachResult::kContinue;
+				references.push_back(a_marker);
+				return RE::BSContainer::ForEachResult::kContinue;
+				});
+
+			this->worldspaceMarkers[worldspace] = references;
+		}
+	}
+
+	void ContainerManager::PrettyPrint()
+	{
+		logger::info("=================================================");
+		logger::info("Finished reading settings. Information to follow:");
+		logger::info("=================================================");
+		if (!adds.empty()) {
+			logger::info("New add rules:");
+			for (auto& rule : adds) {
+				rule.Print();
+				logger::info("=================================");
+			}
+		}
+		if (!removes.empty()) {
+			logger::info("New remove rules:");
+			for (auto& rule : removes) {
+				rule.Print();
+				logger::info("=================================");
+			}
+		}
+		if (!replaces.empty()) {
+			logger::info("New replace rules:");
+			for (auto& rule : replaces) {
+				rule.Print();
+				logger::info("=================================");
+			}
+		}
+		if (!replaceKeywords.empty()) {
+			logger::info("New replace by keyword rules:");
+			for (auto& rule : replaceKeywords) {
+				rule.Print();
+				logger::info("=================================");
+			}
+		}
+	}
+
 	void ContainerManager::Initialize(RE::TESObjectREFR* a_container, bool a3)
 	{
 		_initialize(a_container, a3);
@@ -178,6 +263,23 @@ namespace Hooks {
 		}
 	}
 
+	void ContainerManager::AddRule::Print()
+	{
+		const auto singleton = ContainerManager::GetSingleton();
+		if (!conditions.empty()) {
+			logger::info("Conditions:");
+			for (const auto condition : conditions) {
+				singleton->storedConditions.at(condition)->Print();
+			}
+		}
+		logger::info("----------------------------");
+		logger::info("Count: {}", ruleCount);
+		logger::info("Forms:");
+		for (const auto& form : newForms) {
+			logger::info("  ->{}", form->GetName());
+		}
+	}
+
 	void ContainerManager::RemoveRule::Apply(RE::TESObjectREFR* a_container)
 	{
 		auto inventory = a_container->GetInventory();
@@ -193,6 +295,20 @@ namespace Hooks {
 			countToRemove = inventory[form].first;
 		}
 		a_container->RemoveItem(form, countToRemove, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
+	}
+
+	void ContainerManager::RemoveRule::Print()
+	{
+		const auto singleton = ContainerManager::GetSingleton();
+		if (!conditions.empty()) {
+			logger::info("Conditions:");
+			for (const auto condition : conditions) {
+				singleton->storedConditions.at(condition)->Print();
+			}
+		}
+		logger::info("----------------------------");
+		logger::info("Count: {}", ruleCount == 0 ? "All" : std::to_string(ruleCount));
+		logger::info("Form: {}", form->GetName());
 	}
 
 	void ContainerManager::ReplaceRule::Apply(RE::TESObjectREFR* a_container)
@@ -216,6 +332,23 @@ namespace Hooks {
 			for (const auto& baseObj : newForms) {
 				a_container->AddObjectToContainer(baseObj, nullptr, count, nullptr);
 			}
+		}
+	}
+
+	void ContainerManager::ReplaceRule::Print()
+	{
+		const auto singleton = ContainerManager::GetSingleton();
+		if (!conditions.empty()) {
+			logger::info("Conditions:");
+			for (const auto condition : conditions) {
+				singleton->storedConditions.at(condition)->Print();
+			}
+		}
+		logger::info("----------------------------");
+		logger::info("Form to remove: {}", oldForm->GetName());
+		logger::info("Replaced by:");
+		for (const auto& form : newForms) {
+			logger::info("  ->{}", form->GetName());
 		}
 	}
 
@@ -295,6 +428,22 @@ namespace Hooks {
 		}
 	}
 
+	void ContainerManager::RemoveKeywordRule::Print()
+	{
+		const auto singleton = ContainerManager::GetSingleton();
+		if (!conditions.empty()) {
+			logger::info("Conditions:");
+			for (const auto condition : conditions) {
+				singleton->storedConditions.at(condition)->Print();
+			}
+		}
+		logger::info("----------------------------");
+		logger::info("If an item has all of these keywords, it will be removed:");
+		for (const auto keyword : keywordsToRemove) {
+			logger::info("  ->{}", keyword->GetFormEditorID());
+		}
+	}
+
 	void ContainerManager::ReplaceKeywordRule::Apply(RE::TESObjectREFR* a_container)
 	{
 		auto inventory = a_container->GetInventory();
@@ -339,6 +488,26 @@ namespace Hooks {
 			for (const auto obj : newForms) {
 				a_container->AddObjectToContainer(obj, nullptr, count, nullptr);
 			}
+		}
+	}
+
+	void ContainerManager::ReplaceKeywordRule::Print()
+	{
+		const auto singleton = ContainerManager::GetSingleton();
+		if (!conditions.empty()) {
+			logger::info("Conditions:");
+			for (const auto condition : conditions) {
+				singleton->storedConditions.at(condition)->Print();
+			}
+		}
+		logger::info("----------------------------");
+		logger::info("If an item has all of these keywords, it will be removed:");
+		for (const auto keyword : keywordsToRemove) {
+			logger::info("  ->{}", keyword->GetFormEditorID());
+		}
+		logger::info("And replaced by:");
+		for (const auto form : newForms) {
+			logger::info("  ->{}", form->GetName());
 		}
 	}
 }

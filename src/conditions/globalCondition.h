@@ -11,6 +11,7 @@ namespace Conditions
 
 		GlobalCondition(RE::TESGlobal* a_global, float a_value);
 
+		void Print() override;
 	private:
 		RE::TESGlobal* global;
 		float value;

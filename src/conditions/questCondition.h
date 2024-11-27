@@ -11,6 +11,7 @@ namespace Conditions
 
 		QuestCondition(RE::TESQuest* a_quest, std::vector<uint16_t> a_stages, bool a_completed);
 
+		void Print() override;
 	private:
 		enum QuestState {
 			kCompleted,

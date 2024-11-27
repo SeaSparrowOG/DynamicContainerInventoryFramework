@@ -20,4 +20,13 @@ namespace Conditions
 		this->value = a_value;
 		this->minValue = a_minValue;
 	}
+
+	void AVCondition::Print()
+	{
+		logger::info("=================/");
+		logger::info("|  AV Condition /");
+		logger::info("===============/");
+		logger::info("  ->{}{}: [{}]", inverted ? "Not " : "", value, minValue);
+		logger::info("");
+	}
 }

@@ -17,4 +17,15 @@ namespace Conditions
 	{
 		this->validReferences = a_references;
 	}
+
+	void ReferenceCondition::Print()
+	{
+		logger::info("=========================/");
+		logger::info("|  Reference Conditions /");
+		logger::info("=======================/");
+		for (const auto& form : validReferences) {
+			logger::info("  ->{}{}", inverted ? "Not " : "", form);
+		}
+		logger::info("");
+	}
 }

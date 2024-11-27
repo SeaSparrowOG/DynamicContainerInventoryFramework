@@ -11,6 +11,7 @@ namespace Conditions
 
 		ContainerCondition(std::vector<RE::TESObjectCONT*> a_containers);
 
+		void Print() override;
 	private:
 		std::vector<RE::TESObjectCONT*> validContainers;
 	};

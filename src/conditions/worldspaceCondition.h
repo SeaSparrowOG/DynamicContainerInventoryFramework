@@ -11,6 +11,7 @@ namespace Conditions
 
 		WorldspaceCondition(std::vector<RE::TESWorldSpace*> a_worldspaces);
 
+		void Print() override;
 	private:
 		std::vector<RE::TESWorldSpace*> validWorldSpaces;
 	};

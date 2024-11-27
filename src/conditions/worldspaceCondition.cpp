@@ -13,7 +13,7 @@ namespace Conditions
 			}
 		}
 
-		auto parent = currentWorldspace->parentWorld;
+		auto parent = currentWorldspace ? currentWorldspace->parentWorld : nullptr;
 		while (parent) {
 			for (const auto other : validWorldSpaces) {
 				if (other == parent) {
@@ -28,5 +28,16 @@ namespace Conditions
 	WorldspaceCondition::WorldspaceCondition(std::vector<RE::TESWorldSpace*> a_worldspaces)
 	{
 		this->validWorldSpaces = a_worldspaces;
+	}
+
+	void WorldspaceCondition::Print()
+	{
+		logger::info("==========================/");
+		logger::info("|  Worldspace Conditions /");
+		logger::info("========================/");
+		for (const auto& form : validWorldSpaces) {
+			logger::info("  ->{}{}",inverted ? "Not " : "", form->GetName());
+		}
+		logger::info("");
 	}
 }

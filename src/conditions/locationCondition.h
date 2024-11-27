@@ -11,6 +11,7 @@ namespace Conditions
 
 		LocationCondition(std::vector<RE::BGSLocation*> a_locations);
 
+		void Print() override;
 	private:
 		std::vector<RE::BGSLocation*> validLocations;
 	};

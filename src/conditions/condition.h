@@ -7,5 +7,6 @@ namespace Conditions
 	public:
 		bool inverted;
 		virtual bool IsValid(RE::TESObjectREFR* a_container) = 0;
+		virtual void Print() = 0;
 	};
 }

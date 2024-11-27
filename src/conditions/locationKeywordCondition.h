@@ -11,6 +11,7 @@ namespace Conditions
 
 		LocationKeywordCondition(std::vector<RE::BGSKeyword*> a_keywords);
 
+		void Print() override;
 	private:
 		std::vector<RE::BGSKeyword*> validKeywords;
 	};
