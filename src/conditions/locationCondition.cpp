@@ -22,7 +22,7 @@ namespace Conditions
 				parent = parent->parentLoc;
 			}
 		}
-		return false;
+		return inverted;
 	}
 
 	LocationCondition::LocationCondition(std::vector<RE::BGSLocation*> a_locations)

@@ -8,7 +8,7 @@ namespace Conditions
 		if (currentWorldspace) {
 			for (const auto other : validWorldSpaces) {
 				if (other == currentWorldspace) {
-					return true;
+					return !inverted;
 				}
 			}
 		}
@@ -17,12 +17,12 @@ namespace Conditions
 		while (parent) {
 			for (const auto other : validWorldSpaces) {
 				if (other == parent) {
-					return true;
+					return !inverted;
 				}
 			}
 			parent = parent->parentWorld;
 		}
-		return false;
+		return inverted;
 	}
 
 	WorldspaceCondition::WorldspaceCondition(std::vector<RE::TESWorldSpace*> a_worldspaces)

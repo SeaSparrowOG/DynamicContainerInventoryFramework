@@ -12,11 +12,11 @@ namespace Hooks {
 	public:
 		static void Install();
 
-		void RegisterRule(Json::Value& raw, std::vector<std::unique_ptr<Conditions::Condition>> a_conditions, bool a_safe, bool a_vendors, bool a_onlyVendors, bool a_random);
-
+		void RegisterRule(Json::Value& raw, std::vector<size_t> a_conditions, bool a_safe, bool a_vendors, bool a_onlyVendors, bool a_random);
+		std::vector<std::unique_ptr<Conditions::Condition>> storedConditions;
 	private:
 		struct Rule {
-			std::vector<std::unique_ptr<Conditions::Condition>> conditions;
+			std::vector<size_t> conditions;
 
 			bool allowVendors;
 			bool onlyVendors;

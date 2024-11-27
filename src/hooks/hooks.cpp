@@ -20,7 +20,7 @@ namespace Hooks {
 		_reset = trampoline.write_call<5>(resetTarget.address(), Reset);
 	}
 
-	void ContainerManager::RegisterRule(Json::Value& raw, std::vector<std::unique_ptr<Conditions::Condition>> a_conditions, bool a_safe, bool a_vendors, bool a_onlyVendors, bool a_random)
+	void ContainerManager::RegisterRule(Json::Value& raw, std::vector<size_t> a_conditions, bool a_safe, bool a_vendors, bool a_onlyVendors, bool a_random)
 	{
 		//json is valid here, checked in Settings::JSON::Read()
 		const auto& add = raw["add"];
@@ -30,7 +30,7 @@ namespace Hooks {
 
 		if (add && removeKeywordsField) {
 			ReplaceKeywordRule newRule{};
-			newRule.conditions = std::move(a_conditions);
+			newRule.conditions = a_conditions;
 			newRule.allowSafeBypass = a_safe;
 			newRule.allowVendors = a_vendors;
 			newRule.onlyVendors = a_onlyVendors;
@@ -47,7 +47,7 @@ namespace Hooks {
 		}
 		else if (add && remove) {
 			ReplaceRule newRule{};
-			newRule.conditions = std::move(a_conditions);
+			newRule.conditions = a_conditions;
 			newRule.allowSafeBypass = a_safe;
 			newRule.allowVendors = a_vendors;
 			newRule.onlyVendors = a_onlyVendors;
@@ -56,14 +56,12 @@ namespace Hooks {
 				const auto obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
 				newRule.newForms.push_back(obj);
 			}
-			for (const auto& entry : remove) {
-				newRule.oldForm = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
-			}
+			newRule.oldForm = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(remove.asString());
 			replaces.push_back(std::move(newRule));
 		}
 		else if (removeKeywordsField) {
 			RemoveKeywordRule newRule{};
-			newRule.conditions = std::move(a_conditions);
+			newRule.conditions = a_conditions;
 			newRule.allowSafeBypass = a_safe;
 			newRule.allowVendors = a_vendors;
 			newRule.onlyVendors = a_onlyVendors;
@@ -76,14 +74,12 @@ namespace Hooks {
 		}
 		else if (remove) {
 			RemoveRule newRule{};
-			newRule.conditions = std::move(a_conditions);
+			newRule.conditions = a_conditions;
 			newRule.allowSafeBypass = a_safe;
 			newRule.allowVendors = a_vendors;
 			newRule.onlyVendors = a_onlyVendors;
 			newRule.randomAdd = a_random;
-			for (const auto& entry : remove) {
-				newRule.form = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
-			}
+			newRule.form = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(remove.asString());
 
 			if (count) {
 				newRule.ruleCount = count.asUInt();
@@ -95,7 +91,7 @@ namespace Hooks {
 		}
 		else if (add) {
 			AddRule newRule{};
-			newRule.conditions = std::move(a_conditions);
+			newRule.conditions = a_conditions;
 			newRule.allowSafeBypass = a_safe;
 			newRule.allowVendors = a_vendors;
 			newRule.onlyVendors = a_onlyVendors;
@@ -109,7 +105,7 @@ namespace Hooks {
 				newRule.ruleCount = count.asUInt();
 			}
 			else {
-				newRule.ruleCount = 0;
+				newRule.ruleCount = 1;
 			}
 			adds.push_back(std::move(newRule));
 		}
@@ -133,6 +129,9 @@ namespace Hooks {
 
 	void ContainerManager::ProcessContainer(RE::TESObjectREFR* a_container)
 	{
+#ifdef DEBUG
+		const auto then = std::chrono::high_resolution_clock::now();
+#endif
 		for (auto& add : adds) {
 			add.Apply(a_container);
 		}
@@ -148,6 +147,14 @@ namespace Hooks {
 		for (auto& replace : replaceKeywords) {
 			replace.Apply(a_container);
 		}
+#ifdef DEBUG
+		const auto now = std::chrono::high_resolution_clock::now();
+		const auto timespan = now - then;
+		const auto durationSpan = timespan.count();
+		if (durationSpan > 10000) {
+			logger::debug("Processed {} in {}ns", Utilities::EDID::GetEditorID(a_container->GetBaseObject()), durationSpan);
+		}
+#endif
 	}
 
 	void ContainerManager::AddRule::Apply(RE::TESObjectREFR* a_container)
@@ -156,10 +163,8 @@ namespace Hooks {
 			return;
 		}
 
-		size_t count = ruleCount;
-		if (count == 0) {
-			count = 1;
-		}
+		uint32_t count = ruleCount;
+		logger::debug("Adding {} {}s to {}", count, (*newForms.begin())->GetName(), Utilities::EDID::GetEditorID(a_container->GetBaseObject()));
 		if (randomAdd) {
 			for (auto i = (size_t)0; i < count; ++i) {
 				const auto index = clib_util::RNG().generate((size_t)0, newForms.size() - 1);
@@ -245,7 +250,7 @@ namespace Hooks {
 		}
 
 		for (auto& condition : conditions) {
-			if (!condition->IsValid(a_container)) {
+			if (!ContainerManager::GetSingleton()->storedConditions.at(condition)->IsValid(a_container)) {
 				return false;
 			}
 		}
@@ -297,7 +302,7 @@ namespace Hooks {
 			return;
 		}
 
-		size_t count = (size_t)0;
+		uint32_t count = (size_t)0;
 		std::vector<std::pair<RE::TESBoundObject*, uint32_t>> removals{};
 		for (const auto& inventoryEntry : inventory) {
 			bool shouldSkip = false;

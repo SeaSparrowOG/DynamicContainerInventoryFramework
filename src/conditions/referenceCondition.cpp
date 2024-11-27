@@ -7,10 +7,10 @@ namespace Conditions
 		const auto containerID = a_container->formID;
 		for (const auto referenceID : validReferences) {
 			if (referenceID == containerID) {
-				return true;
+				return !inverted;
 			}
 		}
-		return false;
+		return inverted;
 	}
 
 	ReferenceCondition::ReferenceCondition(std::vector<RE::FormID> a_references)
