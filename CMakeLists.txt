@@ -17,6 +17,7 @@ list(APPEND CMAKE_MODULE_PATH
 )
 include(SKSEPlugin)
 set(SKSE_USE_XBYAK ON)
+find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 
 add_compile_definitions(SKYRIM_AE)
 add_compile_definitions(SKYRIM_SUPPORT_AE)
@@ -47,6 +48,12 @@ target_link_libraries(
 
 set_target_properties(CommonLibSSE PROPERTIES
 	FOLDER External
+)
+
+target_include_directories(
+	${PROJECT_NAME}
+	PRIVATE
+		${CLIB_UTIL_INCLUDE_DIRS}
 )
 
 set(DATA_DIR "${PROJECT_SOURCE_DIR}/data")

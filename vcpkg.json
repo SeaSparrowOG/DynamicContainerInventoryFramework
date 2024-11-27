@@ -5,6 +5,7 @@
   "homepage": "",
   "license": "MIT",
   "dependencies": [
+    "clib-util",
     "fmt",
     "rsm-binary-io",
     "spdlog",

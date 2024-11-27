@@ -1,5 +1,6 @@
 #include "JSONSettings.h"
 
+#include "hooks/hooks.h"
 #include "utilities/utilities.h"
 
 #include "conditions/actorValueCondition.h"
@@ -56,6 +57,7 @@ namespace Settings::JSON
 			bool distributeToVendors = false;
 			bool onlyVendors = false;
 			bool randomAdd = false;
+			std::vector<Conditions::Condition> newConditions{};
 			std::vector<RE::BGSKeyword*> validLocationKeywords{};
 			std::vector<RE::BGSLocation*> validLocationIdentifiers{};
 			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
@@ -160,6 +162,8 @@ namespace Settings::JSON
 							continue;
 						}
 						validContainers.push_back(container);
+						Conditions::ContainerCondition newCondition{ validContainers };
+						newConditions.push_back(std::move(newCondition));
 					}
 				}
 
@@ -182,6 +186,8 @@ namespace Settings::JSON
 							continue;
 						}
 						validLocationIdentifiers.push_back(location);
+						Conditions::LocationCondition newCondition{ validLocationIdentifiers };
+						newConditions.push_back(std::move(newCondition));
 					}
 				}
 
@@ -205,6 +211,8 @@ namespace Settings::JSON
 							continue;
 						}
 						validWorldspaceIdentifiers.push_back(worldspace);
+						Conditions::WorldspaceCondition newCondition{ validWorldspaceIdentifiers };
+						newConditions.push_back(std::move(newCondition));
 					}
 				}
 
@@ -229,6 +237,8 @@ namespace Settings::JSON
 						}
 						validLocationKeywords.push_back(keyword);
 					}
+					Conditions::LocationKeywordCondition newCondition{ validLocationKeywords };
+					newConditions.push_back(std::move(newCondition));
 				}
 
 				//player skill check
@@ -263,6 +273,10 @@ namespace Settings::JSON
 						}
 
 						requiredAVs.push_back({components.at(0).c_str(), requiredLevel});
+					}
+					for (const auto& pair : requiredAVs) {
+						Conditions::AVCondition newCondition{ pair.first, pair.second };
+						newConditions.push_back(std::move(newCondition));
 					}
 				}
 
@@ -304,6 +318,10 @@ namespace Settings::JSON
 							logger::warn("Don't use negative valued for globals.");
 						}
 						requiredGlobals.push_back({global, globalValue});
+					}
+					for (const auto& pair : requiredGlobals) {
+						Conditions::GlobalCondition newCondition{ pair.first, pair.second };
+						newConditions.push_back(std::move(newCondition));
 					}
 				}
 
@@ -347,13 +365,93 @@ namespace Settings::JSON
 							candidate.completedStages.push_back(field.asUInt());
 						}
 					}
-					
-					requiredQuests.push_back(candidate);
+					Conditions::QuestCondition newCondition{ quest, candidate.completedStages, completed };
+					newConditions.push_back(std::move(newCondition));
 				}
 			} //End of Conditions
 
-			for (const auto& change : changes) {
-				
+			//This is just verification, so forms are parsed twice. Improve this.
+			for (auto& change : changes) {
+				const auto& add = change["add"];
+				const auto& remove = change["remove"];
+				const auto& removeKeywords = change["removeByKeywords"];
+				const auto& count = change["count"];
+				if (!add && !remove && !removeKeywords && !count) {
+					logger::warn("No changes detected, was this meant?");
+					continue;
+				}
+
+				if (count) {
+					if (!count.isUInt()) {
+						logger::warn("Config <{}>/[{}], rule has invalid count.", a_path, friendlyName.asString());
+						continue;
+					}
+				}
+				if (remove) {
+					if (!remove.isString()) {
+						logger::warn("config <{}>/[{}], rule has invalid remove data.", a_path, friendlyName.asString());
+						continue;
+					}
+
+					const auto obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(remove.asString());
+					if (!obj) {
+						logger::warn("Config <{}>/[{}] contains invalid remove data - missing form {}.", a_path, friendlyName.asString(), remove.asString());
+						continue;
+					}
+				}
+				if (add) {
+					if (!add.isArray()) {
+						logger::warn("config <{}>/[{}], rule has invalid add data.", a_path, friendlyName.asString());
+						continue;
+					}
+
+					bool shouldSkip = false;
+					for (auto it = add.begin(); !shouldSkip && it != add.end(); ++it) {
+						const auto& entry = *it;
+						if (!entry.isString()) {
+							logger::warn("Config <{}>/[{}] contains invalid add data.", a_path, friendlyName.asString());
+							shouldSkip = true;
+							continue;
+						}
+
+						const auto obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
+						if (!obj) {
+							logger::warn("Config <{}>/[{}] contains invalid add data - missing form {}.", a_path, friendlyName.asString(), entry.asString());
+							shouldSkip = true;
+							continue;
+						}
+					}
+					if (shouldSkip) {
+						continue;
+					}
+				}
+				if (removeKeywords) {
+					if (!removeKeywords.isArray()) {
+						logger::warn("config <{}>/[{}], rule has invalid removeKeywords data.", a_path, friendlyName.asString());
+						continue;
+					}
+
+					bool shouldSkip = false;
+					for (auto it = removeKeywords.begin(); !shouldSkip && it != removeKeywords.end(); ++it) {
+						const auto& entry = *it;
+						if (!entry.isString()) {
+							logger::warn("Config <{}>/[{}] contains invalid removeKeywords data.", a_path, friendlyName.asString());
+							shouldSkip = true;
+							continue;
+						}
+
+						const auto keyword = Utilities::Forms::GetFormFromString<RE::BGSKeyword>(entry.asString());
+						if (!keyword) {
+							logger::warn("Config <{}>/[{}] contains invalid removeKeywords data - missing form {}.", a_path, friendlyName.asString(), entry.asString());
+							shouldSkip = true;
+							continue;
+						}
+					}
+					if (shouldSkip) {
+						continue;
+					}
+				}
+				Hooks::ContainerManager::GetSingleton()->RegisterRule(change, newConditions, bypassUnsafeContainers, distributeToVendors, onlyVendors, randomAdd);
 			}
 		}
 	}
