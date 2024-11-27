@@ -460,7 +460,7 @@ namespace Settings::JSON
 							return;
 						}
 
-						auto components = Utilities::String::split(identifier.asString(), "|"sv);
+						auto components = Utilities::String::split(identifier.asString(), "|");
 						if (components.size() != 2) {
 							logger::warn("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
 							return;
@@ -507,7 +507,7 @@ namespace Settings::JSON
 							return;
 						}
 
-						auto components = Utilities::String::split(identifier.asString(), "|"sv);
+						auto components = Utilities::String::split(identifier.asString(), "|");
 						if (components.size() != 2) {
 							logger::warn("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
 							return;
