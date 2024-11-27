@@ -153,16 +153,22 @@ namespace Utilities
 		template <typename T>
 		T* GetFormFromString(const std::string& a_str)
 		{
+			T* response = nullptr;
 			if (const auto splitID = String::split(a_str, "|"); splitID.size() == 2) {
-				if (!String::is_only_hex(splitID[1])) return nullptr;
-				const auto  formID = String::to_num<RE::FormID>(splitID[1], true);
+				if (!String::is_only_hex(splitID[0])) return nullptr;
+				const auto  formID = String::to_num<RE::FormID>(splitID[0], true);
 
-				const auto& modName = splitID[0];
+				const auto& modName = splitID[1];
 				if (!RE::TESDataHandler::GetSingleton()->LookupModByName(modName)) return nullptr;
 
-				return RE::TESDataHandler::GetSingleton()->LookupForm<T>(formID, modName);
+				const auto foundForm = RE::TESDataHandler::GetSingleton()->LookupForm(formID, modName);
+				if (foundForm) {
+					response = skyrim_cast<T*>(foundForm);
+				}
+				return response;
 			}
-			return RE::TESForm::LookupByEditorID<T>(a_str);
+			response = RE::TESForm::LookupByEditorID<T>(a_str);
+			return response;
 		}
 	}
 }

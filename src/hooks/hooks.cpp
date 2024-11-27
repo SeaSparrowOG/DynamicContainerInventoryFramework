@@ -43,6 +43,7 @@ namespace Hooks {
 				const auto keyword = Utilities::Forms::GetFormFromString<RE::BGSKeyword>(entry.asString());
 				newRule.keywordsToRemove.push_back(keyword);
 			}
+			replaceKeywords.push_back(std::move(newRule));
 		}
 		else if (add && remove) {
 			ReplaceRule newRule{};
@@ -58,6 +59,7 @@ namespace Hooks {
 			for (const auto& entry : remove) {
 				newRule.oldForm = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
 			}
+			replaces.push_back(std::move(newRule));
 		}
 		else if (removeKeywordsField) {
 			RemoveKeywordRule newRule{};
@@ -70,6 +72,7 @@ namespace Hooks {
 				const auto keyword = Utilities::Forms::GetFormFromString<RE::BGSKeyword>(entry.asString());
 				newRule.keywordsToRemove.push_back(keyword);
 			}
+			removeKeywords.push_back(std::move(newRule));
 		}
 		else if (remove) {
 			RemoveRule newRule{};
@@ -88,6 +91,7 @@ namespace Hooks {
 			else {
 				newRule.ruleCount = 0;
 			}
+			removes.push_back(std::move(newRule));
 		}
 		else if (add) {
 			AddRule newRule{};
@@ -107,6 +111,7 @@ namespace Hooks {
 			else {
 				newRule.ruleCount = 0;
 			}
+			adds.push_back(std::move(newRule));
 		}
 	}
 
@@ -162,7 +167,7 @@ namespace Hooks {
 			}
 		}
 		else {
-			for (const auto& baseObj : newForms) {
+			for (const auto baseObj : newForms) {
 				a_container->AddObjectToContainer(baseObj, nullptr, count, nullptr);
 			}
 		}

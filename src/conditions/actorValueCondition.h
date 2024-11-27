@@ -8,10 +8,10 @@ namespace Conditions
 	{
 	public:
 		bool IsValid(RE::TESObjectREFR* a_container) override;
-		AVCondition(const char* a_value, float a_minValue);
+		AVCondition(std::string a_value, float a_minValue);
 
 	private:
-		const char* value;
+		std::string value;
 		float minValue;
 	};
 }

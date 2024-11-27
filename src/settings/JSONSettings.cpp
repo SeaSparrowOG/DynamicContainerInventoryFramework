@@ -40,8 +40,8 @@ namespace Settings::JSON
 			}
 			auto& conditions = data["conditions"];
 			auto& changes = data["changes"];
-			if (!changes || !changes.isObject()) {
-				logger::warn("Config <{}>/[{}] is either missing the changes field, or it is not an object.", a_path, friendlyName.asString());
+			if (!changes || !changes.isArray()) {
+				logger::warn("Config <{}>/[{}] is either missing the changes field, or it is not an array.", a_path, friendlyName.asString());
 				return;
 			}
 
@@ -58,13 +58,6 @@ namespace Settings::JSON
 			bool onlyVendors = false;
 			bool randomAdd = false;
 			std::vector<std::unique_ptr<Conditions::Condition>> newConditions{};
-			std::vector<RE::BGSKeyword*> validLocationKeywords{};
-			std::vector<RE::BGSLocation*> validLocationIdentifiers{};
-			std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
-			std::vector<RE::TESObjectCONT*> validContainers{};
-			std::vector<RE::FormID> validReferences{};
-			std::vector<std::pair<const char*, float>> requiredAVs{};
-			std::vector<std::pair<RE::TESGlobal*, float>> requiredGlobals{};
 
 			struct QuestStruct {
 				bool completed = false;
@@ -144,12 +137,14 @@ namespace Settings::JSON
 				
 				//Container check
 				auto& containerField = conditions["containers"];
+				auto& reverseContainersField = conditions["!containers"];
 				if (containerField) {
 					if (!containerField.isArray()) {
 						logger::warn("Config <{}>/[{}] has containers specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 
+					std::vector<RE::TESObjectCONT*> validContainers{};
 					for (auto& identifier : containerField) {
 						if (!identifier.isString()) {
 							logger::warn("Config <{}>/[{}] has containers specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
@@ -162,19 +157,49 @@ namespace Settings::JSON
 							continue;
 						}
 						validContainers.push_back(container);
-						Conditions::ContainerCondition newCondition{ validContainers };
-						auto newConditionPtr = std::make_unique<Conditions::ContainerCondition>(newCondition);
-						newConditions.push_back(std::move(newConditionPtr));
 					}
+					Conditions::ContainerCondition newCondition{ validContainers };
+					newCondition.inverted = false;
+					auto newConditionPtr = std::make_unique<Conditions::ContainerCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
+				}
+
+				if (reverseContainersField) {
+					if (!reverseContainersField.isArray()) {
+						logger::warn("Config <{}>/[{}] has containers specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+						return;
+					}
+
+					std::vector<RE::TESObjectCONT*> validContainers{};
+					for (auto& identifier : reverseContainersField) {
+						if (!identifier.isString()) {
+							logger::warn("Config <{}>/[{}] has containers specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+							return;
+						}
+
+						const auto container = Utilities::Forms::GetFormFromString<RE::TESObjectCONT>(identifier.asString());
+						if (!container) {
+							logger::info("Config <{}>/[{}] requires container {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+							continue;
+						}
+						validContainers.push_back(container);
+					}
+					Conditions::ContainerCondition newCondition{ validContainers };
+					newCondition.inverted = true;
+					auto newConditionPtr = std::make_unique<Conditions::ContainerCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
 				}
 
 				//Location check
 				auto& locations = conditions["locations"];
+				auto& reverseLocations = conditions["!locations"];
 				if (locations) {
 					if (!locations.isArray()) {
 						logger::warn("Config <{}>/[{}] has locations specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
+
+					std::vector<RE::BGSLocation*> validLocationIdentifiers{};
 					for (auto& identifier : locations) {
 						if (!identifier.isString()) {
 							logger::warn("Config <{}>/[{}] has locations specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
@@ -187,20 +212,51 @@ namespace Settings::JSON
 							continue;
 						}
 						validLocationIdentifiers.push_back(location);
-						Conditions::LocationCondition newCondition{ validLocationIdentifiers };
-						auto newConditionPtr = std::make_unique<Conditions::LocationCondition>(newCondition);
-						newConditions.push_back(std::move(newConditionPtr));
 					}
+
+					Conditions::LocationCondition newCondition{ validLocationIdentifiers };
+					newCondition.inverted = false;
+					auto newConditionPtr = std::make_unique<Conditions::LocationCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
+				}
+
+				if (reverseLocations) {
+					if (!locations.isArray()) {
+						logger::warn("Config <{}>/[{}] has locations specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+						return;
+					}
+
+					std::vector<RE::BGSLocation*> validLocationIdentifiers{};
+					for (auto& identifier : locations) {
+						if (!identifier.isString()) {
+							logger::warn("Config <{}>/[{}] has locations specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+							return;
+						}
+
+						const auto location = Utilities::Forms::GetFormFromString<RE::BGSLocation>(identifier.asString());
+						if (!location) {
+							logger::info("Config <{}>/[{}] requires location {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+							continue;
+						}
+						validLocationIdentifiers.push_back(location);
+					}
+
+					Conditions::LocationCondition newCondition{ validLocationIdentifiers };
+					newCondition.inverted = true;
+					auto newConditionPtr = std::make_unique<Conditions::LocationCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
 				}
 
 				//Worldspace check
 				auto& worldspaces = conditions["worldspaces"];
+				auto& reverseWorldspaces = conditions["!worldspaces"];
 				if (worldspaces) {
 					if (!worldspaces.isArray()) {
 						logger::warn("Config <{}>/[{}] has worldspaces specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 
+					std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
 					for (auto& identifier : worldspaces) {
 						if (!identifier.isString()) {
 							logger::warn("Config <{}>/[{}] has worldspaces specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
@@ -213,20 +269,51 @@ namespace Settings::JSON
 							continue;
 						}
 						validWorldspaceIdentifiers.push_back(worldspace);
-						Conditions::WorldspaceCondition newCondition{ validWorldspaceIdentifiers };
-						auto newConditionPtr = std::make_unique<Conditions::WorldspaceCondition>(newCondition);
-						newConditions.push_back(std::move(newConditionPtr));
 					}
+
+					Conditions::WorldspaceCondition newCondition{ validWorldspaceIdentifiers };
+					newCondition.inverted = false;
+					auto newConditionPtr = std::make_unique<Conditions::WorldspaceCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
+				}
+
+				if (reverseWorldspaces) {
+					if (!reverseWorldspaces.isArray()) {
+						logger::warn("Config <{}>/[{}] has worldspaces specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+						return;
+					}
+
+					std::vector<RE::TESWorldSpace*> validWorldspaceIdentifiers{};
+					for (auto& identifier : reverseWorldspaces) {
+						if (!identifier.isString()) {
+							logger::warn("Config <{}>/[{}] has worldspaces specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+							return;
+						}
+
+						const auto worldspace = Utilities::Forms::GetFormFromString<RE::TESWorldSpace>(identifier.asString());
+						if (!worldspace) {
+							logger::info("Config <{}>/[{}] requires worldspace {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+							continue;
+						}
+						validWorldspaceIdentifiers.push_back(worldspace);
+					}
+
+					Conditions::WorldspaceCondition newCondition{ validWorldspaceIdentifiers };
+					newCondition.inverted = true;
+					auto newConditionPtr = std::make_unique<Conditions::WorldspaceCondition>(newCondition);
+					newConditions.push_back(std::move(newConditionPtr));
 				}
 
 				//Location Keywords check
 				auto& locationKeywords = conditions["locationKeywords"];
+				auto& reverseLocationKeywords = conditions["!locationKeywords"];
 				if (locationKeywords) {
 					if (!locationKeywords.isArray()) {
 						logger::warn("Config <{}>/[{}] has locationKeywords specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 
+					std::vector<RE::BGSKeyword*> validLocationKeywords{};
 					for (auto& identifier : locationKeywords) {
 						if (!identifier.isString()) {
 							logger::warn("Config <{}>/[{}] has locationKeywords specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
@@ -242,17 +329,46 @@ namespace Settings::JSON
 					}
 					Conditions::LocationKeywordCondition newCondition{ validLocationKeywords };
 					auto newConditionPtr = std::make_unique<Conditions::LocationKeywordCondition>(newCondition);
+					newCondition.inverted = false;
+					newConditions.push_back(std::move(newConditionPtr));
+				}
+
+				if (reverseLocationKeywords) {
+					if (!reverseLocationKeywords.isArray()) {
+						logger::warn("Config <{}>/[{}] has locationKeywords specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+						return;
+					}
+
+					std::vector<RE::BGSKeyword*> validLocationKeywords{};
+					for (auto& identifier : reverseLocationKeywords) {
+						if (!identifier.isString()) {
+							logger::warn("Config <{}>/[{}] has locationKeywords specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+							return;
+						}
+
+						const auto keyword = RE::TESForm::LookupByEditorID<RE::BGSKeyword>(identifier.asString());
+						if (!keyword) {
+							logger::info("Config <{}>/[{}] requires keyword {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+							continue;
+						}
+						validLocationKeywords.push_back(keyword);
+					}
+					Conditions::LocationKeywordCondition newCondition{ validLocationKeywords };
+					newCondition.inverted = true;
+					auto newConditionPtr = std::make_unique<Conditions::LocationKeywordCondition>(newCondition);
 					newConditions.push_back(std::move(newConditionPtr));
 				}
 
 				//player skill check
 				auto& playerSkillsField = conditions["playerSkills"];
+				auto& reversePlayerSkillsField = conditions["!playerSkills"];
 				if (playerSkillsField) {
 					if (!playerSkillsField.isArray()) {
 						logger::warn("Config <{}>/[{}] has playerSkills specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 
+					std::vector<std::pair<std::string, float>> requiredAVs;
 					for (auto& identifier : playerSkillsField) {
 						if (!identifier.isString()) {
 							logger::warn("Config <{}>/[{}] has playerSkills specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
@@ -270,16 +386,59 @@ namespace Settings::JSON
 						}
 						catch (std::exception& e) {
 							logger::warn("Config <{}>/[{}] has playerSkills specified, but an element ({}) is not formatted correctly (Skill|Level). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+							logger::warn("Error: {}", e.what());
 							return;
 						}
 						if (requiredLevel < 0.0f) {
 							logger::warn("Don't use negative valued for playerSkills.");
 						}
 
-						requiredAVs.push_back({components.at(0).c_str(), requiredLevel});
+						requiredAVs.push_back({ components.at(0), requiredLevel });
 					}
 					for (const auto& pair : requiredAVs) {
 						Conditions::AVCondition newCondition{ pair.first, pair.second };
+						newCondition.inverted = false;
+						auto newConditionPtr = std::make_unique<Conditions::AVCondition>(newCondition);
+						newConditions.push_back(std::move(newConditionPtr));
+					}
+				}
+
+				if (reversePlayerSkillsField) {
+					if (!reversePlayerSkillsField.isArray()) {
+						logger::warn("Config <{}>/[{}] has playerSkills specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+						return;
+					}
+
+					std::vector<std::pair<std::string, float>> requiredAVs;
+					for (auto& identifier : reversePlayerSkillsField) {
+						if (!identifier.isString()) {
+							logger::warn("Config <{}>/[{}] has playerSkills specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+							return;
+						}
+
+						auto components = Utilities::String::split(identifier.asString(), "|");
+						if (components.size() != 2) {
+							logger::warn("Config <{}>/[{}] has playerSkills specified, but an element ({}) is not formatted correctly (Skill|Level). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+							return;
+						}
+						float requiredLevel = -1.0f;
+						try {
+							requiredLevel = std::stof(components.at(1));
+						}
+						catch (std::exception& e) {
+							logger::warn("Config <{}>/[{}] has playerSkills specified, but an element ({}) is not formatted correctly (Skill|Level). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+							logger::warn("Error: {}", e.what());
+							return;
+						}
+						if (requiredLevel < 0.0f) {
+							logger::warn("Don't use negative valued for playerSkills.");
+						}
+
+						requiredAVs.push_back({ components.at(0), requiredLevel });
+					}
+					for (const auto& pair : requiredAVs) {
+						Conditions::AVCondition newCondition{ pair.first, pair.second };
+						newCondition.inverted = true;
 						auto newConditionPtr = std::make_unique<Conditions::AVCondition>(newCondition);
 						newConditions.push_back(std::move(newConditionPtr));
 					}
@@ -287,12 +446,14 @@ namespace Settings::JSON
 
 				//Global check
 				auto& globalsField = conditions["globals"];
+				auto& reverseGlobalsField = conditions["!globals"];
 				if (globalsField) {
 					if (!globalsField.isArray()) {
 						logger::warn("Config <{}>/[{}] has globals specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 
+					std::vector<std::pair<RE::TESGlobal*, float>> requiredGlobals;
 					for (auto& identifier : globalsField) {
 						if (!identifier.isString()) {
 							logger::warn("Config <{}>/[{}] has globals specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
@@ -317,15 +478,64 @@ namespace Settings::JSON
 						}
 						catch (std::exception& e) {
 							logger::warn("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+							logger::warn("Error: {}", e.what());
 							return;
 						}
 						if (globalValue < 0.0f) {
 							logger::warn("Don't use negative valued for globals.");
 						}
-						requiredGlobals.push_back({global, globalValue});
+						requiredGlobals.push_back({ global, globalValue });
 					}
 					for (const auto& pair : requiredGlobals) {
 						Conditions::GlobalCondition newCondition{ pair.first, pair.second };
+						newCondition.inverted = false;
+						auto newConditionPtr = std::make_unique<Conditions::GlobalCondition>(newCondition);
+						newConditions.push_back(std::move(newConditionPtr));
+					}
+				}
+
+				if (reverseGlobalsField) {
+					if (!reverseGlobalsField.isArray()) {
+						logger::warn("Config <{}>/[{}] has globals specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+						return;
+					}
+
+					std::vector<std::pair<RE::TESGlobal*, float>> requiredGlobals;
+					for (auto& identifier : reverseGlobalsField) {
+						if (!identifier.isString()) {
+							logger::warn("Config <{}>/[{}] has globals specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+							return;
+						}
+
+						auto components = Utilities::String::split(identifier.asString(), "|"sv);
+						if (components.size() != 2) {
+							logger::warn("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+							return;
+						}
+
+						const auto global = RE::TESForm::LookupByEditorID<RE::TESGlobal>(components.at(0));
+						if (!global) {
+							logger::info("Config <{}>/[{}] requires global {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+							continue;
+						}
+
+						float globalValue = -1.0f;
+						try {
+							globalValue = std::stof(components.at(1));
+						}
+						catch (std::exception& e) {
+							logger::warn("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+							logger::warn("Error: {}", e.what());
+							return;
+						}
+						if (globalValue < 0.0f) {
+							logger::warn("Don't use negative valued for globals.");
+						}
+						requiredGlobals.push_back({ global, globalValue });
+					}
+					for (const auto& pair : requiredGlobals) {
+						Conditions::GlobalCondition newCondition{ pair.first, pair.second };
+						newCondition.inverted = true;
 						auto newConditionPtr = std::make_unique<Conditions::GlobalCondition>(newCondition);
 						newConditions.push_back(std::move(newConditionPtr));
 					}
@@ -368,10 +578,11 @@ namespace Settings::JSON
 								logger::warn("Config <{}>/[{}] requires quest {}, but at least one stage specified is not a number, config will be ignored.", a_path, friendlyName.asString(), questConditionField["questID"].asString());
 								return;
 							}
-							candidate.completedStages.push_back(field.asUInt());
+							candidate.completedStages.push_back(static_cast<uint16_t>(field.asUInt()));
 						}
 					}
 					Conditions::QuestCondition newCondition{ quest, candidate.completedStages, completed };
+					newCondition.inverted = false;
 					auto newConditionPtr = std::make_unique<Conditions::QuestCondition>(newCondition);
 					newConditions.push_back(std::move(newConditionPtr));
 				}
@@ -421,7 +632,7 @@ namespace Settings::JSON
 							continue;
 						}
 
-						const auto obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
+						auto* obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
 						if (!obj) {
 							logger::warn("Config <{}>/[{}] contains invalid add data - missing form {}.", a_path, friendlyName.asString(), entry.asString());
 							shouldSkip = true;

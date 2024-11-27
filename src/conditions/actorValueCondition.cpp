@@ -9,13 +9,13 @@ namespace Conditions
 		(void)a_container;
 		const auto player = RE::PlayerCharacter::GetSingleton();
 		assert(player);
-		if (player && player->GetActorValue(RE::LookupActorValueByName(value)) >= minValue) {
+		if (player && player->GetActorValue(RE::LookupActorValueByName(value.data())) >= minValue) {
 			return !inverted;
 		}
 		return inverted;
 	}
 
-	AVCondition::AVCondition(const char* a_value, float a_minValue)
+	AVCondition::AVCondition(std::string a_value, float a_minValue)
 	{
 		this->value = a_value;
 		this->minValue = a_minValue;
