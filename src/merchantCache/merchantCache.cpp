@@ -1,4 +1,4 @@
-#include "merchantFactionCache.h"
+#include "merchantCache.h"
 
 namespace MerchantCache {
 	void MerchantCache::BuildCache()
