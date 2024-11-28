@@ -4,6 +4,35 @@
 #include "utilities/utilities.h"
 #include "RE/offset.h"
 
+namespace {
+	void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result, uint32_t a_count) {
+		RE::BSScrapArray<RE::CALCED_OBJECT> temp{};
+		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), a_count, temp, 0, true);
+
+		for (auto& it : temp) {
+			auto* form = it.form;
+			auto* leveledForm = form->As<RE::TESLeveledList>();
+			if (leveledForm) {
+				ResolveLeveledList(leveledForm, a_result, it.count);
+			}
+			else {
+				a_result->push_back(it);
+			}
+		}
+	}
+
+	void AddLeveledListToContainer(RE::TESLeveledList * list, RE::TESObjectREFR * a_container, uint32_t a_count) {
+		RE::BSScrapArray<RE::CALCED_OBJECT> result{};
+		ResolveLeveledList(list, &result, a_count);
+		if (result.size() < 1) return;
+
+		for (auto& obj : result) {
+			auto* thingToAdd = static_cast<RE::TESBoundObject*>(obj.form);
+			if (!thingToAdd) continue;
+			a_container->AddObjectToContainer(thingToAdd, nullptr, obj.count, nullptr);
+		}
+	}
+}
 namespace Hooks {
 	void Install()
 	{
@@ -249,16 +278,27 @@ namespace Hooks {
 		}
 
 		uint32_t count = ruleCount;
-		logger::debug("Adding {} {}s to {}", count, (*newForms.begin())->GetName(), Utilities::EDID::GetEditorID(a_container->GetBaseObject()));
 		if (randomAdd) {
+			size_t upper = newForms.size() - 1;
 			for (auto i = (size_t)0; i < count; ++i) {
-				const auto index = clib_util::RNG().generate((size_t)0, newForms.size() - 1);
-				a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
+				const auto index = clib_util::RNG().generate((size_t)0, upper);
+				const auto obj = newForms.at(index);
+				if (const auto leveledList = obj->As<RE::TESLeveledList>()) {
+					AddLeveledListToContainer(leveledList, a_container, 1);
+				}
+				else {
+					a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
+				}
 			}
 		}
 		else {
 			for (const auto baseObj : newForms) {
-				a_container->AddObjectToContainer(baseObj, nullptr, count, nullptr);
+				if (const auto leveledList = baseObj->As<RE::TESLeveledList>()) {
+					AddLeveledListToContainer(leveledList, a_container, count);
+				}
+				else {
+					a_container->AddObjectToContainer(baseObj, nullptr, count, nullptr);
+				}
 			}
 		}
 	}
@@ -323,14 +363,26 @@ namespace Hooks {
 		int32_t count = inventory[oldForm].first;
 		a_container->RemoveItem(oldForm, count, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 		if (randomAdd) {
+			size_t upper = newForms.size() - 1;
 			for (auto i = (size_t)0; i < count; ++i) {
-				const auto index = clib_util::RNG().generate((size_t)0, newForms.size() - 1);
-				a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
+				const auto index = clib_util::RNG().generate((size_t)0, upper);
+				const auto obj = newForms.at(index);
+				if (const auto leveledList = obj->As<RE::TESLeveledList>()) {
+					AddLeveledListToContainer(leveledList, a_container, 1);
+				}
+				else {
+					a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
+				}
 			}
 		}
 		else {
-			for (const auto& baseObj : newForms) {
-				a_container->AddObjectToContainer(baseObj, nullptr, count, nullptr);
+			for (const auto baseObj : newForms) {
+				if (const auto leveledList = baseObj->As<RE::TESLeveledList>()) {
+					AddLeveledListToContainer(leveledList, a_container, count);
+				}
+				else {
+					a_container->AddObjectToContainer(baseObj, nullptr, count, nullptr);
+				}
 			}
 		}
 	}
@@ -479,14 +531,26 @@ namespace Hooks {
 			a_container->RemoveItem(pair.first, pair.second, RE::ITEM_REMOVE_REASON::kRemove, nullptr, nullptr);
 		}
 		if (randomAdd) {
+			size_t upper = newForms.size() - 1;
 			for (auto i = (size_t)0; i < count; ++i) {
-				const auto index = clib_util::RNG().generate((size_t)0, newForms.size() - 1);
-				a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
+				const auto index = clib_util::RNG().generate((size_t)0, upper);
+				const auto obj = newForms.at(index);
+				if (const auto leveledList = obj->As<RE::TESLeveledList>()) {
+					AddLeveledListToContainer(leveledList, a_container, 1);
+				}
+				else {
+					a_container->AddObjectToContainer(newForms.at(index), nullptr, 1, nullptr);
+				}
 			}
 		}
 		else {
-			for (const auto obj : newForms) {
-				a_container->AddObjectToContainer(obj, nullptr, count, nullptr);
+			for (const auto baseObj : newForms) {
+				if (const auto leveledList = baseObj->As<RE::TESLeveledList>()) {
+					AddLeveledListToContainer(leveledList, a_container, count);
+				}
+				else {
+					a_container->AddObjectToContainer(baseObj, nullptr, count, nullptr);
+				}
 			}
 		}
 	}
