@@ -46,6 +46,12 @@ namespace {
 
 			requiredAVs.push_back({ components.at(0), requiredLevel });
 		}
+
+		if (requiredAVs.empty()) {
+			logger::warn("Config <{}>/[{}] did not have any valid ACTOR VALUE forms. This is not fatal.", a_path, friendlyName.asString());
+			return;
+		}
+
 		for (const auto& pair : requiredAVs) {
 			Conditions::AVCondition newCondition{ pair.first, pair.second };
 			newCondition.inverted = a_inverted;
@@ -73,6 +79,12 @@ namespace {
 			}
 			forms.push_back(container);
 		}
+
+		if (forms.empty()) {
+			logger::warn("Config <{}>/[{}] did not have any valid CONTAINER forms. This is not fatal.", a_path, friendlyName.asString());
+			return;
+		}
+
 		Conditions::ContainerCondition newCondition{ forms };
 		newCondition.inverted = a_inverted;
 		a_target.push_back(newCondition);
@@ -98,6 +110,12 @@ namespace {
 			}
 			forms.push_back(container);
 		}
+
+		if (forms.empty()) {
+			logger::warn("Config <{}>/[{}] did not have any valid LOCATION forms. This is not fatal.", a_path, friendlyName.asString());
+			return;
+		}
+
 		Conditions::LocationCondition newCondition{ forms };
 		newCondition.inverted = a_inverted;
 		a_target.push_back(newCondition);
@@ -123,6 +141,12 @@ namespace {
 			}
 			forms.push_back(form);
 		}
+
+		if (forms.empty()) {
+			logger::warn("Config <{}>/[{}] did not have any valid WORLDSPACE forms. This is not fatal.", a_path, friendlyName.asString());
+			return;
+		}
+
 		Conditions::WorldspaceCondition newCondition{ forms };
 		newCondition.inverted = a_inverted;
 		a_target.push_back(newCondition);
@@ -148,6 +172,12 @@ namespace {
 			}
 			forms.push_back(keyword);
 		}
+
+		if (forms.empty()) {
+			logger::warn("Config <{}>/[{}] did not have any valid LOCATION KEYWORD forms. This is not fatal.", a_path, friendlyName.asString());
+			return;
+		}
+
 		Conditions::LocationKeywordCondition newCondition{ forms };
 		newCondition.inverted = a_inverted;
 		a_target.push_back(newCondition);
@@ -253,6 +283,7 @@ namespace {
 			const auto id = Utilities::String::to_num<RE::FormID>(identifier.asString(), true);
 			forms.push_back(id);
 		}
+
 		Conditions::ReferenceCondition newCondition{ forms };
 		newCondition.inverted = a_inverted;
 		a_target.push_back(newCondition);
