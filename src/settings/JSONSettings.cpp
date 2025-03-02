@@ -455,14 +455,14 @@ namespace Settings::JSON
 				auto& reverseWorldspaces = conditions["!worldspaces"];
 				if (worldspaces) {
 					ParseNewWorldspaces(worldspaces, false, newWorldspaces, a_path, friendlyName);
-					if (worldspaces.empty()) {
+					if (newWorldspaces.empty()) {
 						logger::error("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reverseWorldspaces) {
 					ParseNewWorldspaces(reverseWorldspaces, true, newWorldspaces, a_path, friendlyName);
-					if (worldspaces.empty()) {
+					if (newWorldspaces.empty()) {
 						logger::error("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
@@ -473,14 +473,14 @@ namespace Settings::JSON
 				auto& reverseLocationKeywords = conditions["!locationKeywords"];
 				if (locationKeywords) {
 					ParseNewLocationKeywords(locationKeywords, false, newLocationKeywords, a_path, friendlyName);
-					if (locationKeywords.empty()) {
+					if (newLocationKeywords.empty()) {
 						logger::error("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reverseLocationKeywords) {
 					ParseNewLocationKeywords(reverseLocationKeywords, true, newLocationKeywords, a_path, friendlyName);
-					if (locationKeywords.empty()) {
+					if (newLocationKeywords.empty()) {
 						logger::error("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
