@@ -419,9 +419,17 @@ namespace Settings::JSON
 				auto& reverseContainersField = conditions["!containers"];
 				if (containerField) {
 					ParseNewContainers(containerField, false, newContainers, a_path, friendlyName);
+					if (newContainers.empty()) {
+						logger::error("Config <{}>/[{}] has container specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 				if (reverseContainersField) {
 					ParseNewContainers(reverseContainersField, true, newContainers, a_path, friendlyName);
+					if (newContainers.empty()) {
+						logger::error("Config <{}>/[{}] has container specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 
 				//Location check
@@ -429,9 +437,17 @@ namespace Settings::JSON
 				auto& reverseLocations = conditions["!locations"];
 				if (locations) {
 					ParseNewLocations(locations, false, newLocations, a_path, friendlyName);
+					if (newLocations.empty()) {
+						logger::error("Config <{}>/[{}] has locations specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 				if (reverseLocations) {
 					ParseNewLocations(reverseLocations, true, newLocations, a_path, friendlyName);
+					if (newLocations.empty()) {
+						logger::error("Config <{}>/[{}] has locations specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 
 				//Worldspace check
@@ -439,9 +455,17 @@ namespace Settings::JSON
 				auto& reverseWorldspaces = conditions["!worldspaces"];
 				if (worldspaces) {
 					ParseNewWorldspaces(worldspaces, false, newWorldspaces, a_path, friendlyName);
+					if (worldspaces.empty()) {
+						logger::error("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 				if (reverseWorldspaces) {
 					ParseNewWorldspaces(reverseWorldspaces, true, newWorldspaces, a_path, friendlyName);
+					if (worldspaces.empty()) {
+						logger::error("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 
 				//Location Keywords check
@@ -449,9 +473,17 @@ namespace Settings::JSON
 				auto& reverseLocationKeywords = conditions["!locationKeywords"];
 				if (locationKeywords) {
 					ParseNewLocationKeywords(locationKeywords, false, newLocationKeywords, a_path, friendlyName);
+					if (locationKeywords.empty()) {
+						logger::error("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 				if (reverseLocationKeywords) {
 					ParseNewLocationKeywords(reverseLocationKeywords, true, newLocationKeywords, a_path, friendlyName);
+					if (locationKeywords.empty()) {
+						logger::error("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 
 				//player skill check
@@ -459,9 +491,17 @@ namespace Settings::JSON
 				auto& reversePlayerSkillsField = conditions["!playerSkills"];
 				if (playerSkillsField) {
 					ParseNewAVs(playerSkillsField, false, newAVs, a_path, friendlyName);
+					if (newAVs.empty()) {
+						logger::error("Config <{}>/[{}] has newAVs specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 				if (reversePlayerSkillsField) {
 					ParseNewAVs(reversePlayerSkillsField, true, newAVs, a_path, friendlyName);
+					if (newAVs.empty()) {
+						logger::error("Config <{}>/[{}] has newAVs specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 
 				//Global check
@@ -469,15 +509,27 @@ namespace Settings::JSON
 				auto& reverseGlobalsField = conditions["!globals"];
 				if (globalsField) {
 					ParseNewGlobals(globalsField, false, newGlobals, a_path, friendlyName);
+					if (newGlobals.empty()) {
+						logger::error("Config <{}>/[{}] has newGlobals specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 				if (reverseGlobalsField) {
 					ParseNewGlobals(reverseGlobalsField, true, newGlobals, a_path, friendlyName);
+					if (newGlobals.empty()) {
+						logger::error("Config <{}>/[{}] has newGlobals specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 
 				//Quest check
 				auto& questConditionField = conditions["questConditions"];
 				if (questConditionField) {
 					ParseNewQuests(questConditionField, false, newQuests, a_path, friendlyName);
+					if (newQuests.empty()) {
+						logger::error("Config <{}>/[{}] has newQuests specified, but no valid forms were found.", a_path, friendlyName.asString());
+						continue;
+					}
 				}
 
 				//References check
