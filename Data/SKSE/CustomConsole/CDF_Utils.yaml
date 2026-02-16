@@ -1,0 +1,8 @@
+name: cdf-utils
+alias: cdf
+script: CDF_Utils
+help: Tests for CDF Custom Console.
+subs:
+  - name: getversion
+    alias: gvs
+    func: GetVersion
