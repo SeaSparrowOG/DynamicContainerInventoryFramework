@@ -46,15 +46,17 @@ namespace Settings
 			bool OverrideSettings();
 		};
 
-		inline static constexpr const std::uint8_t EXPECTED_COUNT = 0;
+		inline static constexpr const char* MAX_DISTANCE = "fMaxRefLookupDistance";
+		inline static constexpr const std::uint8_t EXPECTED_COUNT = 1;
 
 		inline static constexpr const std::array<const char*, EXPECTED_COUNT> EXPECTED_SETTINGS = {
+			"|fMaxRefLookupDistance"
 		};
 
 		template <typename T>
 		std::optional<T> GetSetting(const std::string& a_settingName) {
-			auto* holder = Holder::GetSingleton();
-			return holder ? holder->GetStoredSetting<T>(a_settingName) : std::nullopt;
+			static auto* holder = Holder::GetSingleton();
+			return holder->GetStoredSetting<T>(a_settingName);
 		}
 	}
 }

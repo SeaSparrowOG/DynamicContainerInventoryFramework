@@ -15,8 +15,11 @@ namespace ContainerManager
 
         bool hasErrors{ false };
         std::string configName{};
+        std::vector<std::string> emptyConditions{};
+        std::vector<std::string> unexpectedErrors{};
         std::vector<std::string> invalidFieldNames{};
         std::vector<std::string> invalidFieldValues{};
+        std::vector<std::string> invalidArrayObjects{};
         std::vector<std::string> unresolvedConditions{};
         std::vector<std::string> missingRequiredFields{};
     };
@@ -24,7 +27,7 @@ namespace ContainerManager
     class Condition
     {
     public:
-        virtual bool IsValid(const ConditionCheckParams& a_params) = 0;
+        virtual bool IsValid(const ConditionCheckParams& a_params) const = 0;
     };
 
     class Change
@@ -46,15 +49,15 @@ namespace ContainerManager
 			kReplaceByKeywords
         };
 
-        void Apply(ConditionCheckParams& a_params);
-        bool CheckConditions(const ConditionCheckParams& a_params);
+        void Apply(ConditionCheckParams& a_params) const;
+        bool CheckConditions(const ConditionCheckParams& a_params) const;
 
         bool onlyVendorChests{ false };
         bool allowVendorChests{ false };
         bool allowNoResetChests{ false };
 		RuleType type{ RuleType::kAdd };
-        std::vector<std::unique_ptr<Condition>> conditions{};
-        std::vector<std::unique_ptr<Change>>    changes{};
+        std::vector<Condition> conditions{};
+        std::vector<Change>    changes{};
     };
 
     class InventorySwapper : public REX::Singleton<InventorySwapper>
@@ -64,6 +67,6 @@ namespace ContainerManager
 
         void ManipulateInventory(RE::TESObjectREFR* a_container);
     private:
-		std::vector<std::unique_ptr<Rule>> rules{};
+		std::vector<Rule> rules{};
     };
 }

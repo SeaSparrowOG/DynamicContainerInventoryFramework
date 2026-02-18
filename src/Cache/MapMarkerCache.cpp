@@ -26,7 +26,7 @@ namespace Cache
 
 		RE::BGSLocation* nearestLocation = nullptr;
 		auto containerPos = a_container->GetPosition();
-		float nearestDistance = Settings::INI::GetSetting<float>(Settings::INI::GENERAL_LOOKUP_RANGE).value_or(150000.0f);
+		float nearestDistance = Settings::INI::GetSetting<float>(Settings::INI::MAX_DISTANCE).value_or(150000.0f);
 		auto& mapMarkers = (*it).second;
 		if (mapMarkers.empty()) {
 			return nearestLocation;
