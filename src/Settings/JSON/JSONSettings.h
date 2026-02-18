@@ -4,20 +4,70 @@ namespace Settings
 {
 	namespace JSON
 	{
+		struct FormatErrors
+		{
+			using StringVec = std::vector<std::string>;
+
+			bool errored{ false };
+			StringVec recursionTooDeep{};
+			StringVec duplicateKeys{};
+			StringVec emptyKeys{};
+			std::string invalidTopLevel{""};
+			std::string jsonError{ "" };
+		};
+
 		class ConfigHolder : public REX::Singleton<ConfigHolder>
 		{
 		public:
-			void AddFailedConfig(const std::string& configName, const std::string& a_reason);
-			void AddGoodConfig(const std::string& a_configName, Json::Value a_value); // Copy is intentional
+			void AddFailedConfig(const std::string& configName, FormatErrors& a_reason);
+			void AddGoodConfig(const std::string& a_configName, Json::Value a_value);
 			void Report() const;
 
 		private:
 			struct FailedConfig
 			{
-				std::string config{};
-				std::string reason{};
+				std::string  config{};
+				FormatErrors reason{};
 
-				void PrintReason(std::string a_whiteSpace = "    ") const;
+				FailedConfig(FormatErrors& a_reason, const std::string& a_name) {
+					config = a_name;
+					reason = std::move(a_reason);
+				}
+
+				static void Delimit() {
+					logger::error("-------------------------------------------------"sv);
+				}
+
+				void PrintReason(std::string a_whiteSpace = "    ") const {
+					Delimit();
+					logger::error("{}>{}"sv, a_whiteSpace, config);
+					if (!reason.duplicateKeys.empty()) {
+						logger::error("{}  [Duplicate Keys]"sv, a_whiteSpace);
+						logger::error("{}    Duplicate Keys are keys that exist in the same object that have the same name. Capitalization doesn't matter."sv, a_whiteSpace);
+						for (const auto& e : reason.duplicateKeys) {
+							logger::error("{}      >{}"sv, a_whiteSpace, e);
+						}
+					}
+					if (!reason.emptyKeys.empty()) {
+						logger::error("{}  [Empty Objects/Arrays]"sv, a_whiteSpace);
+						logger::error("{}    Empty Objects/Arrays are flagged as a mistake (and usually are)."sv, a_whiteSpace);
+						for (const auto& e : reason.emptyKeys) {
+							logger::error("{}      >{}"sv, a_whiteSpace, e);
+						}
+					}
+					if (!reason.invalidTopLevel.empty()) {
+						logger::error("{}  [Invalid Top Level]"sv, a_whiteSpace);
+						logger::error("{}    The top level of the config MUST be either an object, or an array."sv, a_whiteSpace);
+						logger::error("{}    Instead, this config's top level is: {}"sv, a_whiteSpace, reason.invalidTopLevel);
+					}
+					if (!reason.recursionTooDeep.empty()) {
+						logger::error("{}  [Nesting Error]"sv, a_whiteSpace);
+						logger::error("{}    Deeply nested objects are indicative of a config error, and stop the parsing."sv, a_whiteSpace);
+						for (const auto& e : reason.recursionTooDeep) {
+							logger::error("{}      >{}"sv, a_whiteSpace, e);
+						}
+					}
+				}
 			};
 
 			std::vector<FailedConfig>          failedConfigs{};
@@ -218,6 +268,7 @@ namespace Settings
 			}
 			else if (a_value.isArray()) {
 				const auto size = a_value.size();
+				a_result.clear();
 				a_result.reserve(size);
 
 				for (const auto& value : a_value) {
@@ -227,6 +278,7 @@ namespace Settings
 					}
 					a_result.push_back(value.asString());
 				}
+				return JsonParseResult::Success;
 			}
 			return JsonParseResult::NotStringOrArray;
 		}

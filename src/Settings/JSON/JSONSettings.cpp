@@ -5,37 +5,7 @@ namespace Settings::JSON
     inline static constexpr std::size_t MAX_RECURSION_DEPTH = 16;
     static_assert(MAX_RECURSION_DEPTH <= std::numeric_limits<std::uint8_t>::max() && MAX_RECURSION_DEPTH > 4u);
 
-    class ParseError : public std::runtime_error
-    {
-    public:
-        ParseError(std::string a_reason) : std::runtime_error(a_reason) {}
-    };
-
-    class DuplicateKeyException : public ParseError
-    {
-    public:
-        DuplicateKeyException(std::string a_field) : ParseError(fmt::format("Duplicate Key in: {}", a_field)) {}
-    };
-
-    class MaxRecursionExceededException : public ParseError
-    {
-    public:
-        MaxRecursionExceededException(std::string a_path) : ParseError(fmt::format("Max Recursion Depth exceeded at: {}", a_path)) {}
-    };
-
-    class EmptyKeyException : public ParseError
-    {
-    public:
-        EmptyKeyException(std::string a_path) : ParseError(fmt::format("Empty Key found at: {}", a_path)) {}
-    };
-
-    class InvalidKeyException : public ParseError
-    {
-    public:
-        InvalidKeyException(std::string a_type) : ParseError(fmt::format("Invalid JSON structure. Top level object is: {}", a_type)) {}
-    };
-
-    static std::vector<std::string> MakeKeysLowercase(Json::Value& a_obj, std::vector<std::string>& a_pathParts) {
+    static std::vector<std::string> MakeKeysLowercase(Json::Value& a_obj, std::vector<std::string>& a_pathParts, FormatErrors& a_errors) {
         assert(a_obj.isObject());
         auto members = a_obj.getMemberNames();
         std::vector<std::string> lowercaseMembers{};
@@ -48,7 +18,10 @@ namespace Settings::JSON
                 for (const auto& part : a_pathParts) {
                     path.append(part);
                 }
-                throw DuplicateKeyException(fmt::format("{}|{}", path, member));
+                path.append(fmt::format("|{}", member));
+                a_errors.errored = true;
+                a_errors.duplicateKeys.push_back(path);
+                continue;
             }
             if (lowercase != member) {
                 auto value = std::move(a_obj[member]);
@@ -60,7 +33,7 @@ namespace Settings::JSON
         return lowercaseMembers;
     }
 
-    static void Canonicalize_Object(Json::Value& a_obj, std::vector<std::string>& a_pathParts, std::size_t depth = 0u) {
+    static void Canonicalize_Object(Json::Value& a_obj, std::vector<std::string>& a_pathParts, std::size_t depth, FormatErrors& a_errors) {
         assert(a_obj.isObject());
 
         depth++;
@@ -69,15 +42,28 @@ namespace Settings::JSON
             for (const auto& part : a_pathParts) {
                 path.append(part);
             }
-            throw MaxRecursionExceededException(path);
+            a_errors.recursionTooDeep.emplace_back(path);
+            a_errors.errored = true;
+            return;
         }
-
-        auto members = MakeKeysLowercase(a_obj, a_pathParts);
+        
+        auto members = MakeKeysLowercase(a_obj, a_pathParts, a_errors);
         for (const auto& member : members) {
             auto& val = a_obj[member];
             if (val.isObject()) {
+                if (val.empty()) {
+                    auto path = std::string("");
+                    for (const auto& part : a_pathParts) {
+                        path.append(part);
+                    }
+                    path.append(fmt::format("|{}", member));
+                    a_errors.errored = true;
+                    a_errors.emptyKeys.emplace_back(path);
+                    continue;
+                }
+
                 a_pathParts.push_back(fmt::format("|{}", member));
-                Canonicalize_Object(val, a_pathParts, depth);
+                Canonicalize_Object(val, a_pathParts, depth, a_errors);
                 a_pathParts.pop_back();
             }
             else if (val.isArray()) {
@@ -85,8 +71,19 @@ namespace Settings::JSON
                 for (unsigned int index = 0u; index < end; ++index) {
                     auto& valElement = val[index];
                     if (valElement.isObject()) {
-                        a_pathParts.push_back(fmt::format("[{}]", index));
-                        Canonicalize_Object(valElement, a_pathParts, depth);
+                        if (valElement.empty()) {
+                            auto path = std::string("");
+                            for (const auto& part : a_pathParts) {
+                                path.append(part);
+                            }
+                            path.append(fmt::format("|{}[{}]", member, index));
+                            a_errors.errored = true;
+                            a_errors.emptyKeys.emplace_back(path);
+                            continue;
+                        }
+
+                        a_pathParts.push_back(fmt::format("|{}[{}]", member, index));
+                        Canonicalize_Object(valElement, a_pathParts, depth, a_errors);
                         a_pathParts.pop_back();
                     }
                 }
@@ -94,31 +91,38 @@ namespace Settings::JSON
         }
     }
 
-    static void Canonicalize(Json::Value& a_val) {
+    static void Canonicalize(Json::Value& a_val, FormatErrors& a_errors) {
         if (a_val.isObject()) {
             if (a_val.empty()) {
-                throw EmptyKeyException("Root");
+                a_errors.errored = true;
+                a_errors.emptyKeys.emplace_back("Root");
+                return;
             }
 
             auto path = std::vector<std::string>({ "Root" });
-            Canonicalize_Object(a_val, path);
+            Canonicalize_Object(a_val, path, 0u, a_errors);
         }
         else if (a_val.isArray()) {
             if (a_val.empty()) {
-                throw EmptyKeyException("Root[]");
+                a_errors.errored = true;
+                a_errors.emptyKeys.emplace_back("Root[]");
+                return;
             }
 
             for (unsigned int index = 0u; index < a_val.size(); ++index) {
                 auto& arrayVal = a_val[index];
                 if (arrayVal.empty()) {
-                    throw EmptyKeyException(fmt::format("Root[{}]", index));
+                    a_errors.errored = true;
+                    a_errors.emptyKeys.emplace_back(fmt::format("Root[{}]", index));
+                    continue;
                 }
                 auto pathParts = std::vector<std::string>({ fmt::format("Root[{}]", index) });
-                Canonicalize_Object(arrayVal, pathParts);
+                Canonicalize_Object(arrayVal, pathParts, 0u, a_errors);
             }
         }
         else {
-            throw InvalidKeyException(fmt::format("{}", GetFieldType(a_val)));
+            a_errors.errored = true;
+            a_errors.invalidTopLevel = GetFieldType(a_val);
         }
     }
 
@@ -156,7 +160,6 @@ namespace Settings::JSON
             return false;
         }
 
-        Json::Reader JSONReader;
         Json::Value JSONFile;
         auto trimFrom = directory.size() + 1u;
         bool errored = false;
@@ -164,6 +167,8 @@ namespace Settings::JSON
         logger::info("Beginning parsing..."sv);
         try {
             for (const auto& path : jsonFilePaths) {
+                JSONFile = Json::Value{};
+                FormatErrors configErrors{};
                 auto trimTo = path.size() - extension.size();
                 auto configName = path.substr(trimFrom, trimTo);
                 std::ifstream rawJSON(path);
@@ -172,21 +177,27 @@ namespace Settings::JSON
 
                 logger::info("  Parsing {}"sv, configName);
                 if (!Json::parseFromStream(builder, rawJSON, &JSONFile, &errs)) {
-                    configHolder->AddFailedConfig(configName, errs);
+                    configErrors.errored = true;
+                    configErrors.jsonError = errs;
+                    configHolder->AddFailedConfig(configName, configErrors);
                     errored = true;
                     continue;
                 }
+
                 try {
-                    Canonicalize(JSONFile);
-                    configHolder->AddGoodConfig(configName, JSONFile);
-                }
-                catch (const ParseError& e) {
-                    configHolder->AddFailedConfig(configName, e.what());
-                    errored = true;
-                    continue;
+                    Canonicalize(JSONFile, configErrors);
+                    if (configErrors.errored) {
+                        configHolder->AddFailedConfig(configName, configErrors);
+                        errored = true;
+                    }
+                    else {
+                        configHolder->AddGoodConfig(configName, JSONFile);
+                    }
                 }
                 catch (const Json::Exception& e) {
-                    configHolder->AddFailedConfig(configName, e.what());
+                    configErrors.errored = true;
+                    configErrors.jsonError = e.what();
+                    configHolder->AddFailedConfig(configName, configErrors);
                     errored = true;
                     continue;
                 }
@@ -221,10 +232,8 @@ namespace Settings::JSON
 		}
 	}
 
-    void ConfigHolder::AddFailedConfig(const std::string& configName, const std::string& a_reason) {
-        FailedConfig failure{};
-        failure.config = configName;
-        failure.reason = a_reason;
+    void ConfigHolder::AddFailedConfig(const std::string& configName, FormatErrors& a_reason) {
+        FailedConfig failure = FailedConfig(a_reason, configName);
         failedConfigs.emplace_back(std::move(failure));
     }
 
@@ -255,10 +264,5 @@ namespace Settings::JSON
                 failure.PrintReason();
             }
         }
-    }
-
-    void ConfigHolder::FailedConfig::PrintReason(std::string a_prefix) const {
-        logger::error("{}>{}:"sv, a_prefix, config);
-        logger::error("{}  {}"sv, a_prefix, reason);
     }
 }
