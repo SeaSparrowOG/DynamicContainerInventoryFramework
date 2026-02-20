@@ -61,7 +61,7 @@ namespace ContainerManager
 		Invalid
 	};
 
-	static ConditionType ConditionTypeFromString(std::string_view& key) {
+	static ConditionType ConditionTypeFromString(std::string_view key) {
 		if (key.size() > 1u && key.substr(0, 0) == "!") {
 			key = key.substr(1, key.size() - 1);
 		}
@@ -88,7 +88,7 @@ namespace ContainerManager
 	class RuleHelper
 	{
 	public:
-		RuleHelper(const Json::Value& a_normalizedJSON);
+		RuleHelper(const Json::Value& a_normalizedJSON, const std::string& a_configName);
 
 	private:
 		void AddReferenceCondition(const Json::Value& a_condition, bool a_negate);
@@ -140,4 +140,6 @@ namespace ContainerManager
 		bool valid{ true };
 		ErrorHolder errors{};
 	};
+
+	[[nodiscard]] bool BuildConditions();
 }

@@ -22,6 +22,29 @@ namespace Settings
 			void AddFailedConfig(const std::string& configName, FormatErrors& a_reason);
 			void AddGoodConfig(const std::string& a_configName, Json::Value a_value);
 			void Report() const;
+			void Clear();
+
+			/// <summary>
+			/// Use this function to traverse the internal map of configs. This exposes the name and the value, as const references.
+			/// </summary>
+			/// <typeparam name="Func">Derived automatically from the passed in function.</typeparam>
+			/// <param name="func">The function to apply to each key/val pair.</param>
+			template<typename Func>
+			requires std::invocable<Func,
+				const std::string&,
+				const Json::Value&>&&
+				std::same_as<
+				std::invoke_result_t<Func,
+				const std::string&,
+				const Json::Value&>,
+				bool>
+			bool Traverse(Func&& func) const {
+				bool success = true;
+				for (const auto& [key, value] : data_) {
+					sucess &= func(key, value);
+				}
+				return success;
+			}
 
 		private:
 			struct FailedConfig
@@ -74,7 +97,11 @@ namespace Settings
 			std::map<std::string, Json::Value> configs{};
 		};
 
-		bool Read();
+		/// <summary>
+		/// Preloads all configs in the appropriate directory, reporting any structural errors in the process. Safe to call before kDataLoaded.
+		/// </summary>
+		/// <returns>True on success, False on failure.</returns>
+		[[nodiscard]] bool Preload();
 
 		static std::string GetFieldType(const Json::Value& a_field);
 

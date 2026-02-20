@@ -126,7 +126,7 @@ namespace Settings::JSON
         }
     }
 
-	bool Read() {
+	bool Preload() {
         logger::info("Reading configuration files..."sv);
 		std::string directory = R"(Data/SKSE/Plugins/ContainerDistributionFramework)";
         std::string_view extension = ".json"sv;
@@ -264,5 +264,10 @@ namespace Settings::JSON
                 failure.PrintReason();
             }
         }
+    }
+
+    void ConfigHolder::Clear() {
+        failedConfigs.clear();
+		configs.clear();
     }
 }

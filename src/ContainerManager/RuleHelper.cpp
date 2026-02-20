@@ -100,4 +100,20 @@ namespace ContainerManager
 				return dh->LookupLoadedModByName(name) != nullptr;
 			});
 	}
+
+	bool BuildConditions() {
+		logger::info("Building conditions..."sv);
+		const auto* configs = Settings::JSON::ConfigHolder::GetSingleton();
+		if (!configs) {
+			logger::critical("  Failed to get config holder singleton."sv);
+			return false;
+		}
+		bool result = configs->Traverse([](const std::string& a_configName, const Json::Value& a_config) {
+
+			});
+		if (!result) {
+			logger::critical("  Failed to parse at least one config."sv);
+		}
+		return result;
+	}
 }

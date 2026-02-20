@@ -1,3 +1,4 @@
+#include "ContainerManager/RuleHelper.h"
 #include "Data/ModObjectManager.h"
 #include "Hooks/Hooks.h"
 #include "Papyrus/Papyrus.h"
@@ -7,6 +8,11 @@
 
 static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 {
+	static auto* jsonHolder = Settings::JSON::ConfigHolder::GetSingleton();
+	if (!jsonHolder) {
+		SKSE::stl::report_and_fail("Failed to get interla JSON logger."sv);
+	}
+
 	switch (a_msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
 		SECTION_SEPARATOR;
@@ -14,10 +20,11 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 			SKSE::stl::report_and_fail("Failed to preload mod objects. Check the log for more information."sv);
 		}
 		SECTION_SEPARATOR;
-		if (!Settings::JSON::Read()) {
-			SKSE::stl::report_and_fail("Failed to read JSON settings. Check the log for more information."sv);
+		if (!ContainerManager::BuildConditions()) {
+			SKSE::stl::report_and_fail("Failed to parse conditions. Check the log for more information."sv);
 		}
 		SECTION_SEPARATOR;
+		jsonHolder->Clear(); // Might be unecessary, but hey free RAM.
 		logger::info("Finished startup tasks, enjoy your game!"sv);
 		break;
 	default:
@@ -101,6 +108,9 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 	serialization->SetRevertCallback(&Serialization::RevertCallback);
 	logger::info("  >Registered necessary functions."sv);
 	SECTION_SEPARATOR;
+	if (!Settings::JSON::Preload()) {
+		SKSE::stl::report_and_fail("Failed to read JSON settings. Check the log for more information."sv);
+	}
 
 	return true;
 }
