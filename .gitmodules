@@ -6,4 +6,4 @@
 	url = https://github.com/SeaSparrowOG/CommonLibSSE
 [submodule "Tools/Bethesda-CMakeModules"]
 	path = Tools/Bethesda-CMakeModules
-	url = https://github.com/Exit-9B/BethesdaCMakeModules.git
+	url = https://github.com/Exit-9B/BethesdaCMakeModules
