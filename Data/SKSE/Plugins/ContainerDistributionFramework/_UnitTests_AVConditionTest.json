@@ -1,0 +1,32 @@
+{
+  "rules": [
+    {
+      "FriendlyName": "AV Condition Unit Test - Min and Max",
+      "Conditions": {
+        "PlayerSkills": "Health|100.0|50.0"
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    },
+    {
+      "FriendlyName": "AV Condition Unit Test",
+      "Conditions": {
+        "PlayerSkills": {
+          "invert": true,
+          "Type": "OR",
+          "values": "Stamina|0.0"
+        }
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    }
+  ]
+}

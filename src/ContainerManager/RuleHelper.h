@@ -24,20 +24,10 @@ namespace ContainerManager
 	inline static constexpr std::string_view CONDITION_QUESTS = "questconditions";
 
 	/*
-	Valid Condition sub-field key names
+	Valid top level key names.
 	*/
-	inline static constexpr std::string_view CONDITION_FLAG_VALUE = "value";
-	inline static constexpr std::string_view CONDITION_FLAG_OPERAND = "operand";
-	inline static constexpr std::string_view CONDITION_FLAG_OPERAND_OR = "or";
-	inline static constexpr std::string_view CONDITION_FLAG_OPERAND_AND = "and";
-	inline static constexpr std::string_view CONDITION_FLAG_IGNORE_PARENTS = "ignoreparents";
-
-	/*
-	Valid Change key names.
-	*/
-	inline static constexpr std::string_view CHANGE_ADD = "add";
-	inline static constexpr std::string_view CHANGE_REMOVE = "remove";
-	inline static constexpr std::string_view CHANGE_REMOVE_KEYWORDS = "removebykeywords";
+	inline static constexpr std::string_view TOP_LEVEL_CONDITIONS = "conditions"sv;
+	inline static constexpr std::string_view TOP_LEVEL_CHANGES = "changes"sv;
 
 	enum class ConditionType
 	{
@@ -61,7 +51,7 @@ namespace ContainerManager
 		Invalid
 	};
 
-	static ConditionType ConditionTypeFromString(std::string_view key) {
+	inline ConditionType ConditionTypeFromString(std::string_view key) {
 		if (key.size() > 1u && key.substr(0, 0) == "!") {
 			key = key.substr(1, key.size() - 1);
 		}
@@ -88,9 +78,34 @@ namespace ContainerManager
 	class RuleHelper
 	{
 	public:
+		struct StructuredErrorMessages
+		{
+			using StringVec = std::vector<std::string>;
+
+			bool emptyConfig{ false };
+			StringVec missingPlugins{};
+
+			StringVec invalidTopLevelObjects{};
+			StringVec unknownTopLevelObjects{};
+
+			StringVec invalidChangesFields{};
+			StringVec emptyChangesFields{};
+			StringVec missingChangesFields{};
+
+			StringVec emptyConditionsFields{};
+			StringVec invalidConditionsFields{};
+
+			void PrintErrors(const std::string& a_prefix = "    ") const;
+		};
+
+		~RuleHelper();
 		RuleHelper(const Json::Value& a_normalizedJSON, const std::string& a_configName);
 
 	private:
+		void ParseObject(const Json::Value& a_value, std::vector<std::string>& a_path);
+		void ParseChange(const Json::Value& a_value, std::vector<std::string>& a_path);
+		void ParseCondition(const Json::Value& a_value, std::vector<std::string>& a_path);
+
 		void AddReferenceCondition(const Json::Value& a_condition, bool a_negate);
 		void AddContainerCondition(const Json::Value& a_condition, bool a_negate);
 		void AddLocationCondition(const Json::Value& a_condition, bool a_negate);
@@ -107,38 +122,18 @@ namespace ContainerManager
 		void AddRemoveByKeywordsChange(const Json::Value& a_change);
 		void AddReplaceByKeywordsChange(const Json::Value& a_change);
 
-		// Helpers
-		bool AllPluginsPresent(Json::Value& a_plugins);
-
 		// Flags to be applied to the rule.
 		bool allowVendors{ false };
 		bool onlyVendors{ false };
 		bool bypassUnsafe{ false };
 		bool randomAdd{ false };
-
-		// Plugin check
 		bool allPluginsPresent{ true };
 
-		// Components
-		std::vector<Condition> conditions{};
-		std::vector<Change> changes{};
-
-		// Internal state
-		struct ErrorHolder
-		{
-			using StringVec = std::vector<std::string>;
-
-			StringVec emptyRules{};
-			StringVec missingFields{};
-			StringVec missingPlugins{};
-			StringVec mixedArrayTypes{};
-			StringVec unexpectedErrors{};
-			StringVec badFieldValueType{};
-			StringVec badFieldValueFormat{};
-		};
-
 		bool valid{ true };
-		ErrorHolder errors{};
+		StructuredErrorMessages errors{};
+
+		std::vector<std::unique_ptr<Condition>> conditions{};
+		std::vector<std::unique_ptr<Change>>    changes{};
 	};
 
 	[[nodiscard]] bool BuildConditions();

@@ -24,27 +24,7 @@ namespace Settings
 			void Report() const;
 			void Clear();
 
-			/// <summary>
-			/// Use this function to traverse the internal map of configs. This exposes the name and the value, as const references.
-			/// </summary>
-			/// <typeparam name="Func">Derived automatically from the passed in function.</typeparam>
-			/// <param name="func">The function to apply to each key/val pair.</param>
-			template<typename Func>
-			requires std::invocable<Func,
-				const std::string&,
-				const Json::Value&>&&
-				std::same_as<
-				std::invoke_result_t<Func,
-				const std::string&,
-				const Json::Value&>,
-				bool>
-			bool Traverse(Func&& func) const {
-				bool success = true;
-				for (const auto& [key, value] : data_) {
-					sucess &= func(key, value);
-				}
-				return success;
-			}
+			const std::map<std::string, Json::Value>& GetConfigs() const;
 
 		private:
 			struct FailedConfig
@@ -103,7 +83,7 @@ namespace Settings
 		/// <returns>True on success, False on failure.</returns>
 		[[nodiscard]] bool Preload();
 
-		static std::string GetFieldType(const Json::Value& a_field);
+		inline std::string GetFieldType(const Json::Value& a_field);
 
 		inline static constexpr int PLUGIN_INDEX = 0;
 		inline static constexpr int FORMID_INDEX = 1;
@@ -179,7 +159,7 @@ namespace Settings
 			GenericFailure    // Catchall (might be missing data handler, cosmic ray, etc)
 		};
 
-		static std::string QueryResultToString(QueryResult a_flag) {
+		inline std::string QueryResultToString(QueryResult a_flag) {
 			switch (a_flag) {
 			case QueryResult::FileNotFound: return "FileNotFound";
 			case QueryResult::FormatError: return "FormatError";
@@ -279,7 +259,7 @@ namespace Settings
 			NonHomogenousArray
 		};
 
-		static std::string JsonParseResultToString(JsonParseResult a_flag) {
+		inline std::string JsonParseResultToString(JsonParseResult a_flag) {
 			switch (a_flag) {
 			case JsonParseResult::NotStringOrArray: return "NotStringOrArray";
 			case JsonParseResult::NonHomogenousArray: return "NonHomogenousArray";
@@ -287,7 +267,7 @@ namespace Settings
 			}
 		}
 
-		static JsonParseResult LoadFormStrings(const Json::Value& a_value, std::vector<std::string>& a_result)
+		inline JsonParseResult LoadFormStrings(const Json::Value& a_value, std::vector<std::string>& a_result)
 		{
 			if (a_value.isString()) {
 				a_result.push_back(a_value.asString());

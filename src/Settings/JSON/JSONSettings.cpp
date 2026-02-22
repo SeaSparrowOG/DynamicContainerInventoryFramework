@@ -171,6 +171,12 @@ namespace Settings::JSON
                 FormatErrors configErrors{};
                 auto trimTo = path.size() - extension.size();
                 auto configName = path.substr(trimFrom, trimTo);
+#ifdef NDEBUG
+                if (configName.starts_with("_UnitTests_")) {
+                    logger::info("  Skipping {}, as it is a unit test not meant for release."sv, configName);
+                    continue;
+                }
+#endif
                 std::ifstream rawJSON(path);
                 Json::CharReaderBuilder builder;
                 std::string errs;
@@ -269,5 +275,8 @@ namespace Settings::JSON
     void ConfigHolder::Clear() {
         failedConfigs.clear();
 		configs.clear();
+    }
+    const std::map<std::string, Json::Value>& ConfigHolder::GetConfigs() const {
+        return configs;
     }
 }

@@ -109,7 +109,9 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 	logger::info("  >Registered necessary functions."sv);
 	SECTION_SEPARATOR;
 	if (!Settings::JSON::Preload()) {
+#ifdef NDEBUG
 		SKSE::stl::report_and_fail("Failed to read JSON settings. Check the log for more information."sv);
+#endif
 	}
 
 	return true;
