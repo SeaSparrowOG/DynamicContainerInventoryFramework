@@ -12,6 +12,9 @@ namespace ContainerManager
 		inline static constexpr std::string_view OBJECT_AND = "add"sv;
 		inline static constexpr std::string_view OBJECT_OR = "or"sv;
 
+		// Unused for now.
+		inline static constexpr std::array<std::string_view, 3> knownFields = { OBJECT_TYPE, OBJECT_INVERT, OBJECT_VALUES };
+
 		struct AVRequirement
 		{
 			RE::ActorValue av{ RE::ActorValue::kNone };
@@ -43,18 +46,25 @@ namespace ContainerManager
 			bool invalidMin{ false };
 			bool invalidAV{ false };
 
-			std::string_view path{ ""sv };
-			std::string_view avName{ ""sv };
-			std::string_view avBounds{ ""sv };
+			std::string_view text{ ""sv };
 		};
 
 		struct AVConditionResult
 		{
 			bool errored{ false };
-			std::vector< FailedAV>     errors{};
+
+			bool empty{ false };
+			bool typeError{ false };
+			bool invertionError{ false };
+			bool invalidObjectType{ false };
+			bool missingValuesField{ false };
+			bool nonHomogenousArray{ false };
+			std::vector<FailedAV> errors{};
+			std::vector<std::string> unknownFields{};
+
 			std::optional<AVCondition> result{ std::nullopt };
 		};
 
-		AVConditionResult CreateAVCondition(const Json::Value& a_template, bool invert);
+		[[nodiscard]] AVConditionResult CreateAVCondition(const Json::Value& a_template, bool invert);
 	}
 }

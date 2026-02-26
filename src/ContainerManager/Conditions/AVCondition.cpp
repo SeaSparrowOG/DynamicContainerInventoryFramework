@@ -48,67 +48,79 @@ namespace ContainerManager
 
 		bool AVCondition::IsValid(const ConditionCheckParams& a_params) const {
 			auto* owner = a_params.playerOwner;
-			if (inverted) {
-				for (const auto& requirement : m_requirements) {
-					if (requirement.MeetsCondition(owner)) {
-						return false;
+			if (andCondition) {
+				for (const auto& av : m_requirements) {
+					if (!av.MeetsCondition(owner)) {
+						return inverted;
 					}
 				}
+				return !inverted;
 			}
-			for (const auto& requirement : m_requirements) {
-				if (!requirement.MeetsCondition(owner)) {
-					return false;
+			for (const auto& av : m_requirements) {
+				if (av.MeetsCondition(owner)) {
+					return !inverted;
 				}
 			}
-			return true;
+			return inverted;
 		}
 
 		AVConditionResult CreateAVCondition(const Json::Value& a_template, bool invert) {
 			bool isANDCondition = true;
 			auto response = AVConditionResult();
-			response.errors.push_back("AV Condition Resolved Incorrectly:");
 			std::vector<AVRequirement> resolvedRequirements{};
 
 			Json::Value resolved = Json::Value();
 			if (a_template.isObject()) {
-				const auto& matchAll = a_template[OBJECT_TYPE.data()];
-				if (matchAll) {
-					if (!matchAll.isString()) {
-						response.errored = true;
-						response.errors.push_back(fmt::format("  Incorrectly formatted object - {} is not a String field."sv, OBJECT_TYPE));
+				auto members = a_template.getMemberNames();
+				bool hasValues = false;
+				for (const auto& member : members) {
+					const auto& value = a_template[member];
+					if (member == OBJECT_TYPE) {
+						if (a_template.isMember(OBJECT_TYPE.data())) {
+							const auto& matchAll = a_template[OBJECT_TYPE.data()];
+							if (!matchAll.isString()) {
+								response.errored = true;
+								response.typeError = true;
+							}
+							else {
+								const auto mode = clib_util::string::tolower(matchAll.asString());
+								if (mode == OBJECT_AND) {
+									isANDCondition = true;
+								}
+								else if (mode == OBJECT_OR) {
+									isANDCondition = false;
+								}
+								else {
+									response.errored = true;
+									response.typeError = true;
+								}
+							}
+						}
+					}
+					else if (member == OBJECT_INVERT) {
+						if (a_template.isMember(OBJECT_INVERT.data())) {
+							const auto& isInverted = a_template[OBJECT_INVERT.data()];
+							if (!isInverted.isBool()) {
+								response.invertionError = true;
+								response.errored = true;
+							}
+							invert = isInverted.asBool();
+						}
+					}
+					else if (member == OBJECT_VALUES) {
+						resolved = value;
+						hasValues = true;
 					}
 					else {
-						const auto mode = clib_util::string::tolower(matchAll.asString());
-						if (mode == OBJECT_AND) {
-							isANDCondition = true;
-						}
-						else if (mode == OBJECT_OR) {
-							isANDCondition = false;
-						}
-						else {
-							response.errored = true;
-							response.errors.push_back(fmt::format("  Unexpected {} setting in AV Condition field {}."sv, mode, OBJECT_TYPE));
-						}
-					}
-				}
-
-				const auto& isInverted = a_template[OBJECT_INVERT.data()];
-				if (isInverted) {
-					if (!isInverted.isBool()) {
-						response.errors.push_back(fmt::format("  Incorrectly formatted object - {} is not a Bool field."sv, OBJECT_INVERT));
+						response.unknownFields.emplace_back(member);
 						response.errored = true;
 					}
-					else {
-						invert = isInverted.asBool();
-					}
 				}
-				if (!a_template.isMember(OBJECT_VALUES.data())) {
+				if (!hasValues) {
 					response.errored = true;
-					response.errors.push_back(fmt::format("  Incorrectly formatted Object - no {} field found."sv, OBJECT_VALUES));
+					response.missingValuesField = true;
 					return response;
 				}
-				auto& values = a_template[OBJECT_VALUES.data()];
-				resolved = values;
 			}
 
 			if (resolved.isNull()) {
@@ -123,21 +135,22 @@ namespace ContainerManager
 				response.errored = true;
 				switch (parseResult) {
 				case Settings::JSON::JsonParseResult::NonHomogenousArray:
-					response.errors.push_back(fmt::format("  Incorrect value type passed to {}. Array contains non-string element."sv, OBJECT_VALUES));
+					response.nonHomogenousArray = true;
+					response.errored = true;
 					break;
 				case Settings::JSON::JsonParseResult::NotStringOrArray:
-					response.errors.push_back(fmt::format("  Incorrect value type passed to {}. Expected string or array."sv, OBJECT_VALUES));
+					response.invalidObjectType = true;
+					response.errored = true;
 					break;
 				default:
-					response.errors.push_back(fmt::format("  Unexpected error encounted while parsing {}."sv, OBJECT_VALUES));
-					break;
+					std::unreachable();
 				}
 				return response;
 			}
 
 			if (avs.empty()) {
 				response.errored = true;
-				response.errors.push_back("  AV array resolved as empty.");
+				response.empty = true;
 				return response;
 			}
 
@@ -145,23 +158,28 @@ namespace ContainerManager
 				bool hasMax = false;
 				float min = 0.0f;
 				float max = 0.0f;
+				auto failed = FailedAV();
 
 				auto parts = clib_util::string::split(rawAV, "|");
-				if (parts.size() <= 1) {
-					response.errored = true;
-					response.errors.push_back(fmt::format("  Error while parsing {}. Delimiter likely missing, value: {}", OBJECT_VALUES, rawAV));
+				// TODO: Potentially set a proper range elsewhere.
+				// Parts: AV|Min or AV|Min|Max.
+				//    AV|Min|Max is the suggested format, but AV|Max|Min is also supported.
+				if (parts.size() < 2 || parts.size() > 3) {
+					failed.text = rawAV;
+					failed.incorrectSize = true;
+					response.errors.emplace_back(std::move(failed));
+					continue;
 				}
 
-				auto asName = parts.at(0);
+				auto asName = clib_util::string::trim_copy(parts.at(0));
 				auto asAV = RE::ActorValueList::LookupActorValueByName(asName.c_str());
 				if (asAV == RE::ActorValue::kNone) {
-					response.errored = true;
-					response.errors.push_back(fmt::format("  Error in {}. Provided actor value ({}) does not exist.", OBJECT_VALUES, asName));
+					failed.invalidAV = true;
 				}
-				auto& asMin = parts.at(1);
+				auto asMin = clib_util::string::trim_copy(parts.at(1));
 				std::string asMax = "";
 				if (parts.size() == 3) {
-					asMax = parts.at(2);
+					asMax = clib_util::string::trim_copy(parts.at(2));
 					hasMax = true;
 				}
 
@@ -169,17 +187,31 @@ namespace ContainerManager
 					min = clib_util::string::to_num<float>(asMin);
 				}
 				catch (const std::exception& e) {
-					response.errored = true;
-					response.errors.push_back(fmt::format("  Error in {}. Provided actor value ({})'s minimum value is not a number.", OBJECT_VALUES, asName, asMin));
+					failed.invalidMin = true;
 				}
 				if (hasMax) {
 					try {
 						max = clib_util::string::to_num<float>(asMax);
 					}
 					catch (const std::exception& e) {
-						response.errored = true;
-						response.errors.push_back(fmt::format("  Error in {}. Provided actor value ({})'s maximum value is not a number.", OBJECT_VALUES, asName, asMax));
+						failed.invalidMax = true;
 					}
+				}
+
+				if (failed.incorrectSize || failed.invalidAV ||
+						failed.invalidMin || failed.invalidMax) 
+				{
+					failed.text = rawAV;
+					response.errored = true;
+					response.errors.emplace_back(std::move(failed));
+					continue;
+				}
+
+				// Note - min == max perhaps should be considered an error. Currently, 1 mod uses that, so I support it.
+				if (max < min) {
+					float temp_min = min; // Technically unecessary but I am not doing an interview ffs.
+					min = max;
+					max = temp_min;
 				}
 
 				AVRequirement parsedRequirement = AVRequirement();
