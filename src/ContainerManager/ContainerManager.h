@@ -15,6 +15,7 @@ namespace ContainerManager
     public:
         virtual bool IsValid(const ConditionCheckParams& a_params) const = 0;
         virtual void PrintCondition(const std::string& a_pref = "    ") const = 0;
+        virtual ~Condition() = default;
     };
 
     class Change

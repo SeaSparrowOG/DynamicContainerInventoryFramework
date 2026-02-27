@@ -2,6 +2,8 @@
 
 #include "ContainerManager/ContainerManager.h"
 
+#include "Conditions/AVCondition.h"
+
 namespace ContainerManager
 {
 	/*
@@ -26,8 +28,14 @@ namespace ContainerManager
 	/*
 	Valid top level key names.
 	*/
+	inline static constexpr std::string_view TOP_LEVEL_VERSION = "requiredversion"sv;
 	inline static constexpr std::string_view TOP_LEVEL_CONDITIONS = "conditions"sv;
 	inline static constexpr std::string_view TOP_LEVEL_CHANGES = "changes"sv;
+
+	/*
+	Current Parser Version. 
+	*/
+	inline static constexpr int PARSER_VERSION = 3;
 
 	enum class ConditionType
 	{
@@ -83,6 +91,8 @@ namespace ContainerManager
 			using StringVec = std::vector<std::string>;
 
 			bool emptyConfig{ false };
+			bool invalidVersion{ false };
+
 			StringVec missingPlugins{};
 
 			StringVec invalidTopLevelObjects{};
@@ -122,18 +132,21 @@ namespace ContainerManager
 		void AddRemoveByKeywordsChange(const Json::Value& a_change);
 		void AddReplaceByKeywordsChange(const Json::Value& a_change);
 
+		bool Errored() const;
+
 		// Flags to be applied to the rule.
 		bool allowVendors{ false };
 		bool onlyVendors{ false };
 		bool bypassUnsafe{ false };
 		bool randomAdd{ false };
 		bool allPluginsPresent{ true };
+		bool meetsMinimumVersion{ true };
 
-		bool valid{ true };
 		StructuredErrorMessages errors{};
+		std::vector<Conditions::AVConditionError> erroredPlayerSkillConditions{};
 
-		std::vector<std::unique_ptr<Condition>> conditions{};
-		std::vector<std::unique_ptr<Change>>    changes{};
+		std::vector<std::unique_ptr<Condition>> pendingConditions{};
+		std::vector<std::unique_ptr<Change>>    pendingChanges{};
 	};
 
 	[[nodiscard]] bool BuildConditions();

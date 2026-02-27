@@ -8,7 +8,7 @@ namespace ContainerManager
 	{
 		bool AVRequirement::MeetsCondition(const RE::ActorValueOwner* a_actor) const {
 			const auto level = a_actor->GetActorValue(av);
-			if (respectMax && level <= max) {
+			if (respectMax && level > max) {
 				return false;
 			}
 			if (level < min) {
@@ -17,8 +17,7 @@ namespace ContainerManager
 			return true;
 		}
 
-		void AVRequirement::PrintCondition(const std::string& a_pref) const
-		{
+		void AVRequirement::PrintCondition(const std::string& a_pref) const {
 			logger::info("{}AV: {}"sv, a_pref, RE::ActorValueToString(av));
 			logger::info("{}  >Minimum: {}"sv, a_pref, min);
 			if (respectMax) {
@@ -26,17 +25,17 @@ namespace ContainerManager
 			}
 		}
 
-		AVCondition::AVCondition(std::vector<AVRequirement> a_requirements, bool a_and, bool invert) {
-			if (a_requirements.empty()) {
+		AVCondition::AVCondition(std::vector<AVRequirement> a_requirements, bool a_and, bool invert) : 
+			andCondition(a_and),
+			inverted(invert),
+			m_requirements(std::move(a_requirements)) 
+		{
+			if (m_requirements.empty()) {
 				throw std::runtime_error("AV Condition resolved empty");
 			}
-			inverted = invert;
-			m_requirements = std::move(a_requirements);
-			andCondition = a_and;
 		}
 
-		void AVCondition::PrintCondition(const std::string& a_pref) const
-		{
+		void AVCondition::PrintCondition(const std::string& a_pref) const {
 			logger::info("{}Condition Type: Player Skill."sv, a_pref);
 			logger::info("{}  >Inverted: {}"sv, a_pref, inverted ? "TRUE"sv : "FALSE"sv);
 			logger::info("{}  >Operand: {}"sv, a_pref, andCondition ? "AND"sv : "OR"sv);
@@ -47,79 +46,69 @@ namespace ContainerManager
 		}
 
 		bool AVCondition::IsValid(const ConditionCheckParams& a_params) const {
+			// ConditionCheckParams guarantees that playerOwner is valid and Non-Null
 			auto* owner = a_params.playerOwner;
+			bool result;
 			if (andCondition) {
-				for (const auto& av : m_requirements) {
-					if (!av.MeetsCondition(owner)) {
-						return inverted;
-					}
-				}
-				return !inverted;
+				result = std::all_of(m_requirements.begin(), m_requirements.end(), [&](const AVRequirement& av) {
+					return av.MeetsCondition(owner);
+				});
 			}
-			for (const auto& av : m_requirements) {
-				if (av.MeetsCondition(owner)) {
-					return !inverted;
-				}
+			else {
+				result = std::any_of(m_requirements.begin(), m_requirements.end(), [&](const AVRequirement& av) {
+					return av.MeetsCondition(owner);
+				});
 			}
-			return inverted;
+			return inverted ? !result : result;
 		}
 
-		AVConditionResult CreateAVCondition(const Json::Value& a_template, bool invert) {
+		std::expected<AVCondition, AVConditionError> CreateAVCondition(const Json::Value& a_template, bool invert) {
 			bool isANDCondition = true;
-			auto response = AVConditionResult();
+			AVConditionError error{};
 			std::vector<AVRequirement> resolvedRequirements{};
 
-			Json::Value resolved = Json::Value();
+			Json::Value resolved;
 			if (a_template.isObject()) {
 				auto members = a_template.getMemberNames();
 				bool hasValues = false;
 				for (const auto& member : members) {
 					const auto& value = a_template[member];
 					if (member == OBJECT_TYPE) {
-						if (a_template.isMember(OBJECT_TYPE.data())) {
-							const auto& matchAll = a_template[OBJECT_TYPE.data()];
-							if (!matchAll.isString()) {
-								response.errored = true;
-								response.typeError = true;
+						const auto& matchAll = a_template[OBJECT_TYPE.data()];
+						if (!matchAll.isString()) {
+							error.typeError = true;
+						}
+						else {
+							const auto mode = clib_util::string::tolower(matchAll.asString());
+							if (mode == OBJECT_AND) {
+								isANDCondition = true;
+							}
+							else if (mode == OBJECT_OR) {
+								isANDCondition = false;
 							}
 							else {
-								const auto mode = clib_util::string::tolower(matchAll.asString());
-								if (mode == OBJECT_AND) {
-									isANDCondition = true;
-								}
-								else if (mode == OBJECT_OR) {
-									isANDCondition = false;
-								}
-								else {
-									response.errored = true;
-									response.typeError = true;
-								}
+								error.typeError = true;
 							}
 						}
 					}
 					else if (member == OBJECT_INVERT) {
-						if (a_template.isMember(OBJECT_INVERT.data())) {
-							const auto& isInverted = a_template[OBJECT_INVERT.data()];
-							if (!isInverted.isBool()) {
-								response.invertionError = true;
-								response.errored = true;
-							}
-							invert = isInverted.asBool();
+						const auto& isInverted = a_template[OBJECT_INVERT.data()];
+						if (!isInverted.isBool()) {
+							error.inversionError = true;
 						}
+						invert = isInverted.asBool();
 					}
 					else if (member == OBJECT_VALUES) {
 						resolved = value;
 						hasValues = true;
 					}
 					else {
-						response.unknownFields.emplace_back(member);
-						response.errored = true;
+						error.unknownFields.emplace_back(member);
 					}
 				}
 				if (!hasValues) {
-					response.errored = true;
-					response.missingValuesField = true;
-					return response;
+					error.missingValuesField = true;
+					return std::unexpected(error);
 				}
 			}
 
@@ -127,31 +116,27 @@ namespace ContainerManager
 				resolved = a_template;
 			}
 
-			std::vector<std::string> avs{};
+			std::vector<std::string> avs;
 			avs.reserve(resolved.size());
 
 			auto parseResult = Settings::JSON::LoadFormStrings(resolved, avs);
 			if (parseResult != Settings::JSON::JsonParseResult::Success) {
-				response.errored = true;
 				switch (parseResult) {
 				case Settings::JSON::JsonParseResult::NonHomogenousArray:
-					response.nonHomogenousArray = true;
-					response.errored = true;
+					error.nonHomogenousArray = true;
 					break;
 				case Settings::JSON::JsonParseResult::NotStringOrArray:
-					response.invalidObjectType = true;
-					response.errored = true;
+					error.invalidObjectType = true;
 					break;
 				default:
 					std::unreachable();
 				}
-				return response;
+				return std::unexpected(error);
 			}
 
 			if (avs.empty()) {
-				response.errored = true;
-				response.empty = true;
-				return response;
+				error.empty = true;
+				return std::unexpected(error);
 			}
 
 			for (const auto& rawAV : avs) {
@@ -167,7 +152,7 @@ namespace ContainerManager
 				if (parts.size() < 2 || parts.size() > 3) {
 					failed.text = rawAV;
 					failed.incorrectSize = true;
-					response.errors.emplace_back(std::move(failed));
+					error.errors.emplace_back(std::move(failed));
 					continue;
 				}
 
@@ -186,24 +171,23 @@ namespace ContainerManager
 				try {
 					min = clib_util::string::to_num<float>(asMin);
 				}
-				catch (const std::exception& e) {
+				catch (const std::exception&) {
 					failed.invalidMin = true;
 				}
 				if (hasMax) {
 					try {
 						max = clib_util::string::to_num<float>(asMax);
 					}
-					catch (const std::exception& e) {
+					catch (const std::exception&) {
 						failed.invalidMax = true;
 					}
 				}
 
 				if (failed.incorrectSize || failed.invalidAV ||
-						failed.invalidMin || failed.invalidMax) 
+					failed.invalidMin || failed.invalidMax)
 				{
 					failed.text = rawAV;
-					response.errored = true;
-					response.errors.emplace_back(std::move(failed));
+					error.errors.emplace_back(std::move(failed));
 					continue;
 				}
 
@@ -221,13 +205,22 @@ namespace ContainerManager
 				parsedRequirement.respectMax = hasMax;
 				resolvedRequirements.emplace_back(std::move(parsedRequirement));
 			}
-			if (response.errored) {
-				return response;
+			if (error.Errored()) {
+				return std::unexpected(error);
 			}
 
-			auto condition = AVCondition(resolvedRequirements, isANDCondition, invert);
-			response.result = std::move(condition);
-			return response;
+			return AVCondition(resolvedRequirements, isANDCondition, invert);
+		}
+
+		bool AVConditionError::Errored() const {
+			if (!errors.empty()) {
+				return true;
+			}
+			if (!unknownFields.empty()) {
+				return true;
+			}
+			return empty || typeError || inversionError ||
+				invalidObjectType || missingValuesField || nonHomogenousArray;
 		}
 	}
 }

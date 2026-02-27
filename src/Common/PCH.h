@@ -8,6 +8,7 @@
 #include <Windows.h>
 #include "ClibUtil/utils.hpp"
 
+#include <expected>>
 #include <unordered_set>
 #include <fstream>
 #include <spdlog/sinks/basic_file_sink.h>

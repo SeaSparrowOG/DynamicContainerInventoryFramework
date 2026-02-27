@@ -9,7 +9,7 @@ namespace ContainerManager
 		inline static constexpr std::string_view OBJECT_VALUES = "values"sv;
 		inline static constexpr std::string_view OBJECT_INVERT = "invert"sv;
 		inline static constexpr std::string_view OBJECT_TYPE = "type"sv;
-		inline static constexpr std::string_view OBJECT_AND = "add"sv;
+		inline static constexpr std::string_view OBJECT_AND = "and"sv;
 		inline static constexpr std::string_view OBJECT_OR = "or"sv;
 
 		// Unused for now.
@@ -46,25 +46,23 @@ namespace ContainerManager
 			bool invalidMin{ false };
 			bool invalidAV{ false };
 
-			std::string_view text{ ""sv };
+			std::string text{ ""sv };
 		};
 
-		struct AVConditionResult
+		struct AVConditionError
 		{
-			bool errored{ false };
-
 			bool empty{ false };
 			bool typeError{ false };
-			bool invertionError{ false };
+			bool inversionError{ false };
 			bool invalidObjectType{ false };
 			bool missingValuesField{ false };
 			bool nonHomogenousArray{ false };
 			std::vector<FailedAV> errors{};
 			std::vector<std::string> unknownFields{};
 
-			std::optional<AVCondition> result{ std::nullopt };
+			[[nodiscard]] bool Errored() const;
 		};
 
-		[[nodiscard]] AVConditionResult CreateAVCondition(const Json::Value& a_template, bool invert);
+		[[nodiscard]] std::expected<AVCondition, AVConditionError> CreateAVCondition(const Json::Value& a_template, bool invert);
 	}
 }

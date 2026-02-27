@@ -276,6 +276,7 @@ namespace Settings::JSON
         failedConfigs.clear();
 		configs.clear();
     }
+
     const std::map<std::string, Json::Value>& ConfigHolder::GetConfigs() const {
         return configs;
     }

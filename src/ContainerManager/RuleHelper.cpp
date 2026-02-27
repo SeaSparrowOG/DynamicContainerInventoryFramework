@@ -35,25 +35,23 @@ namespace ContainerManager
 	}
 
 	RuleHelper::~RuleHelper() {
-		logger::error("    Failed to create requested rule."sv);
-		if (!valid) {
-			errors.PrintErrors("      ");
+		if (Errored()) {
 			return;
 		}
 
 		auto* handler = InventorySwapper::GetSingleton();
 		std::vector<std::size_t> ids{};
 
-		if (!conditions.empty()) {
-			ids.reserve(conditions.size());
+		if (!pendingConditions.empty()) {
+			ids.reserve(pendingConditions.size());
 
-			for (auto& condition : conditions) {
+			for (auto& condition : pendingConditions) {
 				auto id = handler->RegisterCondition(std::move(condition));
 				ids.emplace_back(id);
 			}
 		}
 
-		for (auto& change : changes) {
+		for (auto& change : pendingChanges) {
 			change->DefineConditions(ids);
 			handler->RegisterChange(std::move(change));
 		}
@@ -61,7 +59,7 @@ namespace ContainerManager
 
 	RuleHelper::RuleHelper(const Json::Value& a_normalizedJSON, const std::string& a_configName) {
 		if (a_normalizedJSON.isObject()) {
-			std::vector<std::string> path{ "Root" };
+			std::vector<std::string> path{ fmt::format("{}|Root", a_configName) };
 			ParseObject(a_normalizedJSON, path);
 		}
 		else if (a_normalizedJSON.isArray()) {
@@ -70,14 +68,12 @@ namespace ContainerManager
 				const auto& arrayVal = a_normalizedJSON[i];
 				if (arrayVal.empty()) {
 					std::string absolutePath = fmt::format("Root[{}]", i);
-					errors.invalidTopLevelObjects.emplace_back("{} - Empty."sv, absolutePath);
-					valid = false;
+					errors.invalidTopLevelObjects.emplace_back(fmt::format("{} - Empty."sv, absolutePath));
 					continue;
 				}
 				else if (!arrayVal.isObject()) {
 					std::string absolutePath = fmt::format("Root[{}]", i);
-					errors.invalidTopLevelObjects.emplace_back("{} - {}."sv, absolutePath, Settings::JSON::GetFieldType(arrayVal));
-					valid = false;
+					errors.invalidTopLevelObjects.emplace_back(fmt::format("{} - {}."sv, absolutePath, Settings::JSON::GetFieldType(arrayVal)));
 					continue;
 				}
 
@@ -88,7 +84,6 @@ namespace ContainerManager
 		}
 		else {
 			errors.invalidTopLevelObjects.emplace_back(fmt::format("Root - {}", Settings::JSON::GetFieldType(a_normalizedJSON)));
-			valid = false;
 		}
 	}
 
@@ -103,6 +98,30 @@ namespace ContainerManager
 			else if (member == TOP_LEVEL_CONDITIONS) {
 				hasConditions = true;
 			}
+			else if (member == TOP_LEVEL_VERSION) {
+				const auto& minVersionMember = a_value[member];
+				if (minVersionMember.isNumeric()) {
+					const auto requiredVer = minVersionMember.asInt();
+					if (requiredVer > PARSER_VERSION) {
+						errors.invalidVersion;
+					}
+				}
+				else if (minVersionMember.isString()) {
+					const auto rawVer = minVersionMember.asString();
+					try {
+						const auto requiredVer = std::stoi(rawVer);
+						if (requiredVer > PARSER_VERSION) {
+							errors.invalidVersion = true;
+						}
+					}
+					catch (...) {
+						errors.invalidVersion = true;
+					}
+				}
+				else {
+					errors.invalidVersion = true;
+				}
+			}
 			else {
 				std::string absolutePath = "";
 				for (const auto& partialPath : a_path) {
@@ -110,7 +129,6 @@ namespace ContainerManager
 				}
 				absolutePath.append(fmt::format("|{}", member));
 
-				valid = false;
 				errors.unknownTopLevelObjects.push_back(absolutePath);
 				continue;
 			}
@@ -125,11 +143,12 @@ namespace ContainerManager
 						absolutePath.append(partialPath);
 					}
 
-					valid = false;
 					errors.emptyChangesFields.push_back(absolutePath);
 				}
 				else {
-
+					a_path.emplace_back("|Changes");
+					ParseChange(changes, a_path);
+					a_path.pop_back();
 				}
 			}
 			else if (changes.isArray()) {
@@ -141,9 +160,8 @@ namespace ContainerManager
 						for (const auto& partialPath : a_path) {
 							absolutePath.append(partialPath);
 						}
-						absolutePath.append(fmt::format("[{}]"), i);
+						absolutePath.append(fmt::format("[{}]", i));
 
-						valid = false;
 						errors.emptyChangesFields.push_back(absolutePath);
 						continue;
 					}
@@ -160,7 +178,6 @@ namespace ContainerManager
 				absolutePath.append("|");
 				absolutePath.append(Settings::JSON::GetFieldType(changes));
 
-				valid = false;
 				errors.invalidChangesFields.push_back(absolutePath);
 			}
 		}
@@ -174,18 +191,23 @@ namespace ContainerManager
 
 		if (hasConditions) {
 			const auto& conditions = a_value[TOP_LEVEL_CONDITIONS.data()];
-			if (conditions.empty()) {
+			if (!conditions.isObject()) {
 				std::string absolutePath = "";
 				for (const auto& partialPath : a_path) {
 					absolutePath.append(partialPath);
 				}
 				absolutePath.append(TOP_LEVEL_CONDITIONS.data());
 
-				valid = false;
 				errors.emptyConditionsFields.emplace_back(absolutePath);
 			}
-			else if (!conditions.isObject()) {
+			else if (conditions.empty()) {
+				std::string absolutePath = "";
+				for (const auto& partialPath : a_path) {
+					absolutePath.append(partialPath);
+				}
+				absolutePath.append(TOP_LEVEL_CONDITIONS.data());
 
+				errors.emptyConditionsFields.emplace_back(absolutePath);
 			}
 			else {
 				a_path.emplace_back(fmt::format("|{}", TOP_LEVEL_CONDITIONS));
@@ -196,12 +218,79 @@ namespace ContainerManager
 	}
 
 	void RuleHelper::ParseChange(const Json::Value& a_value, std::vector<std::string>& a_path) {
+		(void)a_value;
+		(void)a_path;
 	}
 
 	void RuleHelper::ParseCondition(const Json::Value& a_value, std::vector<std::string>& a_path) {
+		const auto members = a_value.getMemberNames();
+		std::string absolutePath = "";
+		for (const auto& partPath : a_path) {
+			absolutePath.append(partPath);
+		}
+
+		for (const auto& member : members) {
+			std::string currentPath = absolutePath + "|" + member;
+
+			bool invert = member.starts_with("!");
+			const auto type = ConditionTypeFromString(member);
+			const auto& value = a_value[member];
+
+			if (type == ConditionType::Invalid) {
+				errors.invalidConditionsFields.emplace_back(currentPath);
+				continue;
+			}
+
+			switch (type) {
+			case ConditionType::PlayerSkills:
+				AddPlayerSkillCondition(value, invert);
+				break;
+			default:
+				std::unreachable();
+			}
+		}
 	}
 
 	void RuleHelper::StructuredErrorMessages::PrintErrors(const std::string& a_prefix) const {
 		(void)a_prefix;
+	}
+
+	bool RuleHelper::Errored() const {
+		if (!errors.emptyChangesFields.empty()) {
+			return true;
+		}
+		if (!errors.emptyConditionsFields.empty()) {
+			return true;
+		}
+		if (!errors.invalidChangesFields.empty()) {
+			return true;
+		}
+		if (!errors.invalidConditionsFields.empty()) {
+			return true;
+		}
+		if (!errors.invalidTopLevelObjects.empty()) {
+			return true;
+		}
+		if (!errors.missingChangesFields.empty()) {
+			return true;
+		}
+		if (!errors.missingPlugins.empty()) {
+			return true;
+		}
+		if (!errors.unknownTopLevelObjects.empty()) {
+			return true;
+		}
+		return !errors.emptyConfig && !errors.invalidVersion;
+	}
+
+	void RuleHelper::AddPlayerSkillCondition(const Json::Value& a_condition, bool a_negate) {
+		auto result = Conditions::CreateAVCondition(a_condition, a_negate);
+		if (!result) {
+			erroredPlayerSkillConditions.emplace_back(std::move(result.error()));
+			return;
+		}
+		std::unique_ptr<Condition> avCondition =
+			std::make_unique<Conditions::AVCondition>(result.value());
+		pendingConditions.emplace_back(std::move(avCondition));
 	}
 }
