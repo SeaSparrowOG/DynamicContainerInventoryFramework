@@ -192,10 +192,8 @@ namespace ContainerManager
 				}
 
 				// Note - min == max perhaps should be considered an error. Currently, 1 mod uses that, so I support it.
-				if (max < min) {
-					float temp_min = min; // Technically unecessary but I am not doing an interview ffs.
-					min = max;
-					max = temp_min;
+				if (hasMax && max < min) {
+					std::swap(max, min);
 				}
 
 				AVRequirement parsedRequirement = AVRequirement();
@@ -208,7 +206,6 @@ namespace ContainerManager
 			if (error.Errored()) {
 				return std::unexpected(error);
 			}
-
 			return AVCondition(resolvedRequirements, isANDCondition, invert);
 		}
 
@@ -221,6 +218,39 @@ namespace ContainerManager
 			}
 			return empty || typeError || inversionError ||
 				invalidObjectType || missingValuesField || nonHomogenousArray;
+		}
+
+		void AVConditionError::Report(const std::string& a_prefix) const {
+			if (empty) {
+				logger::error("{}AV Condition does not contain any AVs."sv, a_prefix);
+			}
+			if (typeError) {
+				logger::error("{}AV Condition has Type specified, but it is not a String or String is not AND/OR."sv, a_prefix);
+			}
+			if (inversionError) {
+				logger::error("{}AV Condition specified invertion field, but it is not a bool."sv, a_prefix);
+			}
+			if (invalidObjectType) {
+				logger::error("{}AV Condition specified AVs are not a string or an array"sv, a_prefix);
+			}
+			if (missingValuesField) {
+				logger::error("{}AV Condition is missing a mandatory <values> field."sv, a_prefix);
+			}
+			if (nonHomogenousArray) {
+				logger::error("{}AV Condition is neither a string nor an array."sv, a_prefix);
+			}
+			if (!unknownFields.empty()) {
+				logger::error("{}AV Condition has the following fields specified, but they are not supported:"sv, a_prefix);
+				for (const auto& field : unknownFields) {
+					logger::error("{}  >{}"sv, a_prefix, field);
+				}
+			}
+			if (!errors.empty()) {
+				logger::error("{}The following AVs resolved with errors:"sv, a_prefix);
+				for (const auto& error : errors) {
+					logger::error("{}  >{}"sv, a_prefix, error.text);
+				}
+			}
 		}
 	}
 }

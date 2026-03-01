@@ -29,8 +29,18 @@ namespace ContainerManager
 	Valid top level key names.
 	*/
 	inline static constexpr std::string_view TOP_LEVEL_VERSION = "requiredversion"sv;
+	inline static constexpr std::string_view TOP_LEVEL_FRIENDLY_NAME = "friendlyname"sv;
 	inline static constexpr std::string_view TOP_LEVEL_CONDITIONS = "conditions"sv;
 	inline static constexpr std::string_view TOP_LEVEL_CHANGES = "changes"sv;
+
+	/*
+	Change valid key names
+	*/
+	inline static constexpr std::string_view CHANGE_ADD = "add"sv;
+	inline static constexpr std::string_view CHANGE_REMOVE = "remove"sv;
+	inline static constexpr std::string_view CHANGE_REMOVE_BY_KEYWORD = "removebykeyword"sv;
+	inline static constexpr std::string_view CHANGE_RANDOM_ADD{ "randomadd"sv };
+	inline static constexpr std::string_view CHANGE_COUNT{ "count"sv };
 
 	/*
 	Current Parser Version. 
@@ -86,8 +96,9 @@ namespace ContainerManager
 	class RuleHelper
 	{
 	public:
-		struct StructuredErrorMessages
+		class StructuredErrorMessages : public Failure
 		{
+		public:
 			using StringVec = std::vector<std::string>;
 
 			bool emptyConfig{ false };
@@ -105,7 +116,7 @@ namespace ContainerManager
 			StringVec emptyConditionsFields{};
 			StringVec invalidConditionsFields{};
 
-			void PrintErrors(const std::string& a_prefix = "    ") const;
+			virtual void Report(const std::string& a_prefix = "    ") const;
 		};
 
 		~RuleHelper();
@@ -127,7 +138,7 @@ namespace ContainerManager
 		void AddQuestCondition(const Json::Value& a_condition, bool a_negate);
 
 		void AddReplaceChange(const Json::Value& a_change);
-		void AddAddChange(const Json::Value& a_change);
+		void AddAddChange(const Json::Value& a_change, const std::string& a_path);
 		void AddRemoveChange(const Json::Value& a_change);
 		void AddRemoveByKeywordsChange(const Json::Value& a_change);
 		void AddReplaceByKeywordsChange(const Json::Value& a_change);
@@ -143,8 +154,7 @@ namespace ContainerManager
 		bool meetsMinimumVersion{ true };
 
 		StructuredErrorMessages errors{};
-		std::vector<Conditions::AVConditionError> erroredPlayerSkillConditions{};
-
+		std::string configName{};
 		std::vector<std::unique_ptr<Condition>> pendingConditions{};
 		std::vector<std::unique_ptr<Change>>    pendingChanges{};
 	};

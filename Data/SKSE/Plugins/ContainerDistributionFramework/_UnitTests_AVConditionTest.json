@@ -15,10 +15,25 @@
     {
       "FriendlyName": "AV Condition Unit Test",
       "Conditions": {
+        "PlayerSkills": [ "Health|99.0", "Stamina|99.0" ]
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    },
+    {
+      "FriendlyName": "Complex AV Requirement",
+      "Conditions": {
         "PlayerSkills": {
-          "invert": true,
           "Type": "OR",
-          "values": "Stamina|0.0"
+          "values": [
+            "Health|75.0",
+            "Stamina|75.0",
+            "Magicka|75.0"
+          ]
         }
       },
       "Changes": [

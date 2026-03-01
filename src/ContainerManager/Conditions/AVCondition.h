@@ -49,8 +49,9 @@ namespace ContainerManager
 			std::string text{ ""sv };
 		};
 
-		struct AVConditionError
+		class AVConditionError : public Failure
 		{
+		public:
 			bool empty{ false };
 			bool typeError{ false };
 			bool inversionError{ false };
@@ -61,6 +62,8 @@ namespace ContainerManager
 			std::vector<std::string> unknownFields{};
 
 			[[nodiscard]] bool Errored() const;
+
+			virtual void Report(const std::string& a_prefix = "    ") const override;
 		};
 
 		[[nodiscard]] std::expected<AVCondition, AVConditionError> CreateAVCondition(const Json::Value& a_template, bool invert);

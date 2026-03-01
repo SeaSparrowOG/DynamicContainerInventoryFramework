@@ -10,6 +10,11 @@ namespace ContainerManager
 		RE::TESObjectREFR*   reference{ nullptr };
     };
 
+    struct ContainerDeltas
+    {
+        std::unordered_map<RE::TESBoundObject*, std::uint16_t> counts{};
+    };
+
     class Condition
     {
     public:
@@ -32,25 +37,37 @@ namespace ContainerManager
             Invalid = 6
         };
 
-        virtual void Apply(RE::TESObjectREFR* a_target) const = 0;
+        virtual void Apply(RE::TESObjectREFR* a_target, ContainerDeltas& a_deltas) const = 0;
 
-        bool CanApply(const std::unordered_set<std::size_t> a_applicableConditions) const;
+        virtual bool CanApply(const std::unordered_set<std::size_t> a_validConditions, [[maybe_unused]] const ContainerDeltas& a_deltas) const;
         void DefineConditions(std::vector<std::size_t> a_ids);
-        ChangeType GetType() const { return ChangeType::Invalid; }
+        virtual ChangeType GetType() const { return ChangeType::Invalid; }
+        virtual void Report(const std::string& a_prefix = "    ") const = 0;
 
-    private:
+    protected:
         std::vector<std::size_t> ids{};
+    };
+
+    class Failure
+    {
+    public:
+        virtual void Report(const std::string& a_prefix = "    ") const = 0;
     };
 
     class InventorySwapper : public REX::Singleton<InventorySwapper>
     {
     public:
+        bool Report() const;
         void RegisterChange(std::unique_ptr<Change> a_change);
+        void RegisterFailure(const std::string& a_config, std::unique_ptr<Failure> a_failure);
         [[nodiscard]] std::size_t RegisterCondition(std::unique_ptr<Condition> a_condition);
 
         void ManipulateInventory(RE::TESObjectREFR* a_container);
     private:
-		std::vector<std::unique_ptr<Condition>> conditions{};
-        std::vector<std::unique_ptr<Change>>    changes{};    // Sorted vector.
+        std::map<std::string, std::vector<std::unique_ptr<Failure>>> failures{};
+        std::vector<std::unique_ptr<Condition>>                      conditions{};
+        std::vector<std::unique_ptr<Change>>                         changes{}; // Sorted vector.
     };
+
+    bool PrintSwaps();
 }

@@ -1,5 +1,6 @@
 #include "RuleHelper.h"
 
+#include "Changes/AddRule.h"
 #include "Conditions/AVCondition.h"
 #include "Settings/JSON/JSONSettings.h"
 
@@ -35,13 +36,16 @@ namespace ContainerManager
 	}
 
 	RuleHelper::~RuleHelper() {
+		auto* handler = InventorySwapper::GetSingleton();
 		if (Errored()) {
+			std::unique_ptr<Failure> failure =
+				std::make_unique<StructuredErrorMessages>(errors);
+			auto* manager = InventorySwapper::GetSingleton();
+			manager->RegisterFailure(configName, std::move(failure));
 			return;
 		}
 
-		auto* handler = InventorySwapper::GetSingleton();
 		std::vector<std::size_t> ids{};
-
 		if (!pendingConditions.empty()) {
 			ids.reserve(pendingConditions.size());
 
@@ -58,14 +62,23 @@ namespace ContainerManager
 	}
 
 	RuleHelper::RuleHelper(const Json::Value& a_normalizedJSON, const std::string& a_configName) {
-		if (a_normalizedJSON.isObject()) {
-			std::vector<std::string> path{ fmt::format("{}|Root", a_configName) };
-			ParseObject(a_normalizedJSON, path);
+		// Legacy - Older configs were an object with the "rules" field.
+		Json::Value resolved;
+		if (a_normalizedJSON.isObject() && a_normalizedJSON.isMember("rules")) {
+			resolved = a_normalizedJSON["rules"];
 		}
-		else if (a_normalizedJSON.isArray()) {
-			auto size = a_normalizedJSON.size();
+		if (!resolved) {
+			resolved = a_normalizedJSON;
+		}
+
+		if (resolved.isObject()) {
+			std::vector<std::string> path{ fmt::format("{}|Root", a_configName) };
+			ParseObject(resolved, path);
+		}
+		else if (resolved.isArray()) {
+			auto size = resolved.size();
 			for (unsigned int i = 0; i < size; ++i) {
-				const auto& arrayVal = a_normalizedJSON[i];
+				const auto& arrayVal = resolved[i];
 				if (arrayVal.empty()) {
 					std::string absolutePath = fmt::format("Root[{}]", i);
 					errors.invalidTopLevelObjects.emplace_back(fmt::format("{} - Empty."sv, absolutePath));
@@ -83,8 +96,9 @@ namespace ContainerManager
 			}
 		}
 		else {
-			errors.invalidTopLevelObjects.emplace_back(fmt::format("Root - {}", Settings::JSON::GetFieldType(a_normalizedJSON)));
+			errors.invalidTopLevelObjects.emplace_back(fmt::format("Root - {}", Settings::JSON::GetFieldType(resolved)));
 		}
+		configName = a_configName;
 	}
 
 	void RuleHelper::ParseObject(const Json::Value& a_value, std::vector<std::string>& a_path) {
@@ -121,6 +135,9 @@ namespace ContainerManager
 				else {
 					errors.invalidVersion = true;
 				}
+			}
+			else if (member == TOP_LEVEL_FRIENDLY_NAME) {
+
 			}
 			else {
 				std::string absolutePath = "";
@@ -218,8 +235,61 @@ namespace ContainerManager
 	}
 
 	void RuleHelper::ParseChange(const Json::Value& a_value, std::vector<std::string>& a_path) {
-		(void)a_value;
-		(void)a_path;
+		auto members = a_value.getMemberNames();
+		bool hasAdd = false;
+		bool hasRemove = false;
+		bool hasRemoveByKeywords = false;
+
+		for (const auto& member : members) {
+			if (member == CHANGE_ADD) {
+				hasAdd = true;
+			}
+			else if (member == CHANGE_REMOVE) {
+				hasRemove = true;
+			}
+			else if (member == CHANGE_REMOVE_BY_KEYWORD) {
+				hasRemoveByKeywords = true;
+			}
+			else if (member == CHANGE_RANDOM_ADD || 
+				member == CHANGE_COUNT) {
+				// nothing
+			}
+			else {
+				throw std::runtime_error("NOT IMPLEMENTED - MISSING MEMBER");
+			}
+		}
+
+		if (!hasAdd && !hasRemove && !hasRemoveByKeywords) {
+			// TODO: Error here.
+			throw std::runtime_error("NOT IMPLEMENTED - MISSING REQUIRED FIELD");
+		}
+
+		std::string absolutePath = "";
+		for (const auto& part : a_path) {
+			absolutePath.append(part);
+		}
+		absolutePath.append("|Changes");
+
+		if (hasRemoveByKeywords) {
+			if (hasAdd) {
+				// Replace By Keywords
+			}
+			else {
+				// Remove By Keywords
+			}
+		}
+		else {
+			if (hasRemove && hasAdd) {
+				// Replace
+			}
+			else if (hasRemove) {
+				// Remove
+			}
+			else {
+				// Add
+				AddAddChange(a_value, absolutePath);
+			}
+		}
 	}
 
 	void RuleHelper::ParseCondition(const Json::Value& a_value, std::vector<std::string>& a_path) {
@@ -251,8 +321,61 @@ namespace ContainerManager
 		}
 	}
 
-	void RuleHelper::StructuredErrorMessages::PrintErrors(const std::string& a_prefix) const {
-		(void)a_prefix;
+	void RuleHelper::StructuredErrorMessages::Report(const std::string& a_prefix) const {
+		if (emptyConfig) {
+			logger::error("{}  Config is empty."sv, a_prefix);
+		}
+		if (invalidVersion) {
+			logger::error("{}  Config requires higher version of CDF."sv, a_prefix);
+		}
+		if (!missingPlugins.empty()) {
+			logger::error("{}  Config relies on these mods, which are missing:"sv, a_prefix);
+			for (const auto& error : missingPlugins) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
+		if (!invalidTopLevelObjects.empty()) {
+			logger::error("{}  Config has certain invalid top-level objects:"sv, a_prefix);
+			for (const auto& error : invalidTopLevelObjects) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
+		if (!unknownTopLevelObjects.empty()) {
+			logger::error("{}  Config has certain unknown top-level objects:"sv, a_prefix);
+			for (const auto& error : unknownTopLevelObjects) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
+		if (!invalidChangesFields.empty()) {
+			logger::error("{}  Config has certain invalid change fields:"sv, a_prefix);
+			for (const auto& error : invalidChangesFields) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
+		if (!emptyChangesFields.empty()) {
+			logger::error("{}  Config has certain empty change fields:"sv, a_prefix);
+			for (const auto& error : emptyChangesFields) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
+		if (!missingChangesFields.empty()) {
+			logger::error("{}  Config has certain missing change fields:"sv, a_prefix);
+			for (const auto& error : missingChangesFields) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
+		if (!emptyConditionsFields.empty()) {
+			logger::error("{}  Config has certain empty condition fields:"sv, a_prefix);
+			for (const auto& error : emptyConditionsFields) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
+		if (!invalidConditionsFields.empty()) {
+			logger::error("{}  Config has certain invalid condition fields:"sv, a_prefix);
+			for (const auto& error : invalidConditionsFields) {
+				logger::error("{}    >{}"sv, a_prefix, error);
+			}
+		}
 	}
 
 	bool RuleHelper::Errored() const {
@@ -280,17 +403,36 @@ namespace ContainerManager
 		if (!errors.unknownTopLevelObjects.empty()) {
 			return true;
 		}
-		return !errors.emptyConfig && !errors.invalidVersion;
+		return errors.emptyConfig || errors.invalidVersion;
 	}
 
 	void RuleHelper::AddPlayerSkillCondition(const Json::Value& a_condition, bool a_negate) {
 		auto result = Conditions::CreateAVCondition(a_condition, a_negate);
 		if (!result) {
-			erroredPlayerSkillConditions.emplace_back(std::move(result.error()));
+			result.error().Report();
+			auto* manager = ContainerManager::InventorySwapper::GetSingleton();
+			std::unique_ptr<Failure> failure =
+				std::make_unique<Conditions::AVConditionError>(result.error());
+			manager->RegisterFailure(configName, std::move(failure));
 			return;
 		}
 		std::unique_ptr<Condition> avCondition =
 			std::make_unique<Conditions::AVCondition>(result.value());
 		pendingConditions.emplace_back(std::move(avCondition));
+	}
+
+	void RuleHelper::AddAddChange(const Json::Value& a_change, const std::string& a_path) {
+		auto result = Changes::CreateAddRule(a_change, a_path);
+		if (!result) {
+			result.error().Report();
+			auto* manager = ContainerManager::InventorySwapper::GetSingleton();
+			std::unique_ptr<Failure> failure =
+				std::make_unique<Changes::AddChangeFailure>(result.error());
+			manager->RegisterFailure(configName, std::move(failure));
+			return;
+		}
+		std::unique_ptr<Change> newChange =
+			std::make_unique<Changes::AddChange>(result.value());
+		pendingChanges.emplace_back(std::move(newChange));
 	}
 }
