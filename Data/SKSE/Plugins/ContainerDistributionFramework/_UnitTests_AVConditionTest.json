@@ -15,7 +15,8 @@
     {
       "FriendlyName": "AV Condition Unit Test",
       "Conditions": {
-        "PlayerSkills": [ "Health|99.0", "Stamina|99.0" ]
+        "PlayerSkills": [ "Health|99.0", "Stamina|99.0" ],
+        "!PlayerSkills": [ "Conjuration|99.0", "OneHanded|99.0" ]
       },
       "Changes": [
         {

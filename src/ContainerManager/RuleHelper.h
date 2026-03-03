@@ -47,116 +47,110 @@ namespace ContainerManager
 	*/
 	inline static constexpr int PARSER_VERSION = 3;
 
-	enum class ConditionType
-	{
-		Plugins,          // Checked on rule reading. If invalid, rule is discarded.
-		BypassUnsafe,     // Allows "NoReset" contaners to be affected by the rule.
-		AllowVendors,     // Allows Vendors containers to be affected by the rule.
-		OnlyVendors,      // Restricts the rule to ONLY vendor containers, and enables AllowVendors.
-		RandomAdd,        // Instead of adding/removing <Count> of each item in the Change field, 
-							// rule will now add 1 random item from the change field <Count> times.
-
-		References,       // Restricts the rule to ONLY these references. OR by default.
-		Containers,       // Restricts the rule to only references whose base form is this. OR.
-		Locations,        // Restricts the rule to only these locations. OR.
-		Worldpsaces,      // Restricts the rule to only these worldspaces. OR.
-		LocationKeywords, // Restructs the rule to only Locations with these keywords. AND.
-
-		PlayerSkills,     // Rule only applies if the player has required skill level. AND.
-		Globals,          // Rule only applies if these globals match the required value. OR.
-		Quests,           // Rule only applies if these quests are in the prerequisite state. AND.
-
-		Invalid
-	};
-
-	inline ConditionType ConditionTypeFromString(std::string_view key) {
-		if (key.size() > 1u && key.substr(0, 0) == "!") {
-			key = key.substr(1, key.size() - 1);
-		}
-
-		if (key == CONDITION_PLUGINS) return ConditionType::Plugins;
-		if (key == CONDITION_ALLOW_UNSAFE) return ConditionType::BypassUnsafe;
-		if (key == CONDITION_ALLOW_VENDORS) return ConditionType::AllowVendors;
-		if (key == CONDITION_ONLY_VENDORS) return ConditionType::OnlyVendors;
-		if (key == CONDITION_RANDOM_ADD) return ConditionType::RandomAdd;
-
-		if (key == CONDITION_REFRENCES) return ConditionType::References;
-		if (key == CONDITION_CONTAINERS) return ConditionType::Containers;
-		if (key == CONDITION_LOCATIONS) return ConditionType::Locations;
-		if (key == CONDITION_WORLDSPACES) return ConditionType::Worldpsaces;
-		if (key == CONDITION_LOC_KEYWORDS) return ConditionType::LocationKeywords;
-
-		if (key == CONDITION_PLAYER_SKILLS) return ConditionType::PlayerSkills;
-		if (key == CONDITION_GLOBALS) return ConditionType::Globals;
-		if (key == CONDITION_QUESTS) return ConditionType::Quests;
-
-		return ConditionType::Invalid;
-	}
-
-	class RuleHelper
+	class RuleConstructor
 	{
 	public:
-		class StructuredErrorMessages : public Failure
-		{
-		public:
-			using StringVec = std::vector<std::string>;
-
-			bool emptyConfig{ false };
-			bool invalidVersion{ false };
-
-			StringVec missingPlugins{};
-
-			StringVec invalidTopLevelObjects{};
-			StringVec unknownTopLevelObjects{};
-
-			StringVec invalidChangesFields{};
-			StringVec emptyChangesFields{};
-			StringVec missingChangesFields{};
-
-			StringVec emptyConditionsFields{};
-			StringVec invalidConditionsFields{};
-
-			virtual void Report(const std::string& a_prefix = "    ") const;
-		};
-
-		~RuleHelper();
-		RuleHelper(const Json::Value& a_normalizedJSON, const std::string& a_configName);
+		RuleConstructor(const std::string& a_path);
+		bool Build(const Json::Value& a_rule);
 
 	private:
-		void ParseObject(const Json::Value& a_value, std::vector<std::string>& a_path);
-		void ParseChange(const Json::Value& a_value, std::vector<std::string>& a_path);
-		void ParseCondition(const Json::Value& a_value, std::vector<std::string>& a_path);
+		enum class ConditionType
+		{
+			Plugins,          // Checked on rule reading. If invalid, rule is discarded.
+			BypassUnsafe,     // Allows "NoReset" contaners to be affected by the rule.
+			AllowVendors,     // Allows Vendors containers to be affected by the rule.
+			OnlyVendors,      // Restricts the rule to ONLY vendor containers, and enables AllowVendors.
+			RandomAdd,        // Instead of adding/removing <Count> of each item in the Change field, 
+			// rule will now add 1 random item from the change field <Count> times.
 
-		void AddReferenceCondition(const Json::Value& a_condition, bool a_negate);
-		void AddContainerCondition(const Json::Value& a_condition, bool a_negate);
-		void AddLocationCondition(const Json::Value& a_condition, bool a_negate);
-		void AddWorldspaceCondition(const Json::Value& a_condition, bool a_negate);
-		void AddLocationKeywordCondition(const Json::Value& a_condition, bool a_negate);
+			References,       // Restricts the rule to ONLY these references. OR by default.
+			Containers,       // Restricts the rule to only references whose base form is this. OR.
+			Locations,        // Restricts the rule to only these locations. OR.
+			Worldpsaces,      // Restricts the rule to only these worldspaces. OR.
+			LocationKeywords, // Restructs the rule to only Locations with these keywords. AND.
 
-		void AddPlayerSkillCondition(const Json::Value& a_condition, bool a_negate);
-		void AddGlobalCondition(const Json::Value& a_condition, bool a_negate);
-		void AddQuestCondition(const Json::Value& a_condition, bool a_negate);
+			PlayerSkills,     // Rule only applies if the player has required skill level. AND.
+			Globals,          // Rule only applies if these globals match the required value. OR.
+			Quests,           // Rule only applies if these quests are in the prerequisite state. AND.
 
-		void AddReplaceChange(const Json::Value& a_change);
-		void AddAddChange(const Json::Value& a_change, const std::string& a_path);
-		void AddRemoveChange(const Json::Value& a_change);
-		void AddRemoveByKeywordsChange(const Json::Value& a_change);
-		void AddReplaceByKeywordsChange(const Json::Value& a_change);
+			Invalid
+		};
 
-		bool Errored() const;
+		inline ConditionType ConditionTypeFromString(std::string_view key) {
+			if (key.starts_with("!")) {
+				key = key.substr(1, key.size() - 1);
+			}
 
-		// Flags to be applied to the rule.
-		bool allowVendors{ false };
-		bool onlyVendors{ false };
-		bool bypassUnsafe{ false };
-		bool randomAdd{ false };
-		bool allPluginsPresent{ true };
-		bool meetsMinimumVersion{ true };
+			if (key == CONDITION_PLUGINS) return ConditionType::Plugins;
+			if (key == CONDITION_ALLOW_UNSAFE) return ConditionType::BypassUnsafe;
+			if (key == CONDITION_ALLOW_VENDORS) return ConditionType::AllowVendors;
+			if (key == CONDITION_ONLY_VENDORS) return ConditionType::OnlyVendors;
+			if (key == CONDITION_RANDOM_ADD) return ConditionType::RandomAdd;
 
-		StructuredErrorMessages errors{};
-		std::string configName{};
+			if (key == CONDITION_REFRENCES) return ConditionType::References;
+			if (key == CONDITION_CONTAINERS) return ConditionType::Containers;
+			if (key == CONDITION_LOCATIONS) return ConditionType::Locations;
+			if (key == CONDITION_WORLDSPACES) return ConditionType::Worldpsaces;
+			if (key == CONDITION_LOC_KEYWORDS) return ConditionType::LocationKeywords;
+
+			if (key == CONDITION_PLAYER_SKILLS) return ConditionType::PlayerSkills;
+			if (key == CONDITION_GLOBALS) return ConditionType::Globals;
+			if (key == CONDITION_QUESTS) return ConditionType::Quests;
+
+			return ConditionType::Invalid;
+		}
+
+		void RegisterChange(const Json::Value& a_changes, const std::string& a_path);
+		void CreateConditions(const Json::Value& a_condition);
+		void AddPlayerSkillCondition(const Json::Value& a_condition, bool a_invert);
+
+		class TopLevelErrors : public Failure
+		{
+		public:
+			virtual void Report(const std::string& a_prefix = "    ") const;
+
+			TopLevelErrors(const std::string& a_path) { path = a_path; };
+			bool Errored() const;
+
+			void FlagUnknownKey(const std::string& a_name, const std::string& a_type) {
+				unknownValues.emplace_back(fmt::format("{} - {}", a_name, a_type));
+			}
+			void FlagUnknownConditionKey(const std::string& a_name) {
+				unknownConditionKeys.emplace_back(fmt::format("{}|Conditions|{}", path, a_name));
+			}
+			void FlagBadCondition(const std::string& a_name, std::unique_ptr<Failure> a_failure) {
+				failures.emplace(a_name, std::move(a_failure));
+			}
+		private:
+			std::string path{ "" };
+
+			bool missingChanges{ false };
+			std::vector<std::string> unknownValues{};
+			std::vector<std::string> unknownConditionKeys{};
+			std::map<std::string, std::unique_ptr<Failure>> failures{};
+		};
+
+		std::string path{ "" };
+		TopLevelErrors errors{ path };
+		InventorySwapper* inventorySwapper{ InventorySwapper::GetSingleton() };
 		std::vector<std::unique_ptr<Condition>> pendingConditions{};
 		std::vector<std::unique_ptr<Change>>    pendingChanges{};
+	};
+
+	class StructuredErrorMessages : public Failure
+	{
+	public:
+		virtual void Report(const std::string& a_prefix = "    ") const;
+
+		bool Errored() const;
+		void SetName(const std::string& a_name) { name = a_name; };
+		void FlagInvalidObject(const std::string& a_path, const std::string& a_type);
+	private:
+		bool empty{ false };
+
+		using StringVec = std::vector<std::string>;
+		std::string name{ "" };
+		StringVec invalidObjectTypes{};
 	};
 
 	[[nodiscard]] bool BuildConditions();

@@ -52,6 +52,7 @@ namespace ContainerManager
     {
     public:
         virtual void Report(const std::string& a_prefix = "    ") const = 0;
+        virtual ~Failure() = default;
     };
 
     class InventorySwapper : public REX::Singleton<InventorySwapper>

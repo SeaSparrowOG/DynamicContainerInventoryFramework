@@ -25,7 +25,7 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 		}
 		SECTION_SEPARATOR;
 		if (!ContainerManager::PrintSwaps()) {
-			SKSE::stl::report_and_fail("Failed to parse conditions. Check the log for more information."sv);
+			SKSE::stl::report_and_fail("Failed to print conditions. Check the log for more information."sv);
 		}
 		SECTION_SEPARATOR;
 		jsonHolder->Clear(); // Might be unecessary, but hey free RAM.
