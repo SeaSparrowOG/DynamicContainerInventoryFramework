@@ -223,26 +223,36 @@ namespace Settings
 			case 2:
 				// FormID
 				if (!clib_util::string::is_only_hex(parts[FORMID_INDEX], true)) {
-					response.status = QueryResult::FormatError;
-					return response;
+					if (clib_util::string::is_only_hex(parts[PLUGIN_INDEX], true)) {
+						formID = clib_util::string::to_num<RE::FormID>(parts[PLUGIN_INDEX], true);
+						mod = dh->LookupModByName(parts[FORMID_INDEX]);
+					}
+					else {
+						response.status = QueryResult::FormatError;
+						return response;
+					}
 				}
-				formID = clib_util::string::to_num<RE::FormID>(parts[FORMID_INDEX], true);
-
-				mod = dh->LookupModByName(parts[PLUGIN_INDEX]);
+				else {
+					formID = clib_util::string::to_num<RE::FormID>(parts[FORMID_INDEX], true);
+					mod = dh->LookupModByName(parts[PLUGIN_INDEX]);
+				}
 				if (!mod) {
 					response.status = QueryResult::FileNotFound;
 					return response;
 				}
+
 				form = dh->LookupForm(formID, mod->GetFilename());
 				if (!form) {
 					response.status = QueryResult::FormNotInFile;
 					return response;
 				}
+
 				castForm = form->As<T>();
 				if (!castForm) {
 					response.status = QueryResult::WrongFormtype;
 					return response;
 				}
+
 				response.value = castForm;
 				return response;
 			default:
@@ -265,29 +275,6 @@ namespace Settings
 			case JsonParseResult::NonHomogenousArray: return "NonHomogenousArray";
 			default: return "Success";
 			}
-		}
-
-		inline JsonParseResult LoadFormStrings(const Json::Value& a_value, std::vector<std::string>& a_result)
-		{
-			if (a_value.isString()) {
-				a_result.push_back(a_value.asString());
-				return JsonParseResult::Success;
-			}
-			else if (a_value.isArray()) {
-				const auto size = a_value.size();
-				a_result.clear();
-				a_result.reserve(size);
-
-				for (const auto& value : a_value) {
-					if (!value.isString()) {
-						a_result.clear();
-						return JsonParseResult::NonHomogenousArray;
-					}
-					a_result.push_back(value.asString());
-				}
-				return JsonParseResult::Success;
-			}
-			return JsonParseResult::NotStringOrArray;
 		}
 	}
 }

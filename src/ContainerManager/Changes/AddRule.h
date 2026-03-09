@@ -6,8 +6,6 @@ namespace ContainerManager
 {
 	namespace Changes
 	{
-		inline static constexpr std::string_view ADD_FIELD{ "add"sv };
-		inline static constexpr std::string_view COUNT_FIELD{ "count"sv };
 		inline static constexpr std::string_view RANDOM_ADD_FIELD{ "randomadd"sv };
 		inline static constexpr std::string_view RANDOM_ADD_FIELD_TRUE{ "true"sv };
 		inline static constexpr std::string_view RANDOM_ADD_FIELD_FALSE{ "false"sv };
@@ -33,10 +31,10 @@ namespace ContainerManager
 			std::vector<RE::TESBoundObject*> m_additions{};
 		};
 
-		class AddChangeFailure : public Failure
+		class AddChangeFailure : public ParseFailure
 		{
 		public:
-			virtual void Report(const std::string& a_prefix = "    ") const;
+			virtual void Report(const std::string& a_prefix) const;
 
 			void FlagMixedArray();
 			void FlagRandomAddField(const std::string& a_reason);
@@ -60,6 +58,6 @@ namespace ContainerManager
 			std::vector<std::string> badForms{};
 		};
 
-		[[nodiscard]] std::expected<AddChange, AddChangeFailure> CreateAddRule(const Json::Value& a_template, const std::string& a_root);
+		[[nodiscard]] std::expected<AddChange, AddChangeFailure> CreateAddRule(const Json::Value& a_add, bool a_hasCount, const Json::Value& a_count);
 	}
 }

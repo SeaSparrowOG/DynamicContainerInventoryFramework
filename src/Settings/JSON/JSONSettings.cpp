@@ -244,6 +244,14 @@ namespace Settings::JSON
     }
 
     void ConfigHolder::AddGoodConfig(const std::string& a_configName, Json::Value a_value) {
+        // Legacy - Format used to be Object -> Rules (Key) -> Array
+        if (a_value.isObject() && a_value.isMember("rules")) {
+            auto& rulesField = a_value["rules"];
+            // Non-array rules field will be caught later.
+            if (rulesField.isArray()) {
+                a_value = std::move(rulesField);
+            }
+        }
         configs.emplace(a_configName, std::move(a_value));
     }
 

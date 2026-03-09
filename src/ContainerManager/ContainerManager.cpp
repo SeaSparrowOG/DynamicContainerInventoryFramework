@@ -2,55 +2,29 @@
 
 namespace ContainerManager
 {
-	bool InventorySwapper::Report() const {
-#ifndef NDEBUG 
+	void InventorySwapper::Report() const {
+		logger::info("Parsing finished."sv);
+		if (!parseErrors.empty()) {
+			logger::error("  The following errors occured:"sv);
+			for (const auto& error : parseErrors) {
+				error->Report("    ");
+			}
+			logger::error("  ----"sv);
+		}
 		if (!conditions.empty()) {
-			std::size_t size = conditions.size();
-			logger::info("  Found {} conditions."sv, size);
-			for (std::size_t i = 0u; i < size; ++i) {
-				const auto& condition = conditions.at(i);
-				condition->PrintCondition("    ");
+			logger::info("  Created Conditions:"sv);
+			for (std::size_t i = 0u; i < conditions.size(); ++i) {
+				logger::info("  ---- Condition ID: [{}] ----"sv, i);
+				conditions[i]->PrintCondition("    ");
 			}
-		}
-		else {
-			logger::info("  No conditions found."sv);
 		}
 		if (!changes.empty()) {
-			std::size_t size = changes.size();
-			logger::info("  Found {} changes."sv, size);
-			for (std::size_t i = 0u; i < size; ++i) {
-				const auto& change = changes.at(i);
-				change->Report("    ");
-			}
-		}
-		else {
-			logger::info("  No changes found."sv);
-		}
-		if (!failures.empty()) {
-			std::size_t size = failures.size();
-			logger::info("  Found {} failures."sv, size);
-			for (const auto& [config, configFailures] : failures) {
-				logger::info("    >{}", config);
-				for (const auto& failure : configFailures) {
-					failure->Report("      ");
-				}
-			}
-		}
-		else {
-			logger::info("  No failures found"sv);
-		}
-		return true;
-#else
-		if (!changes.empty()) {
+			logger::info("  Created Changes:"sv);
 			for (const auto& change : changes) {
+				logger::info("  ----"sv);
 				change->Report("    ");
 			}
 		}
-		else {
-			logger::info("    No rules built."sv);
-		}
-		return true;
-#endif
 	}
 
 	void InventorySwapper::RegisterChange(std::unique_ptr<Change> a_change) {
@@ -72,15 +46,8 @@ namespace ContainerManager
 		changes.emplace(it, std::move(a_change));
 	}
 
-	void InventorySwapper::RegisterFailure(const std::string& a_config, std::unique_ptr<Failure> a_failure) {
-		auto it = failures.find(a_config);
-		if (it == failures.end()) {
-			std::vector<std::unique_ptr<Failure>> failure;
-			failure.emplace_back(std::move(a_failure));
-			failures[a_config] = std::move(failure);
-			return;
-		}
-		(*it).second.emplace_back(std::move(a_failure));
+	void InventorySwapper::RegisterFailure(std::unique_ptr<ParseFailure> a_failure) {
+		parseErrors.emplace_back(std::move(a_failure));
 	}
 
 	std::size_t InventorySwapper::RegisterCondition(std::unique_ptr<Condition> a_condition) {
@@ -126,17 +93,17 @@ namespace ContainerManager
 		return true;
 	}
 
-	void Change::DefineConditions(std::vector<std::size_t> a_ids) {
+	void Change::DefineConditions(const std::vector<std::size_t>& a_ids) {
 		ids = std::move(a_ids);
 	}
 
-	bool PrintSwaps() {
+	void PrintSwaps() {
 		logger::info("Parsing completed successfully. Attempting to print rules..."sv);
 		const auto* manager = InventorySwapper::GetSingleton();
 		if (!manager) {
 			logger::critical("  >Failed to retrieve internal manager singleton!"sv);
-			return false;
+			return;
 		}
-		return manager->Report();
+		manager->Report();
 	}
 }

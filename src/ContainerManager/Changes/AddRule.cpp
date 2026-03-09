@@ -126,14 +126,7 @@ namespace ContainerManager::Changes
 		return empty || mixedArrayTypes;
 	}
 
-	std::expected<AddChange, AddChangeFailure> CreateAddRule(const Json::Value& a_template, const std::string& a_root) {
-		// Guaranteed:
-		//  IsObject()
-		//  IsMember("Add")
-		auto error = AddChangeFailure(a_root);
-		auto result = AddChange();
-		const auto& addMember = a_template[ADD_FIELD.data()];
-
+	std::expected<AddChange, AddChangeFailure> CreateAddRule(const Json::Value& a_add, bool a_hasCount, const Json::Value& a_count) {
 		std::vector<std::string> forms;
 		if (addMember.isArray() || addMember.isString()) {
 			auto parseResult = Settings::JSON::LoadFormStrings(addMember, forms);
@@ -148,65 +141,5 @@ namespace ContainerManager::Changes
 		else {
 			error.FlagAddField(Settings::JSON::GetFieldType(addMember));
 		}
-
-		if (!forms.empty()) {
-			for (const auto& form : forms) {
-				auto resolved = Settings::JSON::GetFormFromString<RE::TESBoundObject>(form);
-				auto value = resolved.value.value_or(nullptr);
-				switch (resolved.status) {
-				case Settings::JSON::QueryResult::Success:
-					if (value) {
-						result.AddObject(value);
-					}
-					break;
-				default:
-					error.FlagBadForm(form, Settings::JSON::QueryResultToString(resolved.status));
-					break;
-				}
-			}
-		}
-		if (forms.empty()) {
-			error.FlagEmpty();
-		}
-
-		std::uint16_t count = 1u;
-		if (a_template.isMember(COUNT_FIELD.data())) {
-			const auto& countField = a_template[COUNT_FIELD.data()];
-			if (countField.isNumeric()) {
-				auto rawCount = countField.asUInt();
-				constexpr auto uint_max = (std::uint32_t)std::numeric_limits<std::uint16_t>::max();
-				count = static_cast<std::uint16_t>(std::clamp(rawCount, (std::uint32_t)0u, uint_max));
-				result.SetCount(count);
-			}
-			else {
-				error.FlagCountField(Settings::JSON::GetFieldType(countField));
-			}
-		}
-
-		if (a_template.isMember(RANDOM_ADD_FIELD.data())) {
-			const auto& randomAddField = a_template[RANDOM_ADD_FIELD.data()];
-			if (randomAddField.isBool()) {
-				if (randomAddField.asBool()) {
-					result.SetRandomAdd();
-				}
-			}
-			else if (randomAddField.isString()) {
-				auto rawLowercase = clib_util::string::tolower(randomAddField.asString());
-				if (rawLowercase == RANDOM_ADD_FIELD_TRUE) {
-					result.SetRandomAdd();
-				}
-				else if (rawLowercase == RANDOM_ADD_FIELD_TRUE) {
-					// nothing
-				}
-				else {
-					error.FlagRandomAddField(randomAddField.asString());
-				}
-			}
-		}
-
-		if (error.Errored()) {
-			return std::unexpected(error);
-		}
-		return result;
 	}
 }

@@ -14,12 +14,12 @@ namespace ContainerManager
     {
         std::unordered_map<RE::TESBoundObject*, std::uint16_t> counts{};
     };
-
+    
     class Condition
     {
     public:
         virtual bool IsValid(const ConditionCheckParams& a_params) const = 0;
-        virtual void PrintCondition(const std::string& a_pref = "    ") const = 0;
+        virtual void PrintCondition(const std::string& a_pref) const = 0;
         virtual ~Condition() = default;
     };
 
@@ -40,35 +40,39 @@ namespace ContainerManager
         virtual void Apply(RE::TESObjectREFR* a_target, ContainerDeltas& a_deltas) const = 0;
 
         virtual bool CanApply(const std::unordered_set<std::size_t> a_validConditions, [[maybe_unused]] const ContainerDeltas& a_deltas) const;
-        void DefineConditions(std::vector<std::size_t> a_ids);
+        void DefineConditions(const std::vector<std::size_t>& a_ids);
         virtual ChangeType GetType() const { return ChangeType::Invalid; }
-        virtual void Report(const std::string& a_prefix = "    ") const = 0;
+        virtual void Report(const std::string& a_prefix) const = 0;
 
     protected:
         std::vector<std::size_t> ids{};
     };
 
-    class Failure
+    class ParseFailure
     {
     public:
-        virtual void Report(const std::string& a_prefix = "    ") const = 0;
-        virtual ~Failure() = default;
+        virtual bool Recoverable() const { return recoverable; };
+        virtual void Report(const std::string& a_prefix) const = 0;
+        virtual ~ParseFailure() = default;
+
+    protected:
+        bool recoverable{ true };
     };
 
     class InventorySwapper : public REX::Singleton<InventorySwapper>
     {
     public:
-        bool Report() const;
+        void Report() const;
         void RegisterChange(std::unique_ptr<Change> a_change);
-        void RegisterFailure(const std::string& a_config, std::unique_ptr<Failure> a_failure);
+        void RegisterFailure(std::unique_ptr<ParseFailure> a_failure);
         [[nodiscard]] std::size_t RegisterCondition(std::unique_ptr<Condition> a_condition);
 
         void ManipulateInventory(RE::TESObjectREFR* a_container);
     private:
-        std::map<std::string, std::vector<std::unique_ptr<Failure>>> failures{};
-        std::vector<std::unique_ptr<Condition>>                      conditions{};
-        std::vector<std::unique_ptr<Change>>                         changes{}; // Sorted vector.
+        std::vector<std::unique_ptr<ParseFailure>> parseErrors{};
+        std::vector<std::unique_ptr<Condition>>    conditions{};
+        std::vector<std::unique_ptr<Change>>       changes{}; // Sorted vector.
     };
 
-    bool PrintSwaps();
+    void PrintSwaps();
 }
