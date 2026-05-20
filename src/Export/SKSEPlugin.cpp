@@ -7,7 +7,7 @@
 
 static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 {
-	static auto* jsonHolder = Settings::JSON::ConfigHolder::GetSingleton();
+	static auto* jsonHolder = Settings::JSON::Holder::GetSingleton();
 	if (!jsonHolder) {
 		SKSE::stl::report_and_fail("Failed to get interla JSON logger."sv);
 	}
@@ -19,7 +19,7 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 			SKSE::stl::report_and_fail("Failed to preload mod objects. Check the log for more information."sv);
 		}
 		SECTION_SEPARATOR;
-		jsonHolder->Clear(); // Might be unecessary, but hey free RAM.
+		jsonHolder->Release();
 		logger::info("Finished startup tasks, enjoy your game!"sv);
 		break;
 	default:

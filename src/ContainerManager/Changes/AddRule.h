@@ -6,10 +6,6 @@ namespace ContainerManager
 {
 	namespace Changes
 	{
-		inline static constexpr std::string_view RANDOM_ADD_FIELD{ "randomadd"sv };
-		inline static constexpr std::string_view RANDOM_ADD_FIELD_TRUE{ "true"sv };
-		inline static constexpr std::string_view RANDOM_ADD_FIELD_FALSE{ "false"sv };
-
 		class AddChange : public Change
 		{
 		public:
@@ -57,6 +53,10 @@ namespace ContainerManager
 
 			std::vector<std::string> badForms{};
 		};
+
+		inline static constexpr std::string_view ADD_FIELD = "add"sv;
+		inline static constexpr std::string_view COUNT_FIELD = "count"sv;
+		inline static constexpr std::string_view RANDOM_ADD_FIELD = "randomadd"sv;
 
 		[[nodiscard]] std::expected<AddChange, AddChangeFailure> CreateAddRule(const Json::Value& a_add, bool a_hasCount, const Json::Value& a_count);
 	}

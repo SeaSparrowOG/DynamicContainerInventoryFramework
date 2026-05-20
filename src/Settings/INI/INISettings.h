@@ -14,7 +14,7 @@ namespace Settings
 			void DumpSettings();
 
 			template <typename T>
-			std::optional<T> GetStoredSetting(const std::string& a_settingName) {
+			std::optional<T> GetStoredSetting(const std::string& a_settingName) const {
 				if constexpr (std::is_same_v<T, float>) {
 					auto it = floatSettings.find(a_settingName);
 					if (it != floatSettings.end()) return it->second;
@@ -46,16 +46,17 @@ namespace Settings
 			bool OverrideSettings();
 		};
 
-		inline static constexpr const char* MAX_DISTANCE = "fMaxRefLookupDistance";
-		inline static constexpr const std::uint8_t EXPECTED_COUNT = 1;
+		inline static constexpr std::string_view GENERAL_RADIUS_LOOKUP_RANGE = "General|fMaxRefLookupDistance"sv;
 
-		inline static constexpr const std::array<const char*, EXPECTED_COUNT> EXPECTED_SETTINGS = {
-			"|fMaxRefLookupDistance"
+
+		inline static constexpr const std::uint8_t EXPECTED_COUNT = 1;
+		inline static constexpr const std::array<std::string_view, EXPECTED_COUNT> EXPECTED_SETTINGS = {
+			GENERAL_RADIUS_LOOKUP_RANGE
 		};
 
 		template <typename T>
 		std::optional<T> GetSetting(const std::string& a_settingName) {
-			static auto* holder = Holder::GetSingleton();
+			const static auto* holder = Holder::GetSingleton();
 			return holder->GetStoredSetting<T>(a_settingName);
 		}
 	}

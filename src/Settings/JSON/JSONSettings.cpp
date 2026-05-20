@@ -2,290 +2,276 @@
 
 namespace Settings::JSON
 {
-    inline static constexpr std::size_t MAX_RECURSION_DEPTH = 16;
-    static_assert(MAX_RECURSION_DEPTH <= std::numeric_limits<std::uint8_t>::max() && MAX_RECURSION_DEPTH > 4u);
-
-    static std::vector<std::string> MakeKeysLowercase(Json::Value& a_obj, std::vector<std::string>& a_pathParts, FormatErrors& a_errors) {
-        assert(a_obj.isObject());
-        auto members = a_obj.getMemberNames();
-        std::vector<std::string> lowercaseMembers{};
-        lowercaseMembers.reserve(members.size());
-
-        for (const auto& member : members) {
-            auto lowercase = clib_util::string::tolower(member);
-            if (member != lowercase && a_obj.isMember(lowercase)) {
-                auto path = std::string("");
-                for (const auto& part : a_pathParts) {
-                    path.append(part);
-                }
-                path.append(fmt::format("|{}", member));
-                a_errors.errored = true;
-                a_errors.duplicateKeys.push_back(path);
-                continue;
-            }
-            if (lowercase != member) {
-                auto value = std::move(a_obj[member]);
-                a_obj.removeMember(member);
-                a_obj[lowercase] = std::move(value);
-            }
-            lowercaseMembers.emplace_back(lowercase);
-        }
-        return lowercaseMembers;
-    }
-
-    static void Canonicalize_Object(Json::Value& a_obj, std::vector<std::string>& a_pathParts, std::size_t depth, FormatErrors& a_errors) {
-        assert(a_obj.isObject());
-
-        depth++;
-        if (depth > MAX_RECURSION_DEPTH) {
-            auto path = std::string("");
-            for (const auto& part : a_pathParts) {
-                path.append(part);
-            }
-            a_errors.recursionTooDeep.emplace_back(path);
-            a_errors.errored = true;
-            return;
-        }
-        
-        auto members = MakeKeysLowercase(a_obj, a_pathParts, a_errors);
-        for (const auto& member : members) {
-            auto& val = a_obj[member];
-            if (val.isObject()) {
-                if (val.empty()) {
-                    auto path = std::string("");
-                    for (const auto& part : a_pathParts) {
-                        path.append(part);
-                    }
-                    path.append(fmt::format("|{}", member));
-                    a_errors.errored = true;
-                    a_errors.emptyKeys.emplace_back(path);
-                    continue;
-                }
-
-                a_pathParts.push_back(fmt::format("|{}", member));
-                Canonicalize_Object(val, a_pathParts, depth, a_errors);
-                a_pathParts.pop_back();
-            }
-            else if (val.isArray()) {
-                auto end = val.size();
-                for (unsigned int index = 0u; index < end; ++index) {
-                    auto& valElement = val[index];
-                    if (valElement.isObject()) {
-                        if (valElement.empty()) {
-                            auto path = std::string("");
-                            for (const auto& part : a_pathParts) {
-                                path.append(part);
-                            }
-                            path.append(fmt::format("|{}[{}]", member, index));
-                            a_errors.errored = true;
-                            a_errors.emptyKeys.emplace_back(path);
-                            continue;
-                        }
-
-                        a_pathParts.push_back(fmt::format("|{}[{}]", member, index));
-                        Canonicalize_Object(valElement, a_pathParts, depth, a_errors);
-                        a_pathParts.pop_back();
-                    }
-                }
-            }
-        }
-    }
-
-    static void Canonicalize(Json::Value& a_val, FormatErrors& a_errors) {
-        if (a_val.isObject()) {
-            if (a_val.empty()) {
-                a_errors.errored = true;
-                a_errors.emptyKeys.emplace_back("Root");
-                return;
-            }
-
-            auto path = std::vector<std::string>({ "Root" });
-            Canonicalize_Object(a_val, path, 0u, a_errors);
-        }
-        else if (a_val.isArray()) {
-            if (a_val.empty()) {
-                a_errors.errored = true;
-                a_errors.emptyKeys.emplace_back("Root[]");
-                return;
-            }
-
-            for (unsigned int index = 0u; index < a_val.size(); ++index) {
-                auto& arrayVal = a_val[index];
-                if (arrayVal.empty()) {
-                    a_errors.errored = true;
-                    a_errors.emptyKeys.emplace_back(fmt::format("Root[{}]", index));
-                    continue;
-                }
-                auto pathParts = std::vector<std::string>({ fmt::format("Root[{}]", index) });
-                Canonicalize_Object(arrayVal, pathParts, 0u, a_errors);
-            }
-        }
-        else {
-            a_errors.errored = true;
-            a_errors.invalidTopLevel = GetFieldType(a_val);
-        }
-    }
-
-	bool Preload() {
-        logger::info("Reading configuration files..."sv);
-		std::string directory = R"(Data/SKSE/Plugins/ContainerDistributionFramework)";
-        std::string_view extension = ".json"sv;
-		std::vector<std::string> jsonFilePaths{};
-
-        auto* configHolder = ConfigHolder::GetSingleton();
-        if (!configHolder) {
-            logger::critical("  Failed to get internal config holder."sv);
-            return false;
-        }
-
-        try {
-            for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-                if (entry.is_regular_file() && entry.path().extension() == extension) {
-                    jsonFilePaths.push_back(entry.path().string());
-                }
-            }
-            std::sort(jsonFilePaths.begin(), jsonFilePaths.end());
-            logger::info("Finished collecting {} files:"sv, jsonFilePaths.size());
-        }
-        catch (const std::filesystem::filesystem_error& e) {
-            logger::critical("  Caught filesystem exception while gathering configuration files: {}"sv, e.what());
-            return false;
-        }
-        catch (const std::exception& e) {
-            logger::critical("  Caught exception while gathering configuration files: {}"sv, e.what());
-            return false;
-        }
-        catch (...) {
-            logger::critical("  Caught unexpected exception while gathering configuration files."sv);
-            return false;
-        }
-
-        Json::Value JSONFile;
-        auto trimFrom = directory.size() + 1u;
-        bool errored = false;
-
-        logger::info("Beginning parsing..."sv);
-        try {
-            for (const auto& path : jsonFilePaths) {
-                JSONFile = Json::Value{};
-                FormatErrors configErrors{};
-                auto trimTo = path.size() - extension.size();
-                auto configName = path.substr(trimFrom, trimTo);
-#ifdef NDEBUG
-                if (configName.starts_with("_UnitTests_")) {
-                    logger::info("  Skipping {}, as it is a unit test not meant for release."sv, configName);
-                    continue;
-                }
-#endif
-                std::ifstream rawJSON(path);
-                Json::CharReaderBuilder builder;
-                std::string errs;
-
-                logger::info("  Parsing {}"sv, configName);
-                if (!Json::parseFromStream(builder, rawJSON, &JSONFile, &errs)) {
-                    configErrors.errored = true;
-                    configErrors.jsonError = errs;
-                    configHolder->AddFailedConfig(configName, configErrors);
-                    errored = true;
-                    continue;
-                }
-
-                try {
-                    Canonicalize(JSONFile, configErrors);
-                    if (configErrors.errored) {
-                        configHolder->AddFailedConfig(configName, configErrors);
-                        errored = true;
-                    }
-                    else {
-                        configHolder->AddGoodConfig(configName, JSONFile);
-                    }
-                }
-                catch (const Json::Exception& e) {
-                    configErrors.errored = true;
-                    configErrors.jsonError = e.what();
-                    configHolder->AddFailedConfig(configName, configErrors);
-                    errored = true;
-                    continue;
-                }
-            }
-        }
-        catch (const std::exception& e) {
-            logger::critical("    Caught unexpected exception of type: {}"sv, e.what());
-            return false;
-        }
-        catch (...) {
-            logger::critical("  >Unexpected exception caught."sv);
-            SKSE::stl::report_and_fail(
-                fmt::format("Caught unexpected error while parsing a file. Check the log at My Games/Skyrim Special Edition/SKSE/ContainerDistributionFramework.log for more information. You can open this with Notepad."sv)
-            ); // Likely bad enough that we need to scream IMMEDIATELY.
-        }
-        configHolder->Report();
-		return !errored;
+	bool Holder::ParseConfigs() {
+		bool parseSucceeded = true;
+		for (const auto& [name, config] : _configs) {
+			// Guaranteed that this is either an Object or an Array
+			// Previous versions used { "Rules": [ ... ] } as the root.
+			if (config.isObject()) {
+				const auto& rulesField = config[TOP_LEVEL_RULES_FIELD.data()];
+				if (rulesField && rulesField.isArray()) {
+					parseSucceeded &= ParseOutdatedConfig(rulesField, name);
+				}
+				else {
+					parseSucceeded &= ParseConfigObject(config, name);
+				}
+			}
+			else if (config.isArray()) {
+				auto trimTo = name.size();
+				std::string nameOverride = name;
+				for (Json::Value::ArrayIndex i = 0u; config.size(); ++i) {
+					const auto& arrayElement = config[i];
+					nameOverride = nameOverride.substr(trimTo);
+					nameOverride = "[" + std::to_string(i) + "]";
+					parseSucceeded &= ParseConfigObject(arrayElement, nameOverride);
+				}
+			}
+		}
+		return parseSucceeded;
 	}
 
-	std::string GetFieldType(const Json::Value& a_field) {
-		auto type = a_field.type();
-		switch (type) {
-		case Json::ValueType::arrayValue: return "Array";
-		case Json::ValueType::booleanValue: return "Boolean";
-		case Json::ValueType::intValue: return "Integer";
-		case Json::ValueType::nullValue: return "Null";
-		case Json::ValueType::objectValue: return "Object";
-		case Json::ValueType::realValue: return "Float";
-		case Json::ValueType::stringValue: return "String";
-		case Json::ValueType::uintValue: return "Unsigned Integer";
-		default: return "Undefined";
+	bool Holder::PreloadConfigs() {
+		Release();
+
+		std::string jsonFolder = fmt::format(R"(.\Data\SKSE\Plugins\{})"sv, Plugin::NAME);
+		logger::info("  >Settings folder: {}."sv, jsonFolder);
+		if (!std::filesystem::exists(jsonFolder)) {
+			logger::info("    >No settings folder found."sv);
+			return true;
+		}
+
+		std::vector<std::string> paths{};
+		try {
+			for (const auto& entry : std::filesystem::directory_iterator(jsonFolder)) {
+				if (entry.is_regular_file() && entry.path().extension() == ".json") {
+					paths.push_back(entry.path().string());
+				}
+			}
+
+			std::sort(paths.begin(), paths.end());
+			logger::info("    >Found {} configuration files."sv, std::to_string(paths.size()));
+		}
+		catch (const std::exception& e) {
+			logger::warn("Caught {} while reading files."sv, e.what());
+			return false;
+		}
+
+		if (paths.empty()) {
+			logger::info("    >No settings found"sv);
+			return true;
+		}
+
+		bool success = true;
+		for (const auto& path : paths) {
+			auto configName = path.substr(jsonFolder.size() + 1, path.size() - 1);
+			logger::info("    >Reading config {}..."sv, configName);
+			Json::CharReaderBuilder builder;
+			builder["collectComments"] = false;
+
+			_currentStatus = ConfigStatus();
+			try {
+				std::ifstream rawJSON(path);
+				if (!rawJSON.is_open()) {
+					logger::error("      >Failed to open: {}"sv, path);
+					success = false;
+					continue;
+				}
+
+				std::string errs;
+				Json::Value JSONFile;
+				if (!Json::parseFromStream(builder, rawJSON, &JSONFile, &errs)) {
+					logger::error("      >Failed to parse {}: {}", path, errs);
+					success = false;
+					continue;
+				}
+
+				if (JSONFile.isObject() || JSONFile.isArray()) {
+					CanonicalizeObject(JSONFile, configName);
+				}
+
+				if (_currentStatus.IsValid()) {
+					_configs.emplace(configName, std::move(JSONFile));
+				}
+				else {
+					success = false;
+					_errors.emplace(configName, _currentStatus);
+				}
+			}
+			catch (const std::exception& e) {
+				logger::warn("Caught {} while reading files.", e.what());
+				success = false;
+				continue;
+			}
+		}
+
+		logger::info("Finished reading all settings."sv);
+		return success;
+	}
+
+	void Holder::Release() {
+		_errors.clear();
+		_configs.clear();
+		_currentStatus = ConfigStatus();
+	}
+
+	void Holder::LogErrors() const {
+		logger::error("Finished preloading JSON settings. Found {} problematic configs:", _errors.size());
+		for (const auto& [config, error] : _errors) {
+			logger::error("  >{}"sv, config);
+			if (!error.deeplyNestedObjects.empty()) {
+				logger::error("    The following fields were nested too deeply:"sv);
+				for (const auto& instance : error.deeplyNestedObjects) {
+					logger::error("      - {}"sv, instance);
+				}
+			}
+			if (!error.duplicateKeys.empty()) {
+				logger::error("    The following fields were defined multiple times:"sv);
+				for (const auto& instance : error.duplicateKeys) {
+					logger::error("      - {}"sv, instance);
+				}
+			}
+			if (!error.emptyObjects.empty()) {
+				logger::error("    The following fields were empty:"sv);
+				for (const auto& instance : error.emptyObjects) {
+					logger::error("      - {}"sv, instance);
+				}
+			}
 		}
 	}
 
-    void ConfigHolder::AddFailedConfig(const std::string& configName, FormatErrors& a_reason) {
-        FailedConfig failure = FailedConfig(a_reason, configName);
-        failedConfigs.emplace_back(std::move(failure));
-    }
+	Holder::StringMap Holder::GatherData(const Json::Value& a_obj, const std::string& a_path) {
+		StringMap mappings;
 
-    void ConfigHolder::AddGoodConfig(const std::string& a_configName, Json::Value a_value) {
-        // Legacy - Format used to be Object -> Rules (Key) -> Array
-        if (a_value.isObject() && a_value.isMember("rules")) {
-            auto& rulesField = a_value["rules"];
-            // Non-array rules field will be caught later.
-            if (rulesField.isArray()) {
-                a_value = std::move(rulesField);
-            }
-        }
-        configs.emplace(a_configName, std::move(a_value));
-    }
+		auto members = a_obj.getMemberNames();
+		auto compositePath = a_path;
+		auto trimTo = compositePath.size();
+		std::unordered_set<std::string> seen;
+		std::unordered_set<std::string> clearFromMappings;
 
-    void ConfigHolder::Report() const
-    {
-        if (configs.empty()) {
-            logger::info("  No configs loaded."sv);
-        }
-        else {
-            logger::info("  Successfully parsed:"sv);
-            for (const auto& [config, value] : configs) {
-                (void)value;
-                logger::info("    >{}"sv, config);
-            }
-        }
-        if (!failedConfigs.empty()) {
-            if (failedConfigs.size() > 1) {
-                logger::error("  Some configs failed to load:");
-            }
-            else {
-                logger::error("  This config failed to load:");
-            }
-            for (const auto& failure : failedConfigs) {
-                failure.PrintReason();
-            }
-        }
-    }
+		for (const auto& key : members) {
+			auto lower = clib_util::string::tolower(key);
+			if (seen.contains(lower)) {
+				compositePath.push_back('|');
+				compositePath += key;
+				_currentStatus.duplicateKeys.push_back(compositePath);
+				compositePath.resize(trimTo);
 
-    void ConfigHolder::Clear() {
-        failedConfigs.clear();
-		configs.clear();
-    }
+				for (auto it = mappings.begin(); it != mappings.end(); ++it) {
+					const auto& [previousKey, previousLower] = *it;
+					if (lower != previousLower) {
+						continue;
+					}
+					clearFromMappings.insert(previousKey);
+					break;
+				}
+				continue;
+			}
 
-    const std::map<std::string, Json::Value>& ConfigHolder::GetConfigs() const {
-        return configs;
-    }
+			const auto& val = a_obj[key];
+			if ((val.isArray() || val.isObject()) && val.empty()) {
+				compositePath.push_back('|');
+				compositePath += key;
+				_currentStatus.emptyObjects.push_back(compositePath);
+				compositePath.resize(trimTo);
+				continue;
+			}
+
+			seen.insert(lower);
+			mappings.emplace(key, lower);
+		}
+
+		if (!clearFromMappings.empty()) {
+			for (const auto& toClear : clearFromMappings) {
+				mappings.erase(toClear);
+			}
+		}
+		return mappings;
+	}
+
+	void Holder::ShallowCanonicalization(Json::Value& a_obj, const StringMap& a_mappings) {
+		for (const auto& [key, lowercase] : a_mappings) {
+			if (key == lowercase) {
+				continue;
+			}
+			a_obj[lowercase] = std::move(a_obj[key]);
+			a_obj.removeMember(key);
+		}
+	}
+
+	void Holder::CanonicalizeObject(Json::Value& a_obj, std::string& a_path, std::size_t a_depth) {
+		assert(a_obj.isObject() || a_obj.isArray());
+		assert(!a_obj.empty());
+
+		if (a_depth > RECURSION_LIMIT) {
+			_currentStatus.deeplyNestedObjects.push_back(a_path);
+			return;
+		}
+
+		auto trimTo = a_path.size();
+		if (a_obj.isArray()) {
+			a_path.push_back('[');
+			auto arrayTrimTo = trimTo + 1u;
+			for (Json::Value::ArrayIndex i = 0u; i < a_obj.size(); ++i) {
+				auto& val = a_obj[i];
+				if (!val.isObject() && !val.isArray()) {
+					continue;
+				}
+
+				a_path += std::to_string(i);
+				a_path.push_back(']');
+				if (val.empty()) {
+					_currentStatus.emptyObjects.push_back(a_path);
+				}
+				else {
+					CanonicalizeObject(val, a_path, a_depth + 1u);
+				}
+				a_path.resize(arrayTrimTo);
+			}
+			a_path.resize(trimTo);
+			return;
+		}
+
+		auto mappings = GatherData(a_obj, a_path);
+		if (mappings.empty()) {
+			return;
+		}
+		ShallowCanonicalization(a_obj, mappings);
+
+		for (const auto& pair : mappings) {
+			const auto& lowerKey = pair.second;
+
+			auto& val = a_obj[lowerKey];
+			if (!val.isObject() && !val.isArray()) {
+				continue;
+			}
+			assert(!val.empty());
+			a_path.push_back('|');
+			a_path += lowerKey;
+			CanonicalizeObject(val, a_path, a_depth + 1u);
+			a_path.resize(trimTo);
+		}
+	}
+
+	bool Holder::ParseConfigObject(const Json::Value& a_rawRule, const std::string& a_path) {
+		return true;
+	}
+
+	bool Holder::ParseOutdatedConfig(const Json::Value& a_RulesArray, const std::string& a_name) {
+		return true;
+	}
+
+	bool Preload() {
+		logger::info("Preloading JSON settings..."sv);
+		auto* manager = Holder::GetSingleton();
+		if (!manager) {
+			logger::error("  >Failed to fetch internal JSON settings holder."sv);
+			return false;
+		}
+		if (!manager->PreloadConfigs()) {
+			manager->LogErrors();
+			return false;
+		}
+		logger::info("Finished preloading JSON settings."sv);
+		return true;
+	}
 }

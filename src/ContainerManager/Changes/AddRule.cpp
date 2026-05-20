@@ -127,19 +127,6 @@ namespace ContainerManager::Changes
 	}
 
 	std::expected<AddChange, AddChangeFailure> CreateAddRule(const Json::Value& a_add, bool a_hasCount, const Json::Value& a_count) {
-		std::vector<std::string> forms;
-		if (addMember.isArray() || addMember.isString()) {
-			auto parseResult = Settings::JSON::LoadFormStrings(addMember, forms);
-			switch (parseResult) {
-			case Settings::JSON::JsonParseResult::NonHomogenousArray:
-				error.FlagMixedArray();
-				break;
-			default:
-				break;
-			}
-		}
-		else {
-			error.FlagAddField(Settings::JSON::GetFieldType(addMember));
-		}
+		return AddChange();
 	}
 }

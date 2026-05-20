@@ -49,7 +49,7 @@ namespace ContainerManager
 			std::string text{ ""sv };
 		};
 
-		class AVConditionError : public Failure
+		class AVConditionError : public ParseFailure
 		{
 		public:
 			bool empty{ false };
