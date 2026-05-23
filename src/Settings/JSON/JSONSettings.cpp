@@ -2,35 +2,7 @@
 
 namespace Settings::JSON
 {
-	bool Holder::ParseConfigs() {
-		bool parseSucceeded = true;
-		for (const auto& [name, config] : _configs) {
-			// Guaranteed that this is either an Object or an Array
-			// Previous versions used { "Rules": [ ... ] } as the root.
-			if (config.isObject()) {
-				const auto& rulesField = config[TOP_LEVEL_RULES_FIELD.data()];
-				if (rulesField && rulesField.isArray()) {
-					parseSucceeded &= ParseOutdatedConfig(rulesField, name);
-				}
-				else {
-					parseSucceeded &= ParseConfigObject(config, name);
-				}
-			}
-			else if (config.isArray()) {
-				auto trimTo = name.size();
-				std::string nameOverride = name;
-				for (Json::Value::ArrayIndex i = 0u; config.size(); ++i) {
-					const auto& arrayElement = config[i];
-					nameOverride = nameOverride.substr(trimTo);
-					nameOverride = "[" + std::to_string(i) + "]";
-					parseSucceeded &= ParseConfigObject(arrayElement, nameOverride);
-				}
-			}
-		}
-		return parseSucceeded;
-	}
-
-	bool Holder::PreloadConfigs() {
+	bool Holder::Load() {
 		Release();
 
 		std::string jsonFolder = fmt::format(R"(.\Data\SKSE\Plugins\{})"sv, Plugin::NAME);
@@ -252,14 +224,6 @@ namespace Settings::JSON
 		}
 	}
 
-	bool Holder::ParseConfigObject(const Json::Value& a_rawRule, const std::string& a_path) {
-		return true;
-	}
-
-	bool Holder::ParseOutdatedConfig(const Json::Value& a_RulesArray, const std::string& a_name) {
-		return true;
-	}
-
 	bool Preload() {
 		logger::info("Preloading JSON settings..."sv);
 		auto* manager = Holder::GetSingleton();
@@ -267,7 +231,7 @@ namespace Settings::JSON
 			logger::error("  >Failed to fetch internal JSON settings holder."sv);
 			return false;
 		}
-		if (!manager->PreloadConfigs()) {
+		if (!manager->Load()) {
 			manager->LogErrors();
 			return false;
 		}

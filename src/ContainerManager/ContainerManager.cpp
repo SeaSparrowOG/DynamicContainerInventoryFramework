@@ -3,10 +3,13 @@
 namespace ContainerManager
 {
 	void InventorySwapper::Report() const {
-		logger::info("Parsing finished."sv);
 		if (!parseErrors.empty()) {
-			logger::error("  The following errors occured:"sv);
+			auto currErrType = FailureType::None;
 			for (const auto& error : parseErrors) {
+				if (error->GetType() != currErrType) {
+					currErrType = error->GetType();
+					error->Preamble("    ");
+				}
 				error->Report("    ");
 			}
 			logger::error("  ----"sv);
@@ -47,7 +50,11 @@ namespace ContainerManager
 	}
 
 	void InventorySwapper::RegisterFailure(std::unique_ptr<ParseFailure> a_failure) {
-		parseErrors.emplace_back(std::move(a_failure));
+		auto errType = a_failure->GetType();
+		auto last = std::find_if(parseErrors.begin(), parseErrors.end(), [type = errType](const auto& element) {
+			return element->GetType() > type;
+			});
+		parseErrors.emplace(last, std::move(a_failure));
 	}
 
 	std::size_t InventorySwapper::RegisterCondition(std::unique_ptr<Condition> a_condition) {
@@ -94,7 +101,7 @@ namespace ContainerManager
 	}
 
 	void Change::DefineConditions(const std::vector<std::size_t>& a_ids) {
-		ids = std::move(a_ids);
+		ids = a_ids;
 	}
 
 	void PrintSwaps() {

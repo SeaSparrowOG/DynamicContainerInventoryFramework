@@ -48,15 +48,78 @@ namespace ContainerManager
         std::vector<std::size_t> ids{};
     };
 
+    enum class FailureType
+    {
+        None,
+        UnknownField,
+        MissingField
+    };
+
     class ParseFailure
     {
     public:
         virtual bool Recoverable() const { return recoverable; };
         virtual void Report(const std::string& a_prefix) const = 0;
+        virtual void Preamble(const std::string& a_prefix) const = 0;
+        virtual FailureType GetType() const { return type; };
+
         virtual ~ParseFailure() = default;
 
     protected:
         bool recoverable{ true };
+        FailureType type{ FailureType::None };
+    };
+
+    class UnknownFieldFailure : public ParseFailure
+    {
+    public:
+        virtual void Report(const std::string& a_prefix) const override {
+            for (const auto& unknown : _unknownFields) {
+                logger::error("{}    - {}"sv, a_prefix, unknown);
+            }
+        }
+
+        virtual void Preamble(const std::string& a_prefix) const override {
+            logger::error("{}  The following fields were present in the config, but were not recognized:"sv, a_prefix);
+        }
+
+        void AddUnknownField(const std::string& a_path) { _unknownFields.emplace_back(fmt::format("{}|{}"sv, _root, a_path)); }
+        UnknownFieldFailure(const std::string& path) :
+            _root{ path }
+        {
+            recoverable = false;
+            type = FailureType::UnknownField;
+        }
+
+    private:
+        std::string              _root = {};
+        std::vector<std::string> _unknownFields = {};
+    };
+
+    class MissingFieldFailure : public ParseFailure
+    {
+    public:
+        virtual void Report(const std::string& a_prefix) const override {
+            for (const auto& missing : _missingFields) {
+                logger::error("{}    - {}"sv, a_prefix, missing);
+            }
+        }
+
+        virtual void Preamble(const std::string& a_prefix) const override {
+            logger::error("{}  There are missing fields for this config. At least one of these were expected:"sv, a_prefix);
+        }
+
+        void AddMissingField(const std::string& a_path) { _missingFields.emplace_back(fmt::format("{}|{}"sv, _root, a_path)); }
+        MissingFieldFailure(const std::string& path) :
+            _root{ path }
+        { 
+            recoverable = false;
+            type = FailureType::MissingField;
+        }
+
+    private:
+        std::string              _root = {};
+        std::vector<std::string> _missingFields = {};
     };
 
     class InventorySwapper : public REX::Singleton<InventorySwapper>

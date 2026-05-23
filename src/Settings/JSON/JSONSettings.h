@@ -11,8 +11,8 @@ namespace Settings
 		public:
 			using ConfigMap = std::map<std::string, Json::Value>;
 
-			[[nodiscard]] bool ParseConfigs();
-			[[nodiscard]] bool PreloadConfigs();
+			[[nodiscard]] bool Load();
+			const ConfigMap& GetConfigs() const { return _configs; }
 
 			void Release();
 			void LogErrors() const;
@@ -38,11 +38,7 @@ namespace Settings
 			void               ShallowCanonicalization(Json::Value& a_obj, const StringMap& a_mappings);
 			void               CanonicalizeObject(Json::Value& a_obj, std::string& a_path, std::size_t a_depth = 0u);
 
-			[[nodiscard]] bool ParseConfigObject(const Json::Value& a_rawRule, const std::string& a_path);
-			[[nodiscard]] bool ParseOutdatedConfig(const Json::Value& a_RulesArray, const std::string& a_name);
-
 			inline static constexpr std::size_t RECURSION_LIMIT = 16u;
-			inline static constexpr std::string_view TOP_LEVEL_RULES_FIELD = "rules"sv;
 		};
 	}
 }

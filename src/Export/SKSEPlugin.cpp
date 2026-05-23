@@ -4,6 +4,7 @@
 #include "Serialization/Serde.h"
 #include "Settings/INI/INISettings.h"
 #include "Settings/JSON/JSONSettings.h"
+#include "Settings/JSON/RuleBuilder.h"
 
 static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 {
@@ -16,7 +17,13 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 	case SKSE::MessagingInterface::kDataLoaded:
 		SECTION_SEPARATOR;
 		if (!Data::PreloadModObjects()) {
-			SKSE::stl::report_and_fail("Failed to preload mod objects. Check the log for more information."sv);
+			SKSE::stl::report_and_fail("Failed to preload mod objects. Check the log (Documents/My Games/Skyrim Special Edition/ContainerDistributionFramework.log) for more information."sv);
+		}
+		SECTION_SEPARATOR;
+		if (!Settings::JSON::ParseSuccessfulConfigs()) {
+#ifdef NDEBUG
+			SKSE::stl::report_and_fail("Failed to parse configuration settings. Check the log (Documents/My Games/Skyrim Special Edition/ContainerDistributionFramework.log) for more information."sv);
+#endif
 		}
 		SECTION_SEPARATOR;
 		jsonHolder->Release();
@@ -82,11 +89,11 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface * a_
 	logger::info("Performing startup tasks..."sv);
 
 	if (!Settings::INI::Read()) {
-		SKSE::stl::report_and_fail("Failed to load INI settings. Check the log for more information."sv);
+		SKSE::stl::report_and_fail("Failed to load INI settings. Check the log (Documents/My Games/Skyrim Special Edition/ContainerDistributionFramework.log) for more information."sv);
 	}
 	SECTION_SEPARATOR;
 	if (!Hooks::Install()) {
-		SKSE::stl::report_and_fail("Failed to install hooks. Check the log for more information."sv);
+		SKSE::stl::report_and_fail("Failed to install hooks. Check the log (Documents/My Games/Skyrim Special Edition/ContainerDistributionFramework.log) for more information."sv);
 	}
 	SECTION_SEPARATOR;
 
