@@ -8,7 +8,7 @@ endif()
 # -------- Project ----------
 project(
 	ContainerDistributionFramework
-	VERSION 3.0.3
+	VERSION 4.0.0
 	LANGUAGES CXX
 )
 
@@ -68,6 +68,38 @@ set_target_properties(CommonLibSSE PROPERTIES
 	FOLDER External
 )
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
+
+if (MSVC)
+	target_compile_options(
+		${PROJECT_NAME}
+		PRIVATE
+			/sdl                    # Enable Additional Security Checks
+			/utf-8                  # Set Source and Executable character sets to UTF-8
+			/Zi                     # Debug Information Format
+
+			/permissive-            # Standards conformance
+			/Zc:preprocessor        # Enable preprocessor conformance mode
+			/Zc:__cplusplus
+			
+			/wd4200                 # nonstandard extension used : zero-sized array in struct/union
+			/W4                     # More warnings 
+			/external:anglebrackets # Ignore warnings for external resources.
+			/external:W0            # Same as above
+			
+			"$<$<CONFIG:DEBUG>:>"
+			"$<$<CONFIG:RELEASE>:/WX;/Zc:inline;/JMC-;/Ob3>"
+	)
+
+	target_link_options(
+		${PROJECT_NAME}
+		PRIVATE
+			"$<$<CONFIG:DEBUG>:/INCREMENTAL;/OPT:NOREF;/OPT:NOICF>"
+			"$<$<CONFIG:RELEASE>:/INCREMENTAL:NO;/OPT:REF;/OPT:ICF;/DEBUG:FULL>"
+	)
+endif ()
+
 set(DATA_DIR "${PROJECT_SOURCE_DIR}/Data")
 set(SKSE_DIR "${DATA_DIR}/SKSE")
 set(SKSE_PLUGINS_DIR "${SKSE_DIR}/Plugins")
@@ -105,9 +137,6 @@ endif()
 
 # ---- Compile Papyrus Scripts and Pack Into Archive ----
 include(Papyrus)
-include(BSArchive)
-
-set(COPY_BSA OFF)
 set(COPY_SCRIPTS  OFF)
 
 if(EXISTS "${PAPYRUS_SOURCE_DIR}" AND IS_DIRECTORY "${Skyrim64Path}")
@@ -124,18 +153,8 @@ if(EXISTS "${PAPYRUS_SOURCE_DIR}" AND IS_DIRECTORY "${Skyrim64Path}")
 		SOURCES ${${PROJECT_NAME}_SOURCES}
 		OPTIMIZE ANONYMIZE
 	)
-
-	BSArchive_Add(
-		"BSA"
-		OUTPUT "${PROJECT_NAME}.bsa"
-		FORMAT SSE
-		FILES ${Papyrus_OUTPUT}
-	)
 	
 	set(COPY_SCRIPTS ON)
-	if(FULL_RELEASE)
-		set(COPY_BSA ON)
-	endif()
 	
 elseif(EXISTS "${PAPYRUS_SOURCE_DIR}" AND NOT IS_DIRECTORY "${Skyrim64Path}")
 	message(STATUS "Scripts exist in the Data directory, but Skyrim's path was not found, compilation will be skipped.")
@@ -174,17 +193,6 @@ if(DEFINED OUTPUT_FOLDER)
 				-DOUTPUT_FOLDER=${OUTPUT_FOLDER}
 				-P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Scripts.cmake"
 		)
-
-		if(COPY_BSA)
-			list(APPEND POST_BUILD_COMMANDS
-				COMMAND "${CMAKE_COMMAND}"
-					-DSRC_DIR=${DATA_DIR}
-					-DDST_DIR=${OUTPUT_FOLDER}
-					-DPROJECT_NAME=${PROJECT_NAME}
-					-DBINARY_DIR=${CMAKE_BINARY_DIR}
-					-P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Archive.cmake"
-			)
-		endif()
 	endif()
 	
 	
@@ -193,7 +201,6 @@ if(DEFINED OUTPUT_FOLDER)
 	message(STATUS "Skyrim64Path      = ${Skyrim64Path}")
 	message(STATUS "OUTPUT_FOLDER     = ${OUTPUT_FOLDER}")
 	message(STATUS "COPY_SCRIPTS      = ${COPY_SCRIPTS}")
-	message(STATUS "COPY_BSA          = ${COPY_BSA}")
 	message(STATUS "=============================")
 
 	add_custom_command(
