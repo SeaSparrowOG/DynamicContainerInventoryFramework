@@ -44,7 +44,16 @@ namespace ContainerManager
         virtual ChangeType GetType() const { return ChangeType::Invalid; }
         virtual void Report(const std::string& a_prefix) const = 0;
 
+        void SetOnlyVendors(bool allow) { _onlyVendors = allow; };
+        void SetAllowVendors(bool allow) { _allowVendors = allow; };
+        void SetAllowNoReset(bool allow) { _allowNoReset = allow; };
+        void SetRandomAdd(bool allow) { _emulateRandomAdd = allow; };
+
     protected:
+        bool                     _onlyVendors = false;
+        bool                     _allowVendors = false;
+        bool                     _allowNoReset = false;
+        bool                     _emulateRandomAdd = false;
         std::vector<std::size_t> ids{};
     };
 
@@ -52,7 +61,8 @@ namespace ContainerManager
     {
         None,
         UnknownField,
-        MissingField
+        MissingField,
+        InvalidFieldType
     };
 
     class ParseFailure
@@ -112,7 +122,7 @@ namespace ContainerManager
         void AddMissingField(const std::string& a_path) { _missingFields.emplace_back(fmt::format("{}|{}"sv, _root, a_path)); }
         MissingFieldFailure(const std::string& path) :
             _root{ path }
-        { 
+        {
             recoverable = false;
             type = FailureType::MissingField;
         }
@@ -120,6 +130,32 @@ namespace ContainerManager
     private:
         std::string              _root = {};
         std::vector<std::string> _missingFields = {};
+    };
+
+    class InvalidFieldTypeFailure : public ParseFailure
+    {
+    public:
+        virtual void Report(const std::string& a_prefix) const override {
+            for (const auto& missing : _invalidField) {
+                logger::error("{}    - {}"sv, a_prefix, missing);
+            }
+        }
+
+        virtual void Preamble(const std::string& a_prefix) const override {
+            logger::error("{}  Some fields did not resolve to their expected type:"sv, a_prefix);
+        }
+
+        void AddInvalidField(const std::string& a_path) { _invalidField.emplace_back(fmt::format("{}|{}"sv, _root, a_path)); }
+        InvalidFieldTypeFailure(const std::string& path) :
+            _root{ path }
+        {
+            recoverable = false;
+            type = FailureType::InvalidFieldType;
+        }
+
+    private:
+        std::string              _root = {};
+        std::vector<std::string> _invalidField = {};
     };
 
     class InventorySwapper : public REX::Singleton<InventorySwapper>

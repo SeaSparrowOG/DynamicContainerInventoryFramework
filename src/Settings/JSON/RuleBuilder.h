@@ -29,6 +29,11 @@ namespace Settings
 			std::vector<Condition>    _conditions{};
 			std::vector<ParseFailure> _failures{};
 
+			/*
+			* --------------------------
+			*	Top Level Fields:
+			* --------------------------
+			*/
 			std::string RULE_CHANGES = "changes";
 			std::string RULE_CONDITIONS = "conditions";
 			std::string RULE_FRIENDLY_NAME = "friendlyname";
@@ -38,6 +43,40 @@ namespace Settings
 				RULE_CONDITIONS,
 				RULE_FRIENDLY_NAME
 			};
+
+			/*
+			* --------------------------
+			*	Special Condition Flags:
+			* --------------------------
+			*/
+			bool        _onlyVendors = false;
+			std::string CONDITIONS_ONLY_VENDORS = "onlyvendors";
+			bool        _allowVendors = false;
+			std::string CONDITIONS_ALLOW_VENDORS = "allowvendors";
+			bool        _randomAdd = false;
+			std::string CONDITIONS_RANDOM_ADD = "randomadd";
+			bool        _allowNoReset = false;
+			std::string CONDITIONS_ALLOW_NO_RESET = "allownoreset";
+			std::string CONDITIONS_ALLOW_NO_RESET_OLD = "bypassunsafecontainers";
+
+			std::unordered_set<std::string> _knownConditionFields = {
+				CONDITIONS_ONLY_VENDORS,
+				CONDITIONS_ALLOW_VENDORS,
+				CONDITIONS_RANDOM_ADD,
+				CONDITIONS_ALLOW_NO_RESET,
+				CONDITIONS_ALLOW_NO_RESET_OLD
+			};
+
+			/*
+			* ---------------------------
+			*	Failures
+			* ---------------------------
+			*/
+			ContainerManager::UnknownFieldFailure     _unknownFields = _configName;
+			ContainerManager::MissingFieldFailure     _missingFields = _configName;
+			ContainerManager::InvalidFieldTypeFailure _invalidFields = _configName;
+
+			[[nodiscard]] bool ParseChanges(const Json::Value& changes);
 		};
 
 		inline static constexpr std::string_view TOP_LEVEL_RULES = "rules"sv;

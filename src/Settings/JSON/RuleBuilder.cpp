@@ -6,38 +6,117 @@
 namespace Settings::JSON
 {
 	bool RuleParser::BuildRule() {
-		// Guaranteed to be an (non-empty) Object. 
-		auto members = _rule.getMemberNames();
-
-		// Log unrecognizeable fields:
 		bool hasUnknown = false;
-		auto unknownFieldsFailure = ContainerManager::UnknownFieldFailure(_configName);
-		std::vector<std::string> unknownFields;
+		bool hasMissing = false;
+		bool hasInvalid = false;
+
+		auto members = _rule.getMemberNames();
 		for (const auto& member : members) {
 			if (!_knownFields.contains(member)) {
-				unknownFieldsFailure.AddUnknownField(member);
+				_unknownFields.AddUnknownField(member);
 				hasUnknown = true;
 			}
 		}
-		if (hasUnknown) {
-			std::unique_ptr<ContainerManager::ParseFailure> failure = 
-				std::make_unique<ContainerManager::UnknownFieldFailure>(unknownFieldsFailure);
-			_failures.emplace_back(std::move(failure));
-		}
 
-		// Log missing fields:
-		bool hasMissing = false;
-		auto missingFieldFailure = ContainerManager::MissingFieldFailure(_configName);
 		const auto& changes = _rule[RULE_CHANGES];
 		if (!changes) {
-			missingFieldFailure.AddMissingField(RULE_CHANGES);
-		}
-		if (hasMissing) {
-			std::unique_ptr<ContainerManager::ParseFailure> failure = 
-				std::make_unique<ContainerManager::MissingFieldFailure>(missingFieldFailure);
-			_failures.emplace_back(std::move(failure));
+			hasMissing = true;
+			_missingFields.AddMissingField(RULE_CHANGES);
 		}
 
+		const auto& conditions = _rule[RULE_CONDITIONS];
+		if (conditions) {
+			if (!conditions.isObject()) {
+				hasInvalid = true;
+				_invalidFields.AddInvalidField(RULE_CONDITIONS);
+				goto ConditionsEnd;
+			}
+
+			members = conditions.getMemberNames();
+			for (const auto& member : members) {
+				if (!_knownConditionFields.contains(member)) {
+					_unknownFields.AddUnknownField(member);
+					hasUnknown = true;
+				}
+			}
+
+			const auto& allowVendorsField = conditions[CONDITIONS_ALLOW_VENDORS];
+			const auto& onlyVendorsField = conditions[CONDITIONS_ONLY_VENDORS];
+			const auto& randomAddField = conditions[CONDITIONS_RANDOM_ADD];
+			const auto& allowNoResetField = conditions[CONDITIONS_ALLOW_NO_RESET];
+			const auto& bypassUnsafeContainersField = conditions[CONDITIONS_ALLOW_NO_RESET_OLD];
+			
+			if (allowVendorsField) {
+				if (!allowVendorsField.isBool()) {
+					hasInvalid = true;
+					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_VENDORS;
+					_invalidFields.AddInvalidField(erroredField);
+					goto CheckOnlyVendors;
+				}
+				_allowVendors = allowVendorsField.asBool();
+			}
+		CheckOnlyVendors:
+			if (onlyVendorsField) {
+				if (!onlyVendorsField.isBool()) {
+					hasInvalid = true;
+					std::string erroredField = _configName + "|" + CONDITIONS_ONLY_VENDORS;
+					_invalidFields.AddInvalidField(erroredField);
+					goto CheckRandomAdd;
+				}
+				bool doOnlyVendors = onlyVendorsField.asBool();
+				if (doOnlyVendors) {
+					_allowVendors = true;
+					_onlyVendors = true;
+				}
+			}
+		CheckRandomAdd:
+			if (randomAddField) {
+				if (!randomAddField.isBool()) {
+					hasInvalid = true;
+					std::string erroredField = _configName + "|" + CONDITIONS_RANDOM_ADD;
+					_invalidFields.AddInvalidField(erroredField);
+					goto CheckNoReset;
+				}
+				_randomAdd = randomAddField.asBool();
+			}
+		CheckNoReset:
+			if (allowNoResetField) {
+				if (!allowNoResetField.isBool()) {
+					hasInvalid = true;
+					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_NO_RESET;
+					_invalidFields.AddInvalidField(erroredField);
+					goto CheckNoReset;
+				}
+				_allowNoReset = allowNoResetField.asBool();
+			}
+			else if (bypassUnsafeContainersField) {
+				if (!bypassUnsafeContainersField.isBool()) {
+					hasInvalid = true;
+					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_NO_RESET_OLD;
+					_invalidFields.AddInvalidField(erroredField);
+					goto CheckNoReset;
+				}
+				_allowNoReset = bypassUnsafeContainersField.asBool();
+			}
+		}
+
+	ConditionsEnd:
+
+		if (hasInvalid) {
+			std::unique_ptr<ContainerManager::ParseFailure> failure =
+				std::make_unique<ContainerManager::InvalidFieldTypeFailure>(_invalidFields);
+			_failures.emplace_back(std::move(failure));
+		}
+		if (hasMissing) {
+			std::unique_ptr<ContainerManager::ParseFailure> failure =
+				std::make_unique<ContainerManager::MissingFieldFailure>(_missingFields);
+			_failures.emplace_back(std::move(failure));
+		}
+		if (hasUnknown) {
+			std::unique_ptr<ContainerManager::ParseFailure> failure =
+				std::make_unique<ContainerManager::UnknownFieldFailure>(_unknownFields);
+			_failures.emplace_back(std::move(failure));
+		}
 
 		if (!_failures.empty()) {
 			for (const auto& failure : _failures) {
@@ -75,6 +154,10 @@ namespace Settings::JSON
 		// changes guaranteed not empty
 		for (auto& change : _changes) {
 			change->DefineConditions(conditionIDs);
+			change->SetAllowNoReset(_allowNoReset);
+			change->SetAllowVendors(_allowVendors);
+			change->SetOnlyVendors(_onlyVendors);
+			change->SetRandomAdd(_randomAdd);
 			containerManager->RegisterChange(std::move(change));
 		}
 
