@@ -57,7 +57,7 @@
         "!PlayerSkills": "OneHanded|100.0",
         "PlayerSkills": [
           {
-            "IsOr": true,
+            "IsOr": "true",
             "Data": [ "Conjuration|50.0", "Illusion|28.0" ]
           },
           {

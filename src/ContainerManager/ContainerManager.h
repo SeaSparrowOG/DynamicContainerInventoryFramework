@@ -78,7 +78,7 @@ namespace ContainerManager
         virtual ~ParseFailure() = default;
 
     protected:
-        bool recoverable{ true };
+        bool recoverable{ false };
         FailureType type{ FailureType::None };
     };
 

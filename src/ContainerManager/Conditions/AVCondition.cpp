@@ -43,7 +43,6 @@ namespace ContainerManager::Conditions
         }
         auto parsed = GetAVFromString(parts[0]);
         if (!parsed) {
-            logger::warn("Failed to resolve {}!"sv, parts[0]);
             return std::nullopt;
         }
         result.val = parsed.value();
@@ -121,7 +120,7 @@ namespace ContainerManager::Conditions
                     }
                     else {
                         success = false;
-                        auto typeStr = GetJSONTypeAsString(from);
+                        auto typeStr = GetJSONTypeAsString(complexMember);
                         failure.AddWrongComplexMemberType(path, "Boolean", typeStr);
                     }
                 }
@@ -134,7 +133,6 @@ namespace ContainerManager::Conditions
                             if (arrMember.isString()) {
                                 auto parsed = ParseAVData(arrMember.asString(), path, failure);
                                 if (!parsed) {
-                                    LOG_DEBUG("Error Here"sv);
                                     success = false;
                                 }
                                 else {
@@ -159,13 +157,13 @@ namespace ContainerManager::Conditions
                     }
                     else {
                         success = false;
-                        auto typeStr = GetJSONTypeAsString(from);
+                        auto typeStr = GetJSONTypeAsString(complexMember);
                         failure.AddWrongComplexMemberType(path, "String or Array", typeStr);
                     }
                 }
                 else {
                     success = false;
-                    auto typeStr = GetJSONTypeAsString(from);
+                    auto typeStr = GetJSONTypeAsString(complexMember);
                     failure.AddUnknownComplexMemberType(path, typeStr);
                 }
                 path.resize(trimTo);
@@ -239,7 +237,7 @@ namespace ContainerManager::Conditions
     }
 
     void AVConditionFailure::AddWrongComplexMemberType(const std::string& path, const std::string& expected, const std::string& receivedType) {
-        auto result = fmt::format("{} is of type {}, but expected {}.", path, expected, receivedType);
+        auto result = fmt::format("{} is of type {}, but expected {}.", path, receivedType, expected);
         _wrongComplexMemberTypes.emplace_back(std::move(result));
     }
 
