@@ -67,9 +67,7 @@ namespace ContainerManager
 			void PrintCondition(const std::string& a_pref) const override;
 
 			void AppendCondition(Required& individualData);
-			void SetInverted(bool inverted) { _inverted = inverted; }
 		private:
-			bool                  _inverted = false;
 			std::vector<Required> _data;
 		};
 

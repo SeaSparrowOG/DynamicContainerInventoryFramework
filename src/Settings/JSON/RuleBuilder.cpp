@@ -2,6 +2,7 @@
 
 #include "ContainerManager/Conditions/AVCondition.h"
 #include "ContainerManager/Conditions/BaseFormCondition.h"
+#include "ContainerManager/Conditions/GlobalCondition.h"
 #include "Settings/JSON/JSONSettings.h"
 
 namespace Settings::JSON
@@ -132,6 +133,17 @@ namespace Settings::JSON
 					}
 					else {
 						condition = std::make_unique<ContainerManager::Conditions::BaseFormCondition>(generationResult.value());
+					}
+				}
+				else if (member == GLOBALS_CONDITION) {
+					auto generationResult = ContainerManager::Conditions::CreateGlobCondition(generateFrom, path, inverted);
+					if (!generationResult) {
+						std::unique_ptr<ContainerManager::ParseFailure> failure =
+							std::make_unique<ContainerManager::Conditions::GlobConditionFailure>(generationResult.error());
+						_failures.emplace_back(std::move(failure));
+					}
+					else {
+						condition = std::make_unique<ContainerManager::Conditions::GlobCondition>(generationResult.value());
 					}
 				}
 				path.resize(trimTo);

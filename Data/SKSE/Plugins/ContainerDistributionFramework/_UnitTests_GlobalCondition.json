@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "FriendlyName": "AV Condition Unit Test - Min and Max",
+      "Conditions": {
+        "Globals": "GameHour|100.0|50.0"
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    }
+  ]
+}

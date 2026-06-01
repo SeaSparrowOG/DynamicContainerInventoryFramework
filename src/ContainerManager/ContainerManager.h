@@ -70,7 +70,8 @@ namespace ContainerManager
         InvalidFieldType,
 
         AVCondition,
-        BaseFormCondition
+        BaseFormCondition,
+        GlobCondition
     };
 
     class ParseFailure
@@ -306,9 +307,9 @@ namespace ContainerManager
                     return response;
                 }
             }
-            form = RE::TESForm::LookupByEditorID<RE::TESForm>(a_str);
+            form = RE::TESForm::LookupByEditorID(a_str);
             if (!form) {
-                response.value = nullptr;
+                response.status = QueryResult::FormNotInFile;
                 return response;
             }
             castForm = form->As<T>();
