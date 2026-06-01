@@ -9,10 +9,11 @@
     "clib-util",
     "fmt",
     "jsoncpp",
+    "magic-enum",
     "rsm-binary-io",
     "spdlog",
     "simpleini",
     "xbyak"
   ],
-  "builtin-baseline": "f4ea42fa5c2b993cf2b75725331616999e2e34d1"
+  "builtin-baseline": "eae1680538b86f962455c27abca2aad0dc304a4d"
 }

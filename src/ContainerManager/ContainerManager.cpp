@@ -3,16 +3,13 @@
 namespace ContainerManager
 {
 	void InventorySwapper::Report() const {
-		if (!parseErrors.empty()) {
-			auto currErrType = FailureType::None;
-			for (const auto& error : parseErrors) {
-				if (error->GetType() != currErrType) {
-					currErrType = error->GetType();
-					error->Preamble("    ");
+		if (!_encounteredErrors.empty()) {
+			for (const auto& [config, errors] : _encounteredErrors) {
+				logger::error("    - {}:", config);
+				for (const auto& err : errors) {
+					err->Report("      ");
 				}
-				error->Report("    ");
 			}
-			logger::error("  ----"sv);
 		}
 		if (!conditions.empty()) {
 			logger::info("  Created Conditions:"sv);
@@ -49,12 +46,17 @@ namespace ContainerManager
 		changes.emplace(it, std::move(a_change));
 	}
 
-	void InventorySwapper::RegisterFailure(std::unique_ptr<ParseFailure> a_failure) {
-		auto errType = a_failure->GetType();
-		auto last = std::find_if(parseErrors.begin(), parseErrors.end(), [type = errType](const auto& element) {
-			return element->GetType() > type;
-			});
-		parseErrors.emplace(last, std::move(a_failure));
+	void InventorySwapper::RegisterConfigError(const std::string& configName, 
+		std::unique_ptr<Errors::IError> err)
+	{
+		auto it = _encounteredErrors.find(configName);
+		if (it == _encounteredErrors.end()) {
+			auto vec = { std::move(err) };
+			_encounteredErrors.emplace(configName, std::move(vec));
+		}
+		else {
+			it->second.emplace_back(std::move(err));
+		}
 	}
 
 	std::size_t InventorySwapper::RegisterCondition(std::unique_ptr<Condition> a_condition) {
