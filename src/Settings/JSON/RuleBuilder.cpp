@@ -15,7 +15,6 @@ namespace Settings::JSON
 		auto members = _rule.getMemberNames();
 		for (const auto& member : members) {
 			if (!_knownFields.contains(member)) {
-				_unknownFields.AddUnknownField(member);
 				hasUnknown = true;
 			}
 		}
@@ -23,7 +22,6 @@ namespace Settings::JSON
 		const auto& changes = _rule[RULE_CHANGES];
 		if (!changes) {
 			hasMissing = true;
-			_missingFields.AddMissingField(RULE_CHANGES);
 		}
 
 		const auto& conditions = _rule[RULE_CONDITIONS];
@@ -31,7 +29,6 @@ namespace Settings::JSON
 			std::string path = _configName + "|" + RULE_CONDITIONS;
 			if (!conditions.isObject()) {
 				hasInvalid = true;
-				_invalidFields.AddInvalidField(RULE_CONDITIONS);
 				goto ConditionsEnd;
 			}
 
@@ -41,7 +38,6 @@ namespace Settings::JSON
 					member = member.substr(1);
 				}
 				if (!_knownConditionFields.contains(member)) {
-					_unknownFields.AddUnknownField(member);
 					hasUnknown = true;
 				}
 			}
@@ -56,7 +52,6 @@ namespace Settings::JSON
 				if (!allowVendorsField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_VENDORS;
-					_invalidFields.AddInvalidField(erroredField);
 				}
 				_allowVendors = allowVendorsField.asBool();
 			}
@@ -64,7 +59,6 @@ namespace Settings::JSON
 				if (!onlyVendorsField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ONLY_VENDORS;
-					_invalidFields.AddInvalidField(erroredField);
 				}
 				bool doOnlyVendors = onlyVendorsField.asBool();
 				if (doOnlyVendors) {
@@ -76,7 +70,6 @@ namespace Settings::JSON
 				if (!randomAddField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_RANDOM_ADD;
-					_invalidFields.AddInvalidField(erroredField);
 				}
 				else {
 					_randomAdd = randomAddField.asBool();
@@ -86,7 +79,6 @@ namespace Settings::JSON
 				if (!allowNoResetField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_NO_RESET;
-					_invalidFields.AddInvalidField(erroredField);
 				}
 				else {
 					_allowNoReset = allowNoResetField.asBool();
@@ -96,7 +88,6 @@ namespace Settings::JSON
 				if (!bypassUnsafeContainersField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_NO_RESET_OLD;
-					_invalidFields.AddInvalidField(erroredField);
 				}
 				else {
 					_allowNoReset = bypassUnsafeContainersField.asBool();
@@ -107,44 +98,20 @@ namespace Settings::JSON
 			auto trimTo = path.size();
 			for (auto member : members) {
 				bool inverted = member.starts_with("!");
-				const auto& generateFrom = conditions[member];
+				//const auto& generateFrom = conditions[member];
 				path += "|" + member;
 				if (inverted) {
 					member = member.substr(1);
 				}
 				std::unique_ptr<ContainerManager::Condition> condition = nullptr;
 				if (member == AV_CONDITION) {
-					auto generationResult = ContainerManager::Conditions::CreateAVCondition(generateFrom, path, inverted);
-					if (!generationResult) {
-						std::unique_ptr<ContainerManager::ParseFailure> failure =
-							std::make_unique<ContainerManager::Conditions::AVConditionFailure>(generationResult.error());
-						_failures.emplace_back(std::move(failure));
-					}
-					else {
-						condition = std::make_unique<ContainerManager::Conditions::AVCondition>(generationResult.value());
-					}
+					
 				}
 				else if (member == BASEFORM_CONDITION) {
-					auto generationResult = ContainerManager::Conditions::CreateBaseFormCondition(generateFrom, path, inverted);
-					if (!generationResult) {
-						std::unique_ptr<ContainerManager::ParseFailure> failure =
-							std::make_unique<ContainerManager::Conditions::BaseFormConditionFailure>(generationResult.error());
-						_failures.emplace_back(std::move(failure));
-					}
-					else {
-						condition = std::make_unique<ContainerManager::Conditions::BaseFormCondition>(generationResult.value());
-					}
+					
 				}
 				else if (member == GLOBALS_CONDITION) {
-					auto generationResult = ContainerManager::Conditions::CreateGlobCondition(generateFrom, path, inverted);
-					if (!generationResult) {
-						std::unique_ptr<ContainerManager::ParseFailure> failure =
-							std::make_unique<ContainerManager::Conditions::GlobConditionFailure>(generationResult.error());
-						_failures.emplace_back(std::move(failure));
-					}
-					else {
-						condition = std::make_unique<ContainerManager::Conditions::GlobCondition>(generationResult.value());
-					}
+					
 				}
 				path.resize(trimTo);
 
@@ -156,25 +123,9 @@ namespace Settings::JSON
 
 	ConditionsEnd:
 
-		if (hasInvalid) {
-			std::unique_ptr<ContainerManager::ParseFailure> failure =
-				std::make_unique<ContainerManager::InvalidFieldTypeFailure>(_invalidFields);
-			_failures.emplace_back(std::move(failure));
-		}
-		if (hasMissing) {
-			std::unique_ptr<ContainerManager::ParseFailure> failure =
-				std::make_unique<ContainerManager::MissingFieldFailure>(_missingFields);
-			_failures.emplace_back(std::move(failure));
-		}
-		if (hasUnknown) {
-			std::unique_ptr<ContainerManager::ParseFailure> failure =
-				std::make_unique<ContainerManager::UnknownFieldFailure>(_unknownFields);
-			_failures.emplace_back(std::move(failure));
-		}
-
 		if (!_failures.empty()) {
 			for (const auto& failure : _failures) {
-				if (!failure->Recoverable()) {
+				if (failure->IsFatal()) {
 					_errored = true;
 					return false;
 				}
@@ -193,7 +144,7 @@ namespace Settings::JSON
 		auto* containerManager = ContainerManager::InventorySwapper::GetSingleton();
 		if (_errored) {
 			for (auto& failure : _failures) {
-				containerManager->RegisterFailure(std::move(failure));
+				containerManager->RegisterConfigError(_configName, std::move(failure));
 			}
 			return;
 		}

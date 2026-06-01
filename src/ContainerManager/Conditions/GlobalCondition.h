@@ -83,38 +83,9 @@ namespace ContainerManager
 			std::vector<RequiredGlobals> _data;
 		};
 
-		class GlobConditionFailure : public ParseFailure
-		{
-		public:
-			void Report(const std::string& a_prefix) const override;
-			virtual void Preamble(const std::string& a_prefix) const override;
-
-			GlobConditionFailure() { type = FailureType::GlobCondition; }
-
-			void FlagEmptyCondition(const std::string& path);
-			void AddWrongFieldType(const std::string& path, const std::string& receivedType, const std::string& expected);
-			void AddWrongFormType(const std::string& path, const std::string& str);
-			void AddMalformedGlobString(const std::string& rawGlob, const std::string& path);
-			void AddWrongComplexMemberType(const std::string& path, const std::string& expected, const std::string& received);
-			void AddUnknownComplexMemberType(const std::string& path, const std::string& receivedType);
-
-			bool Errored() const {
-				return !_empty.empty() ||
-					!_wrongFormTypes.empty() ||
-					!_wrongFieldTypes.empty() ||
-					!_malformedGlobString.empty() ||
-					!_wrongComplexMemberTypes.empty() ||
-					!_unknownComplexMemberTypes.empty();
-			}
-		private:
-			std::string _empty = "";
-			std::vector<std::string> _wrongFormTypes;
-			std::vector<std::string> _wrongFieldTypes;
-			std::vector<std::string> _malformedGlobString;
-			std::vector<std::string> _wrongComplexMemberTypes;
-			std::vector<std::string> _unknownComplexMemberTypes;
-		};
-
-		std::expected<GlobCondition, GlobConditionFailure> CreateGlobCondition(const Json::Value& from, std::string& path, bool inverted);
+		using condition_ptr = std::unique_ptr<ContainerManager::Condition>;
+		using failure_ptr = std::unique_ptr<ContainerManager::Errors::IError>;
+		using error_ptrs = std::vector<failure_ptr>;
+		std::expected<condition_ptr, error_ptrs> TryCreateGlobalCondition(const Json::Value& from, std::string& path, bool inverted);
 	}
 }

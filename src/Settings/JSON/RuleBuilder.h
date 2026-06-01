@@ -20,7 +20,7 @@ namespace Settings
 		private:
 			using Change = std::unique_ptr<ContainerManager::Change>;
 			using Condition = std::unique_ptr<ContainerManager::Condition>;
-			using ParseFailure = std::unique_ptr<ContainerManager::ParseFailure>;
+			using ParseFailure = std::unique_ptr<ContainerManager::Errors::IError>;
 
 			bool                      _errored{ false };
 			Json::Value               _rule{};
@@ -79,15 +79,6 @@ namespace Settings
 				BASEFORM_CONDITION,
 				GLOBALS_CONDITION
 			};
-
-			/*
-			* ---------------------------
-			*	Failures
-			* ---------------------------
-			*/
-			ContainerManager::UnknownFieldFailure     _unknownFields = _configName;
-			ContainerManager::MissingFieldFailure     _missingFields = _configName;
-			ContainerManager::InvalidFieldTypeFailure _invalidFields = _configName;
 
 			[[nodiscard]] bool ParseChanges(const Json::Value& changes);
 		};

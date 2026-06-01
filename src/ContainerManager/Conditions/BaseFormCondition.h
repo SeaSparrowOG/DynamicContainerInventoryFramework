@@ -19,35 +19,9 @@ namespace ContainerManager
 			std::unordered_set<RE::FormID> _data;
 		};
 
-		class BaseFormConditionFailure : public ParseFailure
-		{
-		public:
-			void Report(const std::string& a_prefix) const override;
-			virtual void Preamble(const std::string& a_prefix) const override;
-
-			void AddWrongFieldType(const std::string& path, const std::string& expected, const std::string& received);
-			void AddWrongFormType(const std::string& path, const std::string& rawForm);
-			void AddMissingPO3Tweaks(const std::string& path, const std::string& rawForm);
-			void AddBadFormatString(const std::string& path, const std::string& rawForm);
-			void MarkConditionsEmpty(const std::string& path);
-
-			BaseFormConditionFailure() { type = FailureType::BaseFormCondition; }
-
-			bool Errored() const {
-				return !_emptyCondition.empty() ||
-					!_wrongFieldType.empty() ||
-					!_wrongFormTypes.empty() ||
-					!_badStringFormat.empty() ||
-					!_formsRelyingOnTweaks.empty();
-			}
-		private:
-			std::string              _emptyCondition = "";
-			std::vector<std::string> _wrongFieldType;
-			std::vector<std::string> _wrongFormTypes;
-			std::vector<std::string> _badStringFormat;
-			std::vector<std::string> _formsRelyingOnTweaks;
-		};
-
-		std::expected<BaseFormCondition, BaseFormConditionFailure> CreateBaseFormCondition(const Json::Value& from, std::string& path, bool inverted);
+		using condition_ptr = std::unique_ptr<ContainerManager::Condition>;
+		using failure_ptr = std::unique_ptr<ContainerManager::Errors::IError>;
+		using error_ptrs = std::vector<failure_ptr>;
+		std::expected<condition_ptr, error_ptrs> TryCreateBaseFormCondition(const Json::Value& from, std::string& path, bool inverted);
 	}
 }

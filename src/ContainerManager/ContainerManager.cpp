@@ -51,8 +51,8 @@ namespace ContainerManager
 	{
 		auto it = _encounteredErrors.find(configName);
 		if (it == _encounteredErrors.end()) {
-			auto vec = { std::move(err) };
-			_encounteredErrors.emplace(configName, std::move(vec));
+			_encounteredErrors[configName] = std::vector<std::unique_ptr<Errors::IError>>();
+			_encounteredErrors[configName].emplace_back(std::move(err));
 		}
 		else {
 			it->second.emplace_back(std::move(err));
