@@ -26,6 +26,7 @@ namespace Settings::JSON
 
 		const auto& conditions = _rule[RULE_CONDITIONS];
 		if (conditions) {
+			std::string path = _configName + "|" + RULE_CONDITIONS;
 			if (!conditions.isObject()) {
 				hasInvalid = true;
 				_invalidFields.AddInvalidField(RULE_CONDITIONS);
@@ -33,7 +34,10 @@ namespace Settings::JSON
 			}
 
 			members = conditions.getMemberNames();
-			for (const auto& member : members) {
+			for (auto member : members) {
+				if (member.starts_with("!")) {
+					member = member.substr(1);
+				}
 				if (!_knownConditionFields.contains(member)) {
 					_unknownFields.AddUnknownField(member);
 					hasUnknown = true;
@@ -51,17 +55,14 @@ namespace Settings::JSON
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_VENDORS;
 					_invalidFields.AddInvalidField(erroredField);
-					goto CheckOnlyVendors;
 				}
 				_allowVendors = allowVendorsField.asBool();
 			}
-		CheckOnlyVendors:
 			if (onlyVendorsField) {
 				if (!onlyVendorsField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ONLY_VENDORS;
 					_invalidFields.AddInvalidField(erroredField);
-					goto CheckRandomAdd;
 				}
 				bool doOnlyVendors = onlyVendorsField.asBool();
 				if (doOnlyVendors) {
@@ -69,34 +70,63 @@ namespace Settings::JSON
 					_onlyVendors = true;
 				}
 			}
-		CheckRandomAdd:
 			if (randomAddField) {
 				if (!randomAddField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_RANDOM_ADD;
 					_invalidFields.AddInvalidField(erroredField);
-					goto CheckNoReset;
 				}
-				_randomAdd = randomAddField.asBool();
+				else {
+					_randomAdd = randomAddField.asBool();
+				}
 			}
-		CheckNoReset:
 			if (allowNoResetField) {
 				if (!allowNoResetField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_NO_RESET;
 					_invalidFields.AddInvalidField(erroredField);
-					goto CheckNoReset;
 				}
-				_allowNoReset = allowNoResetField.asBool();
+				else {
+					_allowNoReset = allowNoResetField.asBool();
+				}
 			}
 			else if (bypassUnsafeContainersField) {
 				if (!bypassUnsafeContainersField.isBool()) {
 					hasInvalid = true;
 					std::string erroredField = _configName + "|" + CONDITIONS_ALLOW_NO_RESET_OLD;
 					_invalidFields.AddInvalidField(erroredField);
-					goto CheckNoReset;
 				}
-				_allowNoReset = bypassUnsafeContainersField.asBool();
+				else {
+					_allowNoReset = bypassUnsafeContainersField.asBool();
+				}
+			}
+
+			// Complex Conditions
+			auto trimTo = path.size();
+			for (auto member : members) {
+				bool inverted = member.starts_with("!");
+				const auto& generateFrom = conditions[member];
+				path += "|" + member;
+				if (inverted) {
+					member = member.substr(1);
+				}
+				std::unique_ptr<ContainerManager::Condition> condition = nullptr;
+				if (member == AV_CONDITION) {
+					auto generationResult = ContainerManager::Conditions::CreateAVCondition(generateFrom, path, inverted);
+					if (!generationResult) {
+						std::unique_ptr<ContainerManager::ParseFailure> failure =
+							std::make_unique<ContainerManager::Conditions::AVConditionFailure>(generationResult.error());
+						_failures.emplace_back(std::move(failure));
+					}
+					else {
+						condition = std::make_unique<ContainerManager::Conditions::AVCondition>(generationResult.value());
+					}
+				}
+				path.resize(trimTo);
+
+				if (condition) {
+					_conditions.emplace_back(std::move(condition));
+				}
 			}
 		}
 

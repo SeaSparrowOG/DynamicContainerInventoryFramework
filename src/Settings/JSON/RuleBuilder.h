@@ -59,12 +59,21 @@ namespace Settings
 			std::string CONDITIONS_ALLOW_NO_RESET = "allownoreset";
 			std::string CONDITIONS_ALLOW_NO_RESET_OLD = "bypassunsafecontainers";
 
+			/*
+			* --------------------------
+			*	Recognized Conditions
+			* --------------------------
+			*/
+			std::string AV_CONDITION = "playerskills";
+
 			std::unordered_set<std::string> _knownConditionFields = {
 				CONDITIONS_ONLY_VENDORS,
 				CONDITIONS_ALLOW_VENDORS,
 				CONDITIONS_RANDOM_ADD,
 				CONDITIONS_ALLOW_NO_RESET,
-				CONDITIONS_ALLOW_NO_RESET_OLD
+				CONDITIONS_ALLOW_NO_RESET_OLD,
+
+				AV_CONDITION
 			};
 
 			/*

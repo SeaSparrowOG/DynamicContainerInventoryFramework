@@ -62,7 +62,9 @@ namespace ContainerManager
         None,
         UnknownField,
         MissingField,
-        InvalidFieldType
+        InvalidFieldType,
+
+        AVCondition
     };
 
     class ParseFailure

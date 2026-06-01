@@ -13,10 +13,9 @@
       ]
     },
     {
-      "FriendlyName": "AV Condition Unit Test",
+      "FriendlyName": "AV Condition Unit Test - Just Min",
       "Conditions": {
-        "PlayerSkills": [ "Health|99.0", "Stamina|99.0" ],
-        "!PlayerSkills": [ "Conjuration|99.0", "OneHanded|99.0" ]
+        "PlayerSkills": "Health|50.0"
       },
       "Changes": [
         {
@@ -26,16 +25,46 @@
       ]
     },
     {
-      "FriendlyName": "Complex AV Requirement",
+      "FriendlyName": "AV Condition Unit Test - Fancy Array",
+      "Conditions": {
+        "PlayerSkills": [ "Health|50.0", "Stamina|51", "Magicka|52" ]
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    },
+    {
+      "FriendlyName": "AV Condition Unit Test - Fancy Complex Array",
       "Conditions": {
         "PlayerSkills": {
-          "Type": "OR",
-          "values": [
-            "Health|75.0",
-            "Stamina|75.0",
-            "Magicka|75.0"
-          ]
+          "IsOr": true,
+          "Data": [ "Conjuration|50.0", "Restoration|28.0", "Speechcraft|23.49|192.0" ]
         }
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    },
+    {
+      "FriendlyName": "AV Condition Unit Test - Final Boss",
+      "Conditions": {
+        "!PlayerSkills": "OneHanded|100.0",
+        "PlayerSkills": [
+          {
+            "IsOr": true,
+            "Data": [ "Conjuration|50.0", "Illusion|28.0" ]
+          },
+          {
+            "IsOr": true,
+            "Data": [ "Destruction|25.0", "Restoration|25.0", "Alteration|25" ]
+          }
+        ]
       },
       "Changes": [
         {
