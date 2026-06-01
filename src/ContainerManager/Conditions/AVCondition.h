@@ -36,19 +36,13 @@ namespace ContainerManager
 
 			bool IsValid(RE::ActorValueOwner* owner) const {
 				if (isOr) {
-					for (const auto& condition : _data) {
-						if (condition.IsValid(owner)) {
-							return true;
-						}
-					}
-					return false;
+					return std::ranges::any_of(_data, [&](const auto& condition) {
+						return condition.IsValid(owner);
+						});
 				}
-				for (const auto& condition : _data) {
-					if (!condition.IsValid(owner)) {
-						return false;
-					}
-				}
-				return true;
+				return std::ranges::all_of(_data, [&](const auto& condition) {
+					return condition.IsValid(owner);
+					});
 			}
 
 			std::string GetFormattedDescription() const {

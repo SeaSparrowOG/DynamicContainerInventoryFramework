@@ -249,9 +249,11 @@ namespace ContainerManager::Conditions
     }
 
     bool AVCondition::IsValid(const ConditionCheckParams& a_params) const {
-        return _inverted != std::ranges::all_of(_data, [&](const auto& required) {
-            return required.IsValid(a_params.playerOwner);
+        auto* owner = a_params.playerOwner;
+        const bool evalResult = std::ranges::all_of(_data, [&](const auto& required) {
+            return required.IsValid(owner);
             });
+        return _inverted ? !evalResult : evalResult; //xor
     }
 
     void AVCondition::PrintCondition(const std::string& a_pref) const {
