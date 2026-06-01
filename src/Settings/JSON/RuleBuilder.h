@@ -65,6 +65,7 @@ namespace Settings
 			* --------------------------
 			*/
 			std::string AV_CONDITION = "playerskills";
+			std::string BASEFORM_CONDITION = "containers";
 
 			std::unordered_set<std::string> _knownConditionFields = {
 				CONDITIONS_ONLY_VENDORS,
@@ -73,7 +74,8 @@ namespace Settings
 				CONDITIONS_ALLOW_NO_RESET,
 				CONDITIONS_ALLOW_NO_RESET_OLD,
 
-				AV_CONDITION
+				AV_CONDITION,
+				BASEFORM_CONDITION
 			};
 
 			/*

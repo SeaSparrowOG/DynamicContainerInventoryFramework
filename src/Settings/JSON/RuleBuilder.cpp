@@ -1,6 +1,7 @@
 #include "RuleBuilder.h"
 
 #include "ContainerManager/Conditions/AVCondition.h"
+#include "ContainerManager/Conditions/BaseFormCondition.h"
 #include "Settings/JSON/JSONSettings.h"
 
 namespace Settings::JSON
@@ -120,6 +121,17 @@ namespace Settings::JSON
 					}
 					else {
 						condition = std::make_unique<ContainerManager::Conditions::AVCondition>(generationResult.value());
+					}
+				}
+				else if (member == BASEFORM_CONDITION) {
+					auto generationResult = ContainerManager::Conditions::CreateBaseFormCondition(generateFrom, path, inverted);
+					if (!generationResult) {
+						std::unique_ptr<ContainerManager::ParseFailure> failure =
+							std::make_unique<ContainerManager::Conditions::BaseFormConditionFailure>(generationResult.error());
+						_failures.emplace_back(std::move(failure));
+					}
+					else {
+						condition = std::make_unique<ContainerManager::Conditions::BaseFormCondition>(generationResult.value());
 					}
 				}
 				path.resize(trimTo);

@@ -1,0 +1,40 @@
+{
+  "rules": [
+    {
+      "FriendlyName": "Base Form Condition Unit Test - Non-Array/String",
+      "Conditions": {
+        "Containers": true
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    },
+    {
+      "FriendlyName": "Base Form Condition Unit Test - Non-Array/String (in array)",
+      "Conditions": {
+        "Containers": [ true ]
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    },
+    {
+      "FriendlyName": "Base Form Condition Unit Test - Wrong Form Type",
+      "Conditions": {
+        "Containers": [ "IronSword" ]
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    }
+  ]
+}

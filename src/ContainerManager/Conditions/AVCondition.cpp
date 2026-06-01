@@ -4,21 +4,6 @@
 
 namespace ContainerManager::Conditions
 {
-    static std::string GetJSONTypeAsString(const Json::Value& val) {
-        switch (val.type()) {
-        case Json::ValueType::arrayValue: return "Array";
-        case Json::ValueType::booleanValue: return "Boolean";
-        case Json::ValueType::intValue:
-        case Json::ValueType::uintValue:
-            return "Integer";
-        case Json::ValueType::objectValue: return "Object";
-        case Json::ValueType::realValue: return "Float";
-        case Json::ValueType::stringValue: return "String";
-        default:
-            return "NULL";
-        }
-    }
-
     static std::optional<RE::ActorValue> GetAVFromString(const std::string& str) {
 
         auto* avl = RE::ActorValueList::GetSingleton();

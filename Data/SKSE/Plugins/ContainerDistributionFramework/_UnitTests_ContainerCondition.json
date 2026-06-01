@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "FriendlyName": "Base Form Condition Unit Test - String (Non-PO3)",
+      "Conditions": {
+        "Containers": "0x7434B|Skyrim.esm"
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    },
+    {
+      "FriendlyName": "Base Form Condition Unit Test - String (PO3)",
+      "Conditions": {
+        "Containers": [ "BarrelFood01", "BarrelMeat01" ]
+      },
+      "Changes": [
+        {
+          "Add": "Skyrim.esm|0xF",
+          "Count": 100
+        }
+      ]
+    }
+  ]
+}
