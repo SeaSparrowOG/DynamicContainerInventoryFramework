@@ -35,14 +35,12 @@ namespace ContainerManager
 			std::vector<IndividualCondition> _data;
 
 			bool IsValid(RE::ActorValueOwner* owner) const {
-				if (isOr) {
-					return std::ranges::any_of(_data, [&](const auto& condition) {
-						return condition.IsValid(owner);
-						});
-				}
-				return std::ranges::all_of(_data, [&](const auto& condition) {
-					return condition.IsValid(owner);
-					});
+				auto f = [&](const IndividualCondition& condition) {
+					return condition.IsValid(owner); 
+					};
+				return isOr ? 
+					std::ranges::any_of(_data, f) : 
+					std::ranges::all_of(_data, f);
 			}
 
 			std::string GetFormattedDescription() const {
