@@ -63,6 +63,62 @@ namespace ContainerManager
         bool                     _allowNoReset = false;
         bool                     _emulateRandomAdd = false;
         std::vector<std::size_t> ids{};
+
+        struct PendingList
+        {
+            uint16_t        count = 0u;
+            RE::TESLevItem* ll = nullptr;
+        };
+
+        void ApplyLeveledList(RE::TESLevItem* list, uint16_t playerLevel, int16_t count, ContainerDeltas& deltas) {
+            if (!list) {
+                return;
+            }
+
+            std::stack<PendingList> stack;
+            PendingList pending;
+            pending.ll = list;
+            pending.count = count;
+            stack.push(std::move(pending));
+
+            auto& counts = deltas.counts;
+            RE::BSScrapArray<RE::CALCED_OBJECT> llResult;
+
+            while (!stack.empty()) {
+                llResult.clear();
+                auto& top = stack.top();
+                top.ll->CalculateCurrentFormList(playerLevel, top.count, llResult, 0, true);
+                stack.pop();
+
+                for (auto& calcedObj : llResult) {
+                    auto* form = calcedObj.form;
+                    if (!form) {
+                        continue;
+                    }
+
+                    // limitation:
+                    // several leveled lists do this: [LL, LL, LL]
+                    // this is fine and expected. However, if the sub list references a list
+                    // above it (LL -> [ObjA, ObjB, LL]) it can actually create an infinite loop.
+                    // Maybe fix it in Leveled List Crash fix? Otherwise upward unordered_set
+                    if (form->FORMTYPE == RE::FormType::LeveledItem) {
+                        auto* ll = form->As<RE::TESLevItem>();
+                        if (!ll) {
+                            continue;
+                        }
+
+                        PendingList subPending;
+                        subPending.ll = ll;
+                        subPending.count = calcedObj.count;
+                        stack.push(std::move(subPending));
+                    }
+                    else {
+                        auto* bound = skyrim_cast<RE::TESBoundObject*>(form);
+                        counts[bound] += calcedObj.count;
+                    }
+                }
+            }
+        }
     };
 
     class InventorySwapper : public REX::Singleton<InventorySwapper>
