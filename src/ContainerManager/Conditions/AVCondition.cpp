@@ -35,14 +35,15 @@ namespace ContainerManager::Conditions
         _data.emplace_back(std::move(individualData));
     }
 
-    std::expected<condition_ptr, error_ptrs> TryCreateAVCondition(const Json::Value& from, 
+    std::expected<condition, error> TryCreateAVCondition(const Json::Value& from, 
         std::string& path,
         bool inverted)
     {
+        error errors;
         AVCondition avCondition;
         avCondition.SetInverted(inverted);
 
-        condition_ptr result = std::make_unique<AVCondition>(avCondition);
+        condition result = std::make_unique<AVCondition>(avCondition);
         return result;
     }
 }

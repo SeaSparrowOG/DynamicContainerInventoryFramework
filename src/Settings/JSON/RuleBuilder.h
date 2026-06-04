@@ -20,14 +20,14 @@ namespace Settings
 		private:
 			using Change = std::unique_ptr<ContainerManager::Change>;
 			using Condition = std::unique_ptr<ContainerManager::Condition>;
-			using ParseFailure = std::unique_ptr<ContainerManager::Errors::IError>;
+			using Error = ContainerManager::ErrorHolder;
 
 			bool                      _errored{ false };
 			Json::Value               _rule{};
 			std::string               _configName{};
 			std::vector<Change>       _changes{};
 			std::vector<Condition>    _conditions{};
-			std::vector<ParseFailure> _failures{};
+			Error                     _errorHolder;
 
 			/*
 			* --------------------------

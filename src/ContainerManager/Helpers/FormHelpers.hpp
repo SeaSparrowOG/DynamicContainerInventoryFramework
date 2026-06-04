@@ -70,6 +70,7 @@ namespace ContainerManager
             FileNotFound,     // ESP/ESM/ESL missing
             FormNotInFile,    // Master exists, but form is not present
             WrongFormtype,    // Form exists in given file, but type is wrong.
+            NoForm,           // Form simply not found
 
             MissingPo3Tweaks, // EditorID query that requires PO3's tweaks but PO3's tweaks is not present.
             GenericFailure    // Catchall (might be missing data handler, cosmic ray, etc)
@@ -114,7 +115,7 @@ namespace ContainerManager
                 }
                 form = RE::TESForm::LookupByEditorID(a_str);
                 if (!form) {
-                    response.status = QueryResult::FormNotInFile;
+                    response.status = QueryResult::NoForm;
                     return response;
                 }
                 castForm = form->As<T>();
@@ -160,6 +161,126 @@ namespace ContainerManager
                 break;
             }
             return response;
+        }
+
+        enum class ValueStatus
+        {
+            Success,
+
+            FormatError,
+            InvalidForm,
+            GenericFailure
+        };
+
+        template <typename T>
+        struct ValueResult
+        {
+            std::optional<std::vector<T*>> _data;
+            ValueStatus                    _status;
+        };
+
+        template <typename T>
+        ValueResult<T> GetFormsFromValue(const Json::Value& from) {
+            ValueResult<T> result;
+            std::vector<T*> foundForms;
+            result._data = std::nullopt;
+            result._status = ValueStatus::Success;
+
+            if (from.isString()) {
+                QueryData<T> query = GetFormFromString<T>(from.asString());
+                if (query.status == QueryResult::Success) {
+                    if (query.value.has_value()) {
+                        foundForms.emplace_back(query.value.value());
+                    }
+                }
+                else {
+                    switch (query.status) {
+                    case QueryResult::NoForm:
+                    case QueryResult::FileNotFound:
+                        break;
+                    case QueryResult::FormatError:
+                    case QueryResult::MissingPo3Tweaks:
+                        if (result._status < ValueStatus::FormatError) {
+                            result._status = ValueStatus::FormatError;
+                        }
+                        break;
+                    case QueryResult::WrongFormtype:
+                    case QueryResult::FormNotInFile:
+                        if (result._status < ValueStatus::InvalidForm) {
+                            result._status = ValueStatus::InvalidForm;
+                        }
+                        break;
+                    default:
+                        if (result._status < ValueStatus::GenericFailure) {
+                            result._status = ValueStatus::GenericFailure;
+                        }
+                        break;
+                    }
+                }
+            }
+            else if (from.isArray()) {
+                for (const auto& arrVal : from) {
+                    if (arrVal.isString()) {
+                        QueryData<T> query = GetFormFromString<T>(arrVal.asString());
+                        if (query.status == QueryResult::Success) {
+                            if (query.value.has_value()) {
+                                foundForms.emplace_back(query.value.value());
+                            }
+                        }
+                        else {
+                            switch (query.status) {
+                            case QueryResult::NoForm:
+                            case QueryResult::FileNotFound:
+                                break;
+                            case QueryResult::FormatError:
+                            case QueryResult::MissingPo3Tweaks:
+                                if (result._status < ValueStatus::FormatError) {
+                                    result._status = ValueStatus::FormatError;
+                                }
+                                break;
+                            case QueryResult::WrongFormtype:
+                            case QueryResult::FormNotInFile:
+                                if (result._status < ValueStatus::InvalidForm) {
+                                    result._status = ValueStatus::InvalidForm;
+                                }
+                                break;
+                            default:
+                                if (result._status < ValueStatus::GenericFailure) {
+                                    result._status = ValueStatus::GenericFailure;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    else {
+                        if (result._status < ValueStatus::FormatError) {
+                            result._status = ValueStatus::FormatError;
+                        }
+                        return result;
+                    }
+
+                    if (result._status > ValueStatus::Success) {
+                        return result._status;
+                    }
+                }
+            }
+            else {
+                if (result._status < ValueStatus::FormatError) {
+                    result._status = ValueStatus::FormatError;
+                }
+                return result;
+            }
+
+            if (result._status != ValueStatus::Success) {
+                return result;
+            }
+            if (foundForms.empty()) {
+                result._status = ValueStatus::Empty;
+                return result;
+            }
+
+            result._status = ValueStatus::Success;
+            return result;
         }
 	}
 }

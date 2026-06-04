@@ -19,9 +19,8 @@ namespace ContainerManager
 			std::unordered_set<RE::FormID> _data;
 		};
 
-		using condition_ptr = std::unique_ptr<ContainerManager::Condition>;
-		using failure_ptr = std::unique_ptr<ContainerManager::Errors::IError>;
-		using error_ptrs = std::vector<failure_ptr>;
-		std::expected<condition_ptr, error_ptrs> TryCreateBaseFormCondition(const Json::Value& from, std::string& path, bool inverted);
+		using condition = std::unique_ptr<ContainerManager::Condition>;
+		using error = ErrorHolder;
+		std::expected<condition, error> TryCreateBaseFormCondition(const Json::Value& from, std::string& path, bool inverted);
 	}
 }

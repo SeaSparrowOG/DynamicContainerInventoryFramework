@@ -98,14 +98,20 @@ namespace Settings::JSON
 			auto trimTo = path.size();
 			for (auto member : members) {
 				bool inverted = member.starts_with("!");
-				//const auto& generateFrom = conditions[member];
+				const auto& generateFrom = conditions[member];
 				path += "|" + member;
 				if (inverted) {
 					member = member.substr(1);
 				}
 				std::unique_ptr<ContainerManager::Condition> condition = nullptr;
 				if (member == AV_CONDITION) {
-					
+					auto res = ContainerManager::Conditions::TryCreateAVCondition(generateFrom, path, inverted);
+					if (res) {
+						_conditions.emplace_back(std::move(*res)); // MSVC buggery
+					}
+					else {
+						
+					}
 				}
 				else if (member == BASEFORM_CONDITION) {
 					
@@ -114,23 +120,10 @@ namespace Settings::JSON
 					
 				}
 				path.resize(trimTo);
-
-				if (condition) {
-					_conditions.emplace_back(std::move(condition));
-				}
 			}
 		}
 
 	ConditionsEnd:
-
-		if (!_failures.empty()) {
-			for (const auto& failure : _failures) {
-				if (failure->IsFatal()) {
-					_errored = true;
-					return false;
-				}
-			}
-		}
 		return true;
 	}
 
@@ -143,9 +136,6 @@ namespace Settings::JSON
 	RuleParser::~RuleParser() {
 		auto* containerManager = ContainerManager::InventorySwapper::GetSingleton();
 		if (_errored) {
-			for (auto& failure : _failures) {
-				containerManager->RegisterConfigError(_configName, std::move(failure));
-			}
 			return;
 		}
 		std::vector<size_t> conditionIDs;
@@ -171,7 +161,6 @@ namespace Settings::JSON
 		_configName.clear();
 		_changes.clear();
 		_conditions.clear();
-		_failures.clear();
 	}
 
 	bool ParseArray(const Json::Value& array, std::string& path) {

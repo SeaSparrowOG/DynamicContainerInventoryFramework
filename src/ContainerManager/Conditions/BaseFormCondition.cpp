@@ -13,11 +13,11 @@ namespace ContainerManager::Conditions
 		for (const auto id : _data) {
 			auto* cont = RE::TESForm::LookupByID<RE::TESObjectCONT>(id);
 			if (cont) {
-				logger::info("{}  - {}{}{}{}."sv, 
+				logger::info("{}  - {}{}{}{}."sv,
 					a_pref,
 					_inverted ? "[NOT]<" : "",
 					cont->GetName(),
-					tweaks ?  fmt::format<std::string>(" ({})", clib_util::editorID::get_editorID(cont)) : "",
+					tweaks ? fmt::format<std::string>(" ({})", clib_util::editorID::get_editorID(cont)) : "",
 					_inverted ? ">" : ""
 				);
 			}
@@ -31,14 +31,33 @@ namespace ContainerManager::Conditions
 		_data.insert(base->GetFormID());
 	}
 
-	std::expected<condition_ptr, error_ptrs> TryCreateBaseFormCondition(const Json::Value& from, 
-		std::string& path, 
+	static void ProcessElement(const Json::Value& val,
+		std::string& path,
+		BaseFormCondition& condition,
+		error& errorHolder)
+	{
+
+	}
+
+	std::expected<condition, error> TryCreateBaseFormCondition(const Json::Value& from,
+		std::string& path,
 		bool inverted)
 	{
+		error errorHolder;
 		BaseFormCondition baseFormCondition;
 		baseFormCondition.SetInverted(inverted);
 
-		condition_ptr result = std::make_unique<BaseFormCondition>(baseFormCondition);
+		// Expected format:
+		// {
+		//   "IsOr": Bool
+		//   "Data": Sting or Array
+		// }
+		// OR
+		// String
+		// OR
+		// Array (of srings or objects)
+
+		condition result = std::make_unique<BaseFormCondition>(baseFormCondition);
 		return result;
 	}
 }

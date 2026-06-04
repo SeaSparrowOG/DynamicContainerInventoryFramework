@@ -25,14 +25,14 @@ namespace ContainerManager::Conditions
         _data.emplace_back(std::move(individualData));
     }
 
-    std::expected<condition_ptr, error_ptrs> TryCreateGlobalCondition(const Json::Value& from, 
+    std::expected<condition, error> TryCreateGlobalCondition(const Json::Value& from,
         std::string& path, 
         bool inverted)
     {
         GlobCondition globCondition;
         globCondition.SetInverted(inverted);
 
-        condition_ptr result = std::make_unique<GlobCondition>(globCondition);
+        condition result = std::make_unique<GlobCondition>(globCondition);
         return result;
     }
 }

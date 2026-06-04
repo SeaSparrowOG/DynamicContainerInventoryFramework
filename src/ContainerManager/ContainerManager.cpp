@@ -3,12 +3,8 @@
 namespace ContainerManager
 {
 	void InventorySwapper::Report() const {
-		if (!_encounteredErrors.empty()) {
-			for (const auto& [config, errors] : _encounteredErrors) {
-				logger::error("    - {}:", config);
-				for (const auto& err : errors) {
-					err->Report("      ");
-				}
+		if (!_errors.empty()) {
+			for (const auto& error : _errors) {
 			}
 		}
 		if (!conditions.empty()) {
@@ -46,17 +42,9 @@ namespace ContainerManager
 		changes.emplace(it, std::move(a_change));
 	}
 
-	void InventorySwapper::RegisterConfigError(const std::string& configName, 
-		std::unique_ptr<Errors::IError> err)
+	void InventorySwapper::RegisterConfigError(ErrorHolder& err)
 	{
-		auto it = _encounteredErrors.find(configName);
-		if (it == _encounteredErrors.end()) {
-			_encounteredErrors[configName] = std::vector<std::unique_ptr<Errors::IError>>();
-			_encounteredErrors[configName].emplace_back(std::move(err));
-		}
-		else {
-			it->second.emplace_back(std::move(err));
-		}
+		_errors.emplace_back(std::move(err));
 	}
 
 	std::size_t InventorySwapper::RegisterCondition(std::unique_ptr<Condition> a_condition) {

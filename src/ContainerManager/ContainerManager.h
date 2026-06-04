@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Errors/_IError.h"
+#include "Error.h"
 #include "Helpers/FormHelpers.hpp"
 
 namespace ContainerManager
@@ -70,15 +70,12 @@ namespace ContainerManager
     public:
         void Report() const;
         void RegisterChange(std::unique_ptr<Change> a_change);
-        void RegisterConfigError(const std::string& configName, std::unique_ptr<Errors::IError> err);
+        void RegisterConfigError(ErrorHolder& err);
         [[nodiscard]] std::size_t RegisterCondition(std::unique_ptr<Condition> a_condition);
 
         void ManipulateInventory(RE::TESObjectREFR* a_container);
     private:
-        std::map<
-            std::string, 
-            std::vector<std::unique_ptr<Errors::IError>>
-            >_encounteredErrors{};
+        std::vector<ErrorHolder> _errors{};
 
         std::vector<std::unique_ptr<Condition>>    conditions{};
         std::vector<std::unique_ptr<Change>>       changes{}; // Sorted vector.
