@@ -1,31 +1,43 @@
 cmake_minimum_required(VERSION 3.24)
 
-option(BUILD_TEST "Sets log level to debug." OFF)
+option(FULL_RELEASE "Set by your preset, DO NOT edit. Applies Release rules." OFF)
+if(FULL_RELEASE AND CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "FULL_RELEASE enabled; ensure Release configuration is used")
+endif()
 
 # -------- Project ----------
 project(
 	ContainerDistributionFramework
-	VERSION 3.1.0
+	VERSION 4.0.0
 	LANGUAGES CXX
 )
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-list(APPEND CMAKE_IGNORE_PATH "${PROJECT_BINARY_DIR}")
+get_filename_component(
+    Skyrim64Path
+    "[HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Bethesda Softworks\\Skyrim Special Edition;installed path]"
+    ABSOLUTE
+)
+
+set(Skyrim64Path "${Skyrim64Path}" CACHE PATH "Skyrim SE install directory")
+
+if(NOT IS_DIRECTORY "${Skyrim64Path}")
+    message(WARNING "Skyrim SE install path not found; Papyrus scripts will not be compiled or archived.")
+endif()
+
 list(APPEND CMAKE_MODULE_PATH
 	"${PROJECT_SOURCE_DIR}/tools/SKSE-CMakeModules/Modules"
 )
+list(APPEND CMAKE_MODULE_PATH
+	"${PROJECT_SOURCE_DIR}/tools/Bethesda-CMakeModules/Modules"
+)
+
 include(SKSEPlugin)
 set(SKSE_USE_XBYAK ON)
-find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
-
+add_compile_definitions(SKSE_SUPPORT_XBYAK)
 add_compile_definitions(SKYRIM_AE)
 add_compile_definitions(SKYRIM_SUPPORT_AE)
-add_compile_definitions(SKSE_SUPPORT_XBYAK)
-
-if (BUILD_TEST)
-	add_compile_definitions(DEBUG)
-endif()
 
 SKSEPlugin_Add(
 	${PROJECT_NAME}
@@ -37,7 +49,7 @@ SKSEPlugin_Add(
 		src/common/PCH.h
 )
 
-
+find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 find_package(jsoncpp CONFIG REQUIRED)
 
 target_link_libraries(
@@ -46,42 +58,107 @@ target_link_libraries(
 			JsonCpp::JsonCpp
 )
 
-set_target_properties(CommonLibSSE PROPERTIES
-	FOLDER External
-)
-
 target_include_directories(
 	${PROJECT_NAME}
 	PRIVATE
 		${CLIB_UTIL_INCLUDE_DIRS}
 )
 
-set(DATA_DIR "${PROJECT_SOURCE_DIR}/data")
-
-install(
-	FILES "${DATA_DIR}/SKSE/Plugins/replaceme.ini"
-	DESTINATION "SKSE/Plugins"
+set_target_properties(CommonLibSSE PROPERTIES
+	FOLDER External
 )
 
-include(components.cmake)
+set(DATA_DIR "${PROJECT_SOURCE_DIR}/Data")
+set(SKSE_DIR "${DATA_DIR}/SKSE")
+set(SKSE_PLUGINS_DIR "${SKSE_DIR}/Plugins")
+
+set(INI_PATH "${SKSE_PLUGINS_DIR}/${PROJECT_NAME}.ini")
+set(PAPYRUS_SOURCE_DIR "${DATA_DIR}/Source/Scripts")
+set(CUSTOM_CONSOLE_DIR "${SKSE_DIR}/CustomConsole")
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF)
+
+if (MSVC)
+	target_compile_options(
+		${PROJECT_NAME}
+		PRIVATE
+			/sdl                    # Enable Additional Security Checks
+			/utf-8                  # Set Source and Executable character sets to UTF-8
+			/Zi                     # Debug Information Format
+
+			/permissive-            # Standards conformance
+			/Zc:preprocessor        # Enable preprocessor conformance mode
+			/Zc:__cplusplus
+			
+			/wd4200                 # nonstandard extension used : zero-sized array in struct/union
+			/W4                     # More warnings 
+			/WX                     # Treat all warnings as errors
+			/external:anglebrackets # Ignore warnings for external resources.
+			/external:W0            # Same as above
+			
+			"$<$<CONFIG:DEBUG>:>"
+			"$<$<CONFIG:RELEASE>:/Zc:inline;/JMC-;/Ob3>"
+	)
+
+	target_link_options(
+		${PROJECT_NAME}
+		PRIVATE
+			"$<$<CONFIG:DEBUG>:/INCREMENTAL;/OPT:NOREF;/OPT:NOICF>"
+			"$<$<CONFIG:RELEASE>:/INCREMENTAL:NO;/OPT:REF;/OPT:ICF;/DEBUG:FULL>"
+	)
+endif ()
 
 # ---- Post build ----
 if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
-	if(BUILD_TEST)
+	if (FULL_RELEASE)
+		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - Full Release")
+	else()
 		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - Test")
-	else() 
-		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME}")
 	endif()
 endif()
 
+set(ARTIFACT_DIR "${CMAKE_BINARY_DIR}/Artifacts")
+
+# ---- Automatically copy artifacts to MO2 ----
 if(DEFINED OUTPUT_FOLDER)
     set(DLL_FOLDER "${OUTPUT_FOLDER}/SKSE/Plugins")
 
-    add_custom_command(
-        TARGET "${PROJECT_NAME}"
-        POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
-		COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_PDB_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_PDB_FILE_NAME:${PROJECT_NAME}>"
-        VERBATIM
-    )
+	set(POST_BUILD_COMMANDS
+		COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+			"$<TARGET_FILE:${PROJECT_NAME}>"
+			"${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+		COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+			"$<$<BOOL:$<TARGET_PDB_FILE:${PROJECT_NAME}>>:$<TARGET_PDB_FILE:${PROJECT_NAME}>>"
+			"${DLL_FOLDER}/$<TARGET_PDB_FILE_NAME:${PROJECT_NAME}>"
+		COMMAND "${CMAKE_COMMAND}"
+			-DSRC_DIR=${DATA_DIR}
+			-DDST_DIR=${OUTPUT_FOLDER}
+			-DPROJECT_NAME=${PROJECT_NAME}
+			-P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Artifacts.cmake"
+	)	
+
+	
+	message(STATUS "==== Build Configuration ====")
+	message(STATUS "FULL_RELEASE      = ${FULL_RELEASE}")
+	message(STATUS "Skyrim64Path      = ${Skyrim64Path}")
+	message(STATUS "OUTPUT_FOLDER     = ${OUTPUT_FOLDER}")
+	message(STATUS "=============================")
+
+	add_custom_command(
+		TARGET "${PROJECT_NAME}"
+		POST_BUILD
+		${POST_BUILD_COMMANDS}
+		VERBATIM
+	)
+else()
+	message(STATUS "Output folder environment variable not set, build files will not be automatically deployed to MO2.")
 endif()
+
+# ---- Github Release Stuff ----
+install(
+	FILES
+		"${DATA_DIR}/SKSE/Plugins/${PROJECT_NAME}.ini"
+	DESTINATION "SKSE/Plugins"
+	COMPONENT components
+)
