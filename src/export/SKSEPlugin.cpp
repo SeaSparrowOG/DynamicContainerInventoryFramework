@@ -69,8 +69,10 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 #ifdef SKYRIM_GOG
 	static constexpr std::array<REL::Version, 2> supported = 
 	{
+		SKSE::RUNTIME_SSE_1_6_1129,
 		SKSE::RUNTIME_SSE_1_6_1170,
-		SKSE::RUNTIME_SSE_1_6_1179
+		SKSE::RUNTIME_SSE_1_6_1179,
+		SKSE::RUNTIME_SSE_1_6_1179_1
 	};
 
 	if (!std::ranges::contains(supported, ver)) {
