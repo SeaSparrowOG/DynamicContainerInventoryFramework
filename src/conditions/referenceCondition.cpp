@@ -20,12 +20,12 @@ namespace Conditions
 
 	void ReferenceCondition::Print()
 	{
-		logger::info("=========================/");
-		logger::info("|  Reference Conditions /");
-		logger::info("=======================/");
+		REX::INFO("=========================/");
+		REX::INFO("|  Reference Conditions /");
+		REX::INFO("=======================/");
 		for (const auto& form : validReferences) {
-			logger::info("  ->{}{:08X}", inverted ? "Not " : "", form);
+			REX::INFO("  ->{}{:08X}", inverted ? "Not " : "", form);
 		}
-		logger::info("");
+		REX::INFO("");
 	}
 }

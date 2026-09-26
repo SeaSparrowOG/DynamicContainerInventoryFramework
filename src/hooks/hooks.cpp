@@ -41,7 +41,7 @@ namespace Hooks {
 
 	void ContainerManager::Install()
 	{
-		auto& trampoline = SKSE::GetTrampoline();
+		auto& trampoline = REL::GetTrampoline();
 		REL::Relocation<std::uintptr_t> initializeTarget{ RE::Offset::TESObjectREFR::Initialize, 0x78C };
 		REL::Relocation<std::uintptr_t> resetTarget{ RE::Offset::TESObjectREFR::Reset, 0x12B };
 
@@ -192,35 +192,35 @@ namespace Hooks {
 
 	void ContainerManager::PrettyPrint()
 	{
-		logger::info("=================================================");
-		logger::info("Finished reading settings. Information to follow:");
-		logger::info("=================================================");
+		REX::INFO("=================================================");
+		REX::INFO("Finished reading settings. Information to follow:");
+		REX::INFO("=================================================");
 		if (!adds.empty()) {
-			logger::info("New add rules:");
+			REX::INFO("New add rules:");
 			for (auto& rule : adds) {
 				rule.Print();
-				logger::info("=================================");
+				REX::INFO("=================================");
 			}
 		}
 		if (!removes.empty()) {
-			logger::info("New remove rules:");
+			REX::INFO("New remove rules:");
 			for (auto& rule : removes) {
 				rule.Print();
-				logger::info("=================================");
+				REX::INFO("=================================");
 			}
 		}
 		if (!replaces.empty()) {
-			logger::info("New replace rules:");
+			REX::INFO("New replace rules:");
 			for (auto& rule : replaces) {
 				rule.Print();
-				logger::info("=================================");
+				REX::INFO("=================================");
 			}
 		}
 		if (!replaceKeywords.empty()) {
-			logger::info("New replace by keyword rules:");
+			REX::INFO("New replace by keyword rules:");
 			for (auto& rule : replaceKeywords) {
 				rule.Print();
-				logger::info("=================================");
+				REX::INFO("=================================");
 			}
 		}
 	}
@@ -266,7 +266,7 @@ namespace Hooks {
 		const auto timespan = now - then;
 		const auto durationSpan = timespan.count();
 		if (durationSpan > 10000) {
-			logger::debug("Processed {} in {}ns", Utilities::EDID::GetEditorID(a_container->GetBaseObject()), durationSpan);
+			REX::DEBUG("Processed {} in {}ns", Utilities::EDID::GetEditorID(a_container->GetBaseObject()), durationSpan);
 		}
 #endif
 	}
@@ -307,16 +307,16 @@ namespace Hooks {
 	{
 		const auto singleton = ContainerManager::GetSingleton();
 		if (!conditions.empty()) {
-			logger::info("Conditions:");
+			REX::INFO("Conditions:");
 			for (const auto condition : conditions) {
 				singleton->storedConditions.at(condition)->Print();
 			}
 		}
-		logger::info("----------------------------");
-		logger::info("Count: {}", ruleCount);
-		logger::info("Forms:");
+		REX::INFO("----------------------------");
+		REX::INFO("Count: {}", ruleCount);
+		REX::INFO("Forms:");
 		for (const auto& form : newForms) {
-			logger::info("  ->{}", form->GetName());
+			REX::INFO("  ->{}", form->GetName());
 		}
 	}
 
@@ -341,14 +341,14 @@ namespace Hooks {
 	{
 		const auto singleton = ContainerManager::GetSingleton();
 		if (!conditions.empty()) {
-			logger::info("Conditions:");
+			REX::INFO("Conditions:");
 			for (const auto condition : conditions) {
 				singleton->storedConditions.at(condition)->Print();
 			}
 		}
-		logger::info("----------------------------");
-		logger::info("Count: {}", ruleCount == 0 ? "All" : std::to_string(ruleCount));
-		logger::info("Form: {}", form->GetName());
+		REX::INFO("----------------------------");
+		REX::INFO("Count: {}", ruleCount == 0 ? "All" : std::to_string(ruleCount));
+		REX::INFO("Form: {}", form->GetName());
 	}
 
 	void ContainerManager::ReplaceRule::Apply(RE::TESObjectREFR* a_container)
@@ -391,16 +391,16 @@ namespace Hooks {
 	{
 		const auto singleton = ContainerManager::GetSingleton();
 		if (!conditions.empty()) {
-			logger::info("Conditions:");
+			REX::INFO("Conditions:");
 			for (const auto condition : conditions) {
 				singleton->storedConditions.at(condition)->Print();
 			}
 		}
-		logger::info("----------------------------");
-		logger::info("Form to remove: {}", oldForm->GetName());
-		logger::info("Replaced by:");
+		REX::INFO("----------------------------");
+		REX::INFO("Form to remove: {}", oldForm->GetName());
+		REX::INFO("Replaced by:");
 		for (const auto& form : newForms) {
-			logger::info("  ->{}", form->GetName());
+			REX::INFO("  ->{}", form->GetName());
 		}
 	}
 
@@ -484,15 +484,15 @@ namespace Hooks {
 	{
 		const auto singleton = ContainerManager::GetSingleton();
 		if (!conditions.empty()) {
-			logger::info("Conditions:");
+			REX::INFO("Conditions:");
 			for (const auto condition : conditions) {
 				singleton->storedConditions.at(condition)->Print();
 			}
 		}
-		logger::info("----------------------------");
-		logger::info("If an item has all of these keywords, it will be removed:");
+		REX::INFO("----------------------------");
+		REX::INFO("If an item has all of these keywords, it will be removed:");
 		for (const auto keyword : keywordsToRemove) {
-			logger::info("  ->{}", keyword->GetFormEditorID());
+			REX::INFO("  ->{}", keyword->GetFormEditorID());
 		}
 	}
 
@@ -559,19 +559,19 @@ namespace Hooks {
 	{
 		const auto singleton = ContainerManager::GetSingleton();
 		if (!conditions.empty()) {
-			logger::info("Conditions:");
+			REX::INFO("Conditions:");
 			for (const auto condition : conditions) {
 				singleton->storedConditions.at(condition)->Print();
 			}
 		}
-		logger::info("----------------------------");
-		logger::info("If an item has all of these keywords, it will be removed:");
+		REX::INFO("----------------------------");
+		REX::INFO("If an item has all of these keywords, it will be removed:");
 		for (const auto keyword : keywordsToRemove) {
-			logger::info("  ->{}", keyword->GetFormEditorID());
+			REX::INFO("  ->{}", keyword->GetFormEditorID());
 		}
-		logger::info("And replaced by:");
+		REX::INFO("And replaced by:");
 		for (const auto form : newForms) {
-			logger::info("  ->{}", form->GetName());
+			REX::INFO("  ->{}", form->GetName());
 		}
 	}
 }

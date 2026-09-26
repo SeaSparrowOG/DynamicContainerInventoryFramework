@@ -37,12 +37,12 @@ namespace Conditions
 
 	void LocationKeywordCondition::Print()
 	{
-		logger::info("================================/");
-		logger::info("|  Location Keyword Conditions /");
-		logger::info("==============================/");
+		REX::INFO("================================/");
+		REX::INFO("|  Location Keyword Conditions /");
+		REX::INFO("==============================/");
 		for (const auto& form : validKeywords) {
-			logger::info("  ->{}{}", inverted ? "Not " : "", form->GetFormEditorID());
+			REX::INFO("  ->{}{}", inverted ? "Not " : "", form->GetFormEditorID());
 		}
-		logger::info("");
+		REX::INFO("");
 	}
 }

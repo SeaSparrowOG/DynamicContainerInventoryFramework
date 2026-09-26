@@ -3,33 +3,6 @@
 #include "settings/JSONSettings.h"
 #include "merchantCache/merchantCache.h"
 
-namespace
-{
-	void InitializeLog()
-	{
-		auto path = logger::log_directory();
-		if (!path) {
-			util::report_and_fail("Failed to find standard logging directory"sv);
-		}
-
-		*path /= fmt::format("{}.log"sv, Plugin::NAME);
-		auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(path->string(), true);
-
-#ifdef DEBUG
-		const auto level = spdlog::level::debug;
-#else 
-		const auto level = spdlog::level::info;
-#endif
-
-		auto log = std::make_shared<spdlog::logger>("global log"s, std::move(sink));
-		log->set_level(level);
-		log->flush_on(level);
-
-		spdlog::set_default_logger(std::move(log));
-		spdlog::set_pattern("[%^%l%$] %v"s);
-	}
-}
-
 extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []()
 	{
 		SKSE::PluginVersionData v{};
@@ -43,19 +16,13 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []()
 		return v;
 	}();
 
-extern "C" DLLEXPORT bool SKSEAPI
-SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
+SKSE_PLUGIN_QUERY(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
 {
 	a_info->infoVersion = SKSE::PluginInfo::kVersion;
 	a_info->name = Plugin::NAME.data();
 	a_info->version = Plugin::VERSION[0];
 
 	if (a_skse->IsEditor()) {
-		return false;
-	}
-
-	const auto ver = a_skse->RuntimeVersion();
-	if (ver < SKSE::RUNTIME_SSE_1_6_1130) {
 		return false;
 	}
 
@@ -68,9 +35,9 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 	case SKSE::MessagingInterface::kDataLoaded:
 		Hooks::ContainerManager::GetSingleton()->WarmCache();
 		MerchantCache::MerchantCache::GetSingleton()->BuildCache();
-		logger::info("If there are any config errors, they'll show here:");
+		REX::INFO("If there are any config errors, they'll show here:");
 		Settings::JSON::Read();
-		logger::info("=================================================");
+		REX::INFO("=================================================");
 		Hooks::ContainerManager::GetSingleton()->PrettyPrint();
 		break;
 	default:
@@ -78,20 +45,62 @@ static void MessageEventCallback(SKSE::MessagingInterface::Message* a_msg)
 	}
 }
 
-extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
+SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 {
-	InitializeLog();
-	logger::info("=================================================");
-	logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
-	logger::info("Author: SeaSparrow");
-	logger::info("=================================================");
-	SKSE::Init(a_skse);
-	SKSE::AllocTrampoline(28);
+	constexpr std::size_t allocSize = 14u * 5u + 33u * 2u;
+	SKSE::InitInfo info;
+	info.hook = true;
+	info.log = true;
+	info.logLevel = REX::ELogLevel::Trace;
+	info.logName = Plugin::NAME.data();
+	info.logPattern = "[%T.%e] [%=5t] [%L] %v";
+	info.trampoline = true;
+	info.trampolineSize = allocSize;
+
+	SKSE::Init(a_skse, info);
+
+	REX::INFO("=================================================");
+	REX::INFO("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
+	REX::INFO("Author: SeaSparrow");
+	REX::INFO("=================================================");
 
 	const auto ver = a_skse->RuntimeVersion();
-	if (ver < SKSE::RUNTIME_SSE_1_6_1130) {
-		return false;
+
+#ifdef SKYRIM_GOG
+	static constexpr std::array<REL::Version, 2> supported = 
+	{
+		SKSE::RUNTIME_SSE_1_6_1170,
+		SKSE::RUNTIME_SSE_1_6_1179
+	};
+
+	if (!std::ranges::contains(supported, ver)) {
+		REX::CRITICAL("Game Version: {}"sv, ver.string());
+		REX::CRITICAL("Supported Versions:"sv);
+		for (const auto& allowed : supported) {
+			REX::CRITICAL("  - {}"sv, allowed.string());
+		}
+		REX::FAIL(
+			fmt::format("You are using a version not supported by this plugin. Check the log at (Documents/My Games/Skyrim Special Edition/{}.log for more information."sv, Plugin::NAME)
+		);
 	}
+#else
+	static constexpr std::array<REL::Version, 2> supported = 
+	{
+		SKSE::RUNTIME_SSE_1_7_104,
+		SKSE::RUNTIME_SSE_1_7_99
+	};
+
+	if ((ver < SKSE::RUNTIME_SSE_LATEST) && (!std::ranges::contains(supported, ver))) {
+		REX::CRITICAL("Game Version: {}"sv, ver.string());
+		REX::CRITICAL("Supported Versions:"sv);
+		for (const auto& allowed : supported) {
+			REX::CRITICAL("  - {}"sv, allowed.string());
+		}
+		REX::FAIL(
+			fmt::format("You are using a version not supported by this plugin. Check the log at (Documents/My Games/Skyrim Special Edition/{}.log for more information."sv, Plugin::NAME)
+		);
+	}
+#endif
 
 	const auto messaging = SKSE::GetMessagingInterface();
 	messaging->RegisterListener(&MessageEventCallback);
