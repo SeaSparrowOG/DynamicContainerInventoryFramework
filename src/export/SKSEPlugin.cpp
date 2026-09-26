@@ -72,7 +72,7 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 		SKSE::RUNTIME_SSE_1_6_1129,
 		SKSE::RUNTIME_SSE_1_6_1170,
 		SKSE::RUNTIME_SSE_1_6_1179,
-		SKSE::RUNTIME_SSE_1_6_1179_1
+		REL::Version(1, 6, 1179, 1) // ghosts?
 	};
 
 	if (!std::ranges::contains(supported, ver)) {
