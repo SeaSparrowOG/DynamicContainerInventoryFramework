@@ -23,10 +23,10 @@ namespace Conditions
 
 	void AVCondition::Print()
 	{
-		logger::info("=================/");
-		logger::info("|  AV Condition /");
-		logger::info("===============/");
-		logger::info("  ->{}{}: [{}]", inverted ? "Not " : "", value, minValue);
-		logger::info("");
+		REX::INFO("=================/");
+		REX::INFO("|  AV Condition /");
+		REX::INFO("===============/");
+		REX::INFO("  ->{}{}: [{}]", inverted ? "Not " : "", value, minValue);
+		REX::INFO("");
 	}
 }

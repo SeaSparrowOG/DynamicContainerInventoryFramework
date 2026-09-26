@@ -60,16 +60,16 @@ namespace Conditions
 
 	void QuestCondition::Print()
 	{
-		logger::info("=====================/");
-		logger::info("|  Quest Conditions /");
-		logger::info("===================/");
-		logger::info("  ->{}{}: [{}]", inverted ? "Not " : "", quest->GetName(), state == kCompleted ? "Completed" : "Ongoing");
+		REX::INFO("=====================/");
+		REX::INFO("|  Quest Conditions /");
+		REX::INFO("===================/");
+		REX::INFO("  ->{}{}: [{}]", inverted ? "Not " : "", quest->GetName(), state == kCompleted ? "Completed" : "Ongoing");
 		if (!completedStages.empty()) {
-			logger::info("    Required Stages:");
+			REX::INFO("    Required Stages:");
 			for (const auto& stage : completedStages) {
-				logger::info("      <{}>", stage);
+				REX::INFO("      <{}>", stage);
 			}
 		}
-		logger::info("");
+		REX::INFO("");
 	}
 }

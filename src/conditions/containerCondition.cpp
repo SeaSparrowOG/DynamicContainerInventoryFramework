@@ -27,16 +27,16 @@ namespace Conditions
 	{
 		std::string litmus = Utilities::EDID::GetEditorID(validContainers.front());
 		if (!litmus.empty()) {
-			logger::info("=========================/");
-			logger::info("|  Container Conditions /");
-			logger::info("=======================/");
+			REX::INFO("=========================/");
+			REX::INFO("|  Container Conditions /");
+			REX::INFO("=======================/");
 			for (const auto& form : validContainers) {
-				logger::info("  ->{}{}", inverted ? "Not " : "", Utilities::EDID::GetEditorID(form));
+				REX::INFO("  ->{}{}", inverted ? "Not " : "", Utilities::EDID::GetEditorID(form));
 			}
 		}
 		else {
-			logger::info("PO3's Tweaks are required to view Container EDIDs!");
+			REX::INFO("PO3's Tweaks are required to view Container EDIDs!");
 		}
-		logger::info("");
+		REX::INFO("");
 	}
 }

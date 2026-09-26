@@ -1,42 +1,64 @@
 cmake_minimum_required(VERSION 3.24)
 
-option(BUILD_TEST "Sets log level to debug." OFF)
+option(FULL_RELEASE "Finalizes the build, compressing everything into a BSA." OFF)
+option(GOG "Targets 1.6 for GOG." OFF)
+option(COPY_BSA "Copies any generated BSA to the MO2 directory (if specified)." ON)
+option(COPY_PEX "Copies any generated scripts to the MO2 directory (if specified). Applies after the BSA (if enabled)." ON)
+option(COPY_PSC "Copies any script sources to the MO2 directory (if specified). Applies after the BSA (if enabled)." ON)
 
 # -------- Project ----------
 project(
 	ContainerDistributionFramework
-	VERSION 3.1.0
+	VERSION 3.1.1
 	LANGUAGES CXX
 )
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+get_filename_component(
+	Skyrim64Path
+	"[HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Bethesda Softworks\\Skyrim Special Edition;installed path]"
+	ABSOLUTE CACHE
+)
+
 list(APPEND CMAKE_IGNORE_PATH "${PROJECT_BINARY_DIR}")
 list(APPEND CMAKE_MODULE_PATH
 	"${PROJECT_SOURCE_DIR}/tools/SKSE-CMakeModules/Modules"
+)
+list(APPEND CMAKE_MODULE_PATH
+	"${PROJECT_SOURCE_DIR}/tools/Bethesda-CMakeModules/Modules"
 )
 include(SKSEPlugin)
 set(SKSE_USE_XBYAK ON)
 find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
 
+add_compile_definitions(SKSE_SUPPORT_XBYAK)
 add_compile_definitions(SKYRIM_AE)
 add_compile_definitions(SKYRIM_SUPPORT_AE)
-add_compile_definitions(SKSE_SUPPORT_XBYAK)
 
-if (BUILD_TEST)
-	add_compile_definitions(DEBUG)
+if (GOG)
+	add_compile_definitions(SKYRIM_GOG)
+	set(SKSE_COMMONLIBSSE_PATH, "${CMAKE_CURRENT_SOURCE_DIR}/External/CommonLibSSE_1.6")
+else()
+	set(SKSE_COMMONLIBSSE_PATH, "${CMAKE_CURRENT_SOURCE_DIR}/External/CommonLibSSE")
+endif()
+
+if (SKIP_ARTIFACTS)
+	set(BUILD_ARTIFACTS, OFF)
+else()
+	option(BUILD_ARTIFACTS "Turned off during Github actions to get them to stop failing." ON)
 endif()
 
 SKSEPlugin_Add(
 	${PROJECT_NAME}
 	SOURCE_DIR src
+	INCLUDE_DIR include
 	SOURCES
 		README.md
 		vcpkg.json
 	PRECOMPILE_HEADERS
 		src/common/PCH.h
 )
-
 
 find_package(jsoncpp CONFIG REQUIRED)
 
@@ -58,30 +80,108 @@ target_include_directories(
 
 set(DATA_DIR "${PROJECT_SOURCE_DIR}/data")
 
-install(
-	FILES "${DATA_DIR}/SKSE/Plugins/replaceme.ini"
-	DESTINATION "SKSE/Plugins"
-)
-
 include(components.cmake)
 
 # ---- Post build ----
 if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
-	if(BUILD_TEST)
+	if(GOG)
+		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - GOG")
+	elseif (FULL_RELEASE)
+		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - Full Release")
+	else()
 		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - Test")
-	else() 
-		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME}")
 	endif()
 endif()
 
-if(DEFINED OUTPUT_FOLDER)
+# ---- Compile Papyrus Scripts and Pack Into Archive ----
+include(Papyrus)
+include(BSArchive)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Data/Source/Scripts" AND BUILD_ARTIFACTS)
+	file(GLOB ${PROJECT_NAME}_SOURCES
+		LIST_DIRECTORIES false
+		CONFIGURE_DEPENDS
+		"Data/Source/Scripts/*.psc"
+	)
+
+	Papyrus_Add(
+		"Papyrus"
+		GAME ${Skyrim64Path}
+		IMPORTS ${CMAKE_CURRENT_SOURCE_DIR}/Data/Source/Scripts
+		SOURCES ${${PROJECT_NAME}_SOURCES}
+		OPTIMIZE ANONYMIZE
+	)
+
+	BSArchive_Add(
+		"BSA"
+		OUTPUT "${PROJECT_NAME}.bsa"
+		FORMAT SSE
+		FILES ${Papyrus_OUTPUT}
+	)
+else()
+	message(STATUS "No scripts to compile found, won't compress into BSA.")
+endif()
+
+# ---- Automatically copy artifacts to MO2 ----
+if(DEFINED OUTPUT_FOLDER AND BUILD_ARTIFACTS)
     set(DLL_FOLDER "${OUTPUT_FOLDER}/SKSE/Plugins")
 
     add_custom_command(
         TARGET "${PROJECT_NAME}"
         POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
-		COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_PDB_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_PDB_FILE_NAME:${PROJECT_NAME}>"
-        VERBATIM
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_PDB_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_PDB_FILE_NAME:${PROJECT_NAME}>"
+
+		COMMAND "${CMAKE_COMMAND}"
+			-DSRC_DIR="${PROJECT_SOURCE_DIR}/Data"
+			-DDST_DIR="${OUTPUT_FOLDER}"
+			-DPROJECT_NAME="${PROJECT_NAME}"
+			-P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Artifacts.cmake"
     )
+
+    if(COPY_BSA)
+		add_custom_command(
+			TARGET "${PROJECT_NAME}"
+			POST_BUILD
+			COMMAND "${CMAKE_COMMAND}"
+				-DSRC_DIR="${PROJECT_SOURCE_DIR}/Data"
+				-DDST_DIR=${OUTPUT_FOLDER}
+				-DPROJECT_NAME=${PROJECT_NAME}
+				-DBINARY_DIR=${CMAKE_BINARY_DIR}
+				-P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Archive.cmake"
+			VERBATIM
+		)
+	endif()
+
+    if(COPY_PEX)
+        add_custom_command(
+        TARGET "${PROJECT_NAME}"
+        POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            -DCOMPILED_SCRIPTS="${CMAKE_BINARY_DIR}/Scripts"
+            -DOUTPUT_FOLDER="${OUTPUT_FOLDER}"
+            -P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Scripts.cmake"
+        VERBATIM
+		)
+    endif()
+
+	if(COPY_PSC)
+        add_custom_command(
+        TARGET "${PROJECT_NAME}"
+        POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            -DSOURCE_SCRIPTS="${PROJECT_SOURCE_DIR}/Data/Source/Scripts"
+            -DOUTPUT_FOLDER="${OUTPUT_FOLDER}"
+            -P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Sources.cmake"
+        VERBATIM
+		)
+    endif()
 endif()
+
+# ---- Github Release Stuff ----
+install(
+	FILES
+		"${DATA_DIR}/SKSE/Plugins/${PROJECT_NAME}.ini"
+	DESTINATION "SKSE/Plugins"
+	COMPONENT components
+)

@@ -15,20 +15,20 @@
 namespace {
 	void ParseNewAVs(Json::Value& a_data, bool a_inverted, std::vector<Conditions::AVCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
-			logger::warn("Config <{}>/[{}] has playerSkills specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has playerSkills specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		std::vector<std::pair<std::string, float>> requiredAVs;
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
-				logger::warn("Config <{}>/[{}] has playerSkills specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has playerSkills specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
 				return;
 			}
 
 			auto components = Utilities::String::split(identifier.asString(), "|");
 			if (components.size() != 2) {
-				logger::warn("Config <{}>/[{}] has playerSkills specified, but an element ({}) is not formatted correctly (Skill|Level). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+				REX::WARN("Config <{}>/[{}] has playerSkills specified, but an element ({}) is not formatted correctly (Skill|Level). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
 				return;
 			}
 			float requiredLevel = -1.0f;
@@ -36,19 +36,19 @@ namespace {
 				requiredLevel = std::stof(components.at(1));
 			}
 			catch (std::exception& e) {
-				logger::warn("Config <{}>/[{}] has playerSkills specified, but an element ({}) is not formatted correctly (Skill|Level). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
-				logger::warn("Error: {}", e.what());
+				REX::WARN("Config <{}>/[{}] has playerSkills specified, but an element ({}) is not formatted correctly (Skill|Level). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+				REX::WARN("Error: {}", e.what());
 				return;
 			}
 			if (requiredLevel < 0.0f) {
-				logger::warn("Don't use negative valued for playerSkills.");
+				REX::WARN("Don't use negative valued for playerSkills.");
 			}
 
 			requiredAVs.push_back({ components.at(0), requiredLevel });
 		}
 
 		if (requiredAVs.empty()) {
-			logger::warn("Config <{}>/[{}] did not have any valid ACTOR VALUE forms. This is not fatal.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] did not have any valid ACTOR VALUE forms. This is not fatal.", a_path, friendlyName.asString());
 			return;
 		}
 
@@ -61,27 +61,27 @@ namespace {
 
 	void ParseNewContainers(Json::Value& a_data, bool a_inverted, std::vector<Conditions::ContainerCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
-			logger::warn("Config <{}>/[{}] has containers specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has containers specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		std::vector<RE::TESObjectCONT*> forms{};
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
-				logger::warn("Config <{}>/[{}] has containers specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has containers specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
 				return;
 			}
 
 			const auto container = Utilities::Forms::GetFormFromString<RE::TESObjectCONT>(identifier.asString());
 			if (!container) {
-				logger::info("Config <{}>/[{}] requires container {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+				REX::INFO("Config <{}>/[{}] requires container {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
 				continue;
 			}
 			forms.push_back(container);
 		}
 
 		if (forms.empty()) {
-			logger::warn("Config <{}>/[{}] did not have any valid CONTAINER forms. This is not fatal.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] did not have any valid CONTAINER forms. This is not fatal.", a_path, friendlyName.asString());
 			return;
 		}
 
@@ -92,27 +92,27 @@ namespace {
 
 	void ParseNewLocations(Json::Value& a_data, bool a_inverted, std::vector<Conditions::LocationCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
-			logger::warn("Config <{}>/[{}] has locations specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has locations specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		std::vector<RE::BGSLocation*> forms{};
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
-				logger::warn("Config <{}>/[{}] has locations specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has locations specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
 				return;
 			}
 
 			const auto container = Utilities::Forms::GetFormFromString<RE::BGSLocation>(identifier.asString());
 			if (!container) {
-				logger::info("Config <{}>/[{}] requires location {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+				REX::INFO("Config <{}>/[{}] requires location {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
 				continue;
 			}
 			forms.push_back(container);
 		}
 
 		if (forms.empty()) {
-			logger::warn("Config <{}>/[{}] did not have any valid LOCATION forms. This is not fatal.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] did not have any valid LOCATION forms. This is not fatal.", a_path, friendlyName.asString());
 			return;
 		}
 
@@ -123,27 +123,27 @@ namespace {
 
 	void ParseNewWorldspaces(Json::Value& a_data, bool a_inverted, std::vector<Conditions::WorldspaceCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
-			logger::warn("Config <{}>/[{}] has worldspaces specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has worldspaces specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		std::vector<RE::TESWorldSpace*> forms{};
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
-				logger::warn("Config <{}>/[{}] has worldspaces specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has worldspaces specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
 				return;
 			}
 
 			const auto form = Utilities::Forms::GetFormFromString<RE::TESWorldSpace>(identifier.asString());
 			if (!form) {
-				logger::info("Config <{}>/[{}] requires worldspaces {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+				REX::INFO("Config <{}>/[{}] requires worldspaces {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
 				continue;
 			}
 			forms.push_back(form);
 		}
 
 		if (forms.empty()) {
-			logger::warn("Config <{}>/[{}] did not have any valid WORLDSPACE forms. This is not fatal.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] did not have any valid WORLDSPACE forms. This is not fatal.", a_path, friendlyName.asString());
 			return;
 		}
 
@@ -154,27 +154,27 @@ namespace {
 
 	void ParseNewLocationKeywords(Json::Value& a_data, bool a_inverted, std::vector<Conditions::LocationKeywordCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
-			logger::warn("Config <{}>/[{}] has locationKeywords specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has locationKeywords specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		std::vector<RE::BGSKeyword*> forms{};
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
-				logger::warn("Config <{}>/[{}] has locationKeywords specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has locationKeywords specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
 				return;
 			}
 
 			const auto keyword = RE::TESForm::LookupByEditorID<RE::BGSKeyword>(identifier.asString());
 			if (!keyword) {
-				logger::info("Config <{}>/[{}] requires keyword {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+				REX::INFO("Config <{}>/[{}] requires keyword {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
 				continue;
 			}
 			forms.push_back(keyword);
 		}
 
 		if (forms.empty()) {
-			logger::warn("Config <{}>/[{}] did not have any valid LOCATION KEYWORD forms. This is not fatal.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] did not have any valid LOCATION KEYWORD forms. This is not fatal.", a_path, friendlyName.asString());
 			return;
 		}
 
@@ -185,26 +185,26 @@ namespace {
 
 	void ParseNewGlobals(Json::Value& a_data, bool a_inverted, std::vector<Conditions::GlobalCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
-			logger::warn("Config <{}>/[{}] has globals specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has globals specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		std::vector<std::pair<RE::TESGlobal*, float>> requiredGlobals;
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
-				logger::warn("Config <{}>/[{}] has globals specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has globals specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
 				return;
 			}
 
 			auto components = Utilities::String::split(identifier.asString(), "|");
 			if (components.size() != 2) {
-				logger::warn("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+				REX::WARN("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
 				return;
 			}
 
 			const auto global = RE::TESForm::LookupByEditorID<RE::TESGlobal>(components.at(0));
 			if (!global) {
-				logger::info("Config <{}>/[{}] requires global {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
+				REX::INFO("Config <{}>/[{}] requires global {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), identifier.asString());
 				continue;
 			}
 
@@ -213,12 +213,12 @@ namespace {
 				globalValue = std::stof(components.at(1));
 			}
 			catch (std::exception& e) {
-				logger::warn("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
-				logger::warn("Error: {}", e.what());
+				REX::WARN("Config <{}>/[{}] has globals specified, but an element ({}) is not formatted correctly (Global|Value). Config will be ignored.", a_path, friendlyName.asString(), identifier.asString());
+				REX::WARN("Error: {}", e.what());
 				return;
 			}
 			if (globalValue < 0.0f) {
-				logger::warn("Don't use negative valued for globals.");
+				REX::WARN("Don't use negative valued for globals.");
 			}
 			requiredGlobals.push_back({ global, globalValue });
 		}
@@ -231,23 +231,23 @@ namespace {
 
 	void ParseNewQuests(Json::Value& a_data, bool a_inverted, std::vector<Conditions::QuestCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isObject()) {
-			logger::warn("Config <{}>/[{}] has questConditions specified, but it is not an object value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has questConditions specified, but it is not an object value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		if (!a_data["questID"] || !a_data["questID"].isString()) {
-			logger::warn("Config <{}>/[{}] has questConditions specified, but an element is missing questID (or it is not a string).", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has questConditions specified, but an element is missing questID (or it is not a string).", a_path, friendlyName.asString());
 			return;
 		}
 
 		if (!(a_data["stageDone"] || a_data["completed"])) {
-			logger::warn("Config <{}>/[{}] has questConditions specified, but is missing the actual condition (stagedone/completed).", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has questConditions specified, but is missing the actual condition (stagedone/completed).", a_path, friendlyName.asString());
 			return;
 		}
 
 		const auto quest = RE::TESForm::LookupByEditorID<RE::TESQuest>(a_data["questID"].asString());
 		if (!quest) {
-			logger::info("Config <{}>/[{}] requires quest {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), a_data["questID"].asString());
+			REX::INFO("Config <{}>/[{}] requires quest {}, but it is not present. This is not fatal.", a_path, friendlyName.asString(), a_data["questID"].asString());
 			return;
 		}
 
@@ -256,7 +256,7 @@ namespace {
 		if (a_data["stageDone"] && a_data["stageDone"].isArray()) {
 			for (const auto& field : a_data["stageDone"]) {
 				if (!field.isUInt()) {
-					logger::warn("Config <{}>/[{}] requires quest {}, but at least one stage specified is not a number, config will be ignored.", a_path, friendlyName.asString(), a_data["questID"].asString());
+					REX::WARN("Config <{}>/[{}] requires quest {}, but at least one stage specified is not a number, config will be ignored.", a_path, friendlyName.asString(), a_data["questID"].asString());
 					return;
 				}
 				completedStages.push_back(static_cast<uint16_t>(field.asUInt()));
@@ -269,29 +269,29 @@ namespace {
 
 	void ParseNewReferences(Json::Value& a_data, bool a_inverted, std::vector<Conditions::ReferenceCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
-			logger::warn("Config <{}>/[{}] has references specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
+			REX::WARN("Config <{}>/[{}] has references specified, but it is not an array value. Config will be ignored.", a_path, friendlyName.asString());
 			return;
 		}
 
 		std::vector<RE::FormID> forms{};
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
-				logger::warn("Config <{}>/[{}] has references specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has references specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
 				return;
 			}
 			auto parts = Utilities::String::split(identifier.asString(), "|");
 			if (parts.size() != 2) {
-				logger::warn("Config <{}>/[{}] has a malformed reference string."sv, a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has a malformed reference string."sv, a_path, friendlyName.asString());
 				continue;
 			}
 			if (!Utilities::String::is_only_hex(parts.at(0))) {
-				logger::warn("Config <{}>/[{}] has a non-hex FormID."sv, a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] has a non-hex FormID."sv, a_path, friendlyName.asString());
 				continue;
 			}
 
 			auto form = Utilities::Forms::GetFormFromString<RE::TESObjectREFR>(identifier.asString());
 			if (!form) {
-				logger::warn("Failed to resolve {}|{}"sv, parts.at(0), parts.at(1));
+				REX::WARN("Failed to resolve {}|{}"sv, parts.at(0), parts.at(1));
 				continue;
 			}
 			forms.push_back(form->GetFormID());
@@ -325,20 +325,20 @@ namespace Settings::JSON
 		for (auto& data : rules) {
 			auto& friendlyName = data["friendlyName"];
 			if (!friendlyName || !friendlyName.isString()) {
-				logger::warn("Config <{}> is missing friendly name, or friendly name is not a string.", a_path);
+				REX::WARN("Config <{}> is missing friendly name, or friendly name is not a string.", a_path);
 				return;
 			}
 			auto& conditions = data["conditions"];
 			auto& changes = data["changes"];
 			if (!changes || !changes.isArray()) {
-				logger::warn("Config <{}>/[{}] is either missing the changes field, or it is not an array.", a_path, friendlyName.asString());
+				REX::WARN("Config <{}>/[{}] is either missing the changes field, or it is not an array.", a_path, friendlyName.asString());
 				return;
 			}
 
 			const auto dataHandler = RE::TESDataHandler::GetSingleton();
 			assert(dataHandler);
 			if (!dataHandler) {
-				logger::critical("FAILED TO GET DATA HANDLER, YOU WILL PROBABLY CRASH.");
+				REX::CRITICAL("FAILED TO GET DATA HANDLER, YOU WILL PROBABLY CRASH.");
 				return;
 			}
 
@@ -363,18 +363,18 @@ namespace Settings::JSON
 				auto& plugins = conditions["plugins"];
 				if (plugins) {
 					if (!plugins.isArray()) {
-						logger::warn("Config <{}>/[{}] has plugins specified, but plugins are not an array. Config will be ignored.", a_path, friendlyName.asString());
+						REX::WARN("Config <{}>/[{}] has plugins specified, but plugins are not an array. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 
 					for (auto& plugin : plugins) {
 						if (!plugin.isString()) {
-							logger::warn("Config <{}>/[{}] has plugins specified, and a plugin is not a string. Config will be ignored.", a_path, friendlyName.asString());
+							REX::WARN("Config <{}>/[{}] has plugins specified, and a plugin is not a string. Config will be ignored.", a_path, friendlyName.asString());
 							return;
 						}
 
 						if (!dataHandler->LookupModByName(plugin.asString())) {
-							logger::info("Note that config <{}>/[{}] requires mod {} to work, which is not present.", a_path, friendlyName.asString(), plugin.asString());
+							REX::INFO("Note that config <{}>/[{}] requires mod {} to work, which is not present.", a_path, friendlyName.asString(), plugin.asString());
 							return;
 						}
 					}
@@ -384,7 +384,7 @@ namespace Settings::JSON
 				auto& bypassField = conditions["bypassUnsafeContainers"];
 				if (bypassField) {
 					if (!bypassField.isBool()) {
-						logger::warn("Config <{}>/[{}] has bypassUnsafeContainers specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
+						REX::WARN("Config <{}>/[{}] has bypassUnsafeContainers specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 					bypassUnsafeContainers = bypassField.asBool();
@@ -394,7 +394,7 @@ namespace Settings::JSON
 				auto& vendorsField = conditions["allowVendors"];
 				if (vendorsField) {
 					if (!vendorsField.isBool()) {
-						logger::warn("Config <{}>/[{}] has allowVendors specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
+						REX::WARN("Config <{}>/[{}] has allowVendors specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 					distributeToVendors = vendorsField.asBool();
@@ -404,7 +404,7 @@ namespace Settings::JSON
 				auto& vendorsOnlyField = conditions["onlyVendors"];
 				if (vendorsOnlyField) {
 					if (!vendorsOnlyField.isBool()) {
-						logger::warn("Config <{}>/[{}] has onlyVendors specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
+						REX::WARN("Config <{}>/[{}] has onlyVendors specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 					if (vendorsOnlyField.asBool()) {
@@ -417,7 +417,7 @@ namespace Settings::JSON
 				auto& randomAddField = conditions["randomAdd"];
 				if (randomAddField) {
 					if (!randomAddField.isBool()) {
-						logger::warn("Config <{}>/[{}] has randomAdd specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
+						REX::WARN("Config <{}>/[{}] has randomAdd specified, but it is not a bool value. Config will be ignored.", a_path, friendlyName.asString());
 						return;
 					}
 					randomAdd = randomAddField.asBool();
@@ -429,14 +429,14 @@ namespace Settings::JSON
 				if (containerField) {
 					ParseNewContainers(containerField, false, newContainers, a_path, friendlyName);
 					if (newContainers.empty()) {
-						logger::error("Config <{}>/[{}] has container specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has container specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reverseContainersField) {
 					ParseNewContainers(reverseContainersField, true, newContainers, a_path, friendlyName);
 					if (newContainers.empty()) {
-						logger::error("Config <{}>/[{}] has container specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has container specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
@@ -447,14 +447,14 @@ namespace Settings::JSON
 				if (locations) {
 					ParseNewLocations(locations, false, newLocations, a_path, friendlyName);
 					if (newLocations.empty()) {
-						logger::error("Config <{}>/[{}] has locations specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has locations specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reverseLocations) {
 					ParseNewLocations(reverseLocations, true, newLocations, a_path, friendlyName);
 					if (newLocations.empty()) {
-						logger::error("Config <{}>/[{}] has locations specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has locations specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
@@ -465,14 +465,14 @@ namespace Settings::JSON
 				if (worldspaces) {
 					ParseNewWorldspaces(worldspaces, false, newWorldspaces, a_path, friendlyName);
 					if (newWorldspaces.empty()) {
-						logger::error("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reverseWorldspaces) {
 					ParseNewWorldspaces(reverseWorldspaces, true, newWorldspaces, a_path, friendlyName);
 					if (newWorldspaces.empty()) {
-						logger::error("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has worldspaces specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
@@ -483,14 +483,14 @@ namespace Settings::JSON
 				if (locationKeywords) {
 					ParseNewLocationKeywords(locationKeywords, false, newLocationKeywords, a_path, friendlyName);
 					if (newLocationKeywords.empty()) {
-						logger::error("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reverseLocationKeywords) {
 					ParseNewLocationKeywords(reverseLocationKeywords, true, newLocationKeywords, a_path, friendlyName);
 					if (newLocationKeywords.empty()) {
-						logger::error("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has locationKeywords specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
@@ -501,14 +501,14 @@ namespace Settings::JSON
 				if (playerSkillsField) {
 					ParseNewAVs(playerSkillsField, false, newAVs, a_path, friendlyName);
 					if (newAVs.empty()) {
-						logger::error("Config <{}>/[{}] has newAVs specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has newAVs specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reversePlayerSkillsField) {
 					ParseNewAVs(reversePlayerSkillsField, true, newAVs, a_path, friendlyName);
 					if (newAVs.empty()) {
-						logger::error("Config <{}>/[{}] has newAVs specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has newAVs specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
@@ -519,14 +519,14 @@ namespace Settings::JSON
 				if (globalsField) {
 					ParseNewGlobals(globalsField, false, newGlobals, a_path, friendlyName);
 					if (newGlobals.empty()) {
-						logger::error("Config <{}>/[{}] has newGlobals specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has newGlobals specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (reverseGlobalsField) {
 					ParseNewGlobals(reverseGlobalsField, true, newGlobals, a_path, friendlyName);
 					if (newGlobals.empty()) {
-						logger::error("Config <{}>/[{}] has newGlobals specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has newGlobals specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
@@ -536,7 +536,7 @@ namespace Settings::JSON
 				if (questConditionField) {
 					ParseNewQuests(questConditionField, false, newQuests, a_path, friendlyName);
 					if (newQuests.empty()) {
-						logger::error("Config <{}>/[{}] has newQuests specified, but no valid forms were found.", a_path, friendlyName.asString());
+						REX::ERROR("Config <{}>/[{}] has newQuests specified, but no valid forms were found.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
@@ -615,31 +615,31 @@ namespace Settings::JSON
 				const auto& removeKeywords = change["removeByKeywords"];
 				const auto& count = change["count"];
 				if (!add && !remove && !removeKeywords && !count) {
-					logger::warn("No changes detected, was this meant?");
+					REX::WARN("No changes detected, was this meant?");
 					continue;
 				}
 
 				if (count) {
 					if (!count.isUInt()) {
-						logger::warn("Config <{}>/[{}], rule has invalid count.", a_path, friendlyName.asString());
+						REX::WARN("Config <{}>/[{}], rule has invalid count.", a_path, friendlyName.asString());
 						continue;
 					}
 				}
 				if (remove) {
 					if (!remove.isString()) {
-						logger::warn("config <{}>/[{}], rule has invalid remove data.", a_path, friendlyName.asString());
+						REX::WARN("config <{}>/[{}], rule has invalid remove data.", a_path, friendlyName.asString());
 						continue;
 					}
 
 					const auto obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(remove.asString());
 					if (!obj) {
-						logger::warn("Config <{}>/[{}] contains invalid remove data - missing form {}.", a_path, friendlyName.asString(), remove.asString());
+						REX::WARN("Config <{}>/[{}] contains invalid remove data - missing form {}.", a_path, friendlyName.asString(), remove.asString());
 						continue;
 					}
 				}
 				if (add) {
 					if (!add.isArray()) {
-						logger::warn("config <{}>/[{}], rule has invalid add data.", a_path, friendlyName.asString());
+						REX::WARN("config <{}>/[{}], rule has invalid add data.", a_path, friendlyName.asString());
 						continue;
 					}
 
@@ -647,14 +647,14 @@ namespace Settings::JSON
 					for (auto it = add.begin(); !shouldSkip && it != add.end(); ++it) {
 						const auto& entry = *it;
 						if (!entry.isString()) {
-							logger::warn("Config <{}>/[{}] contains invalid add data.", a_path, friendlyName.asString());
+							REX::WARN("Config <{}>/[{}] contains invalid add data.", a_path, friendlyName.asString());
 							shouldSkip = true;
 							continue;
 						}
 
 						auto* obj = Utilities::Forms::GetFormFromString<RE::TESBoundObject>(entry.asString());
 						if (!obj) {
-							logger::warn("Config <{}>/[{}] contains invalid add data - missing form {}.", a_path, friendlyName.asString(), entry.asString());
+							REX::WARN("Config <{}>/[{}] contains invalid add data - missing form {}.", a_path, friendlyName.asString(), entry.asString());
 							shouldSkip = true;
 							continue;
 						}
@@ -665,7 +665,7 @@ namespace Settings::JSON
 				}
 				if (removeKeywords) {
 					if (!removeKeywords.isArray()) {
-						logger::warn("config <{}>/[{}], rule has invalid removeKeywords data.", a_path, friendlyName.asString());
+						REX::WARN("config <{}>/[{}], rule has invalid removeKeywords data.", a_path, friendlyName.asString());
 						continue;
 					}
 
@@ -673,14 +673,14 @@ namespace Settings::JSON
 					for (auto it = removeKeywords.begin(); !shouldSkip && it != removeKeywords.end(); ++it) {
 						const auto& entry = *it;
 						if (!entry.isString()) {
-							logger::warn("Config <{}>/[{}] contains invalid removeKeywords data.", a_path, friendlyName.asString());
+							REX::WARN("Config <{}>/[{}] contains invalid removeKeywords data.", a_path, friendlyName.asString());
 							shouldSkip = true;
 							continue;
 						}
 
 						const auto keyword = Utilities::Forms::GetFormFromString<RE::BGSKeyword>(entry.asString());
 						if (!keyword) {
-							logger::warn("Config <{}>/[{}] contains invalid removeKeywords data - missing form {}.", a_path, friendlyName.asString(), entry.asString());
+							REX::WARN("Config <{}>/[{}] contains invalid removeKeywords data - missing form {}.", a_path, friendlyName.asString(), entry.asString());
 							shouldSkip = true;
 							continue;
 						}
@@ -701,11 +701,11 @@ namespace Settings::JSON
 			paths = findJsonFiles();
 		}
 		catch (const std::exception& e) {
-			logger::warn("Caught {} while reading files.", e.what());
+			REX::WARN("Caught {} while reading files.", e.what());
 			return;
 		}
 		if (paths.empty()) {
-			logger::info("No settings found");
+			REX::INFO("No settings found");
 			return;
 		}
 
@@ -717,16 +717,16 @@ namespace Settings::JSON
 				JSONReader.parse(rawJSON, JSONFile);
 			}
 			catch (const Json::Exception& e) {
-				logger::warn("Caught {} while reading files.", e.what());
+				REX::WARN("Caught {} while reading files.", e.what());
 				continue;
 			}
 			catch (const std::exception& e) {
-				logger::error("Caught unhandled exception {} while reading files.", e.what());
+				REX::ERROR("Caught unhandled exception {} while reading files.", e.what());
 				continue;
 			}
 
 			if (!JSONFile.isObject()) {
-				logger::warn("<{}> is not an object. File will be ignored.", path);
+				REX::WARN("<{}> is not an object. File will be ignored.", path);
 				continue;
 			}
 

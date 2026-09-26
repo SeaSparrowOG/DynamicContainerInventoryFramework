@@ -32,12 +32,12 @@ namespace Conditions
 
 	void WorldspaceCondition::Print()
 	{
-		logger::info("==========================/");
-		logger::info("|  Worldspace Conditions /");
-		logger::info("========================/");
+		REX::INFO("==========================/");
+		REX::INFO("|  Worldspace Conditions /");
+		REX::INFO("========================/");
 		for (const auto& form : validWorldSpaces) {
-			logger::info("  ->{}{}",inverted ? "Not " : "", form->GetName());
+			REX::INFO("  ->{}{}",inverted ? "Not " : "", form->GetName());
 		}
-		logger::info("");
+		REX::INFO("");
 	}
 }

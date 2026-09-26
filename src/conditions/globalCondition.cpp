@@ -19,10 +19,10 @@ namespace Conditions
 
 	void GlobalCondition::Print()
 	{
-		logger::info("======================/");
-		logger::info("|  Global Conditions /");
-		logger::info("====================/");
-		logger::info("  ->{}{}: [{}]", inverted ? "Not " : "", global->GetFormEditorID(), value);
-		logger::info("");
+		REX::INFO("======================/");
+		REX::INFO("|  Global Conditions /");
+		REX::INFO("====================/");
+		REX::INFO("  ->{}{}: [{}]", inverted ? "Not " : "", global->GetFormEditorID(), value);
+		REX::INFO("");
 	}
 }

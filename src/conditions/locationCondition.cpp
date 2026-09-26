@@ -41,16 +41,16 @@ namespace Conditions
 	{
 		std::string litmus = Utilities::EDID::GetEditorID(validLocations.front());
 		if (!litmus.empty()) {
-			logger::info("========================/");
-			logger::info("|  Location Conditions /");
-			logger::info("======================/");
+			REX::INFO("========================/");
+			REX::INFO("|  Location Conditions /");
+			REX::INFO("======================/");
 			for (const auto& form : validLocations) {
-				logger::info("  ->{}{}", inverted ? "Not " : "", Utilities::EDID::GetEditorID(form));
+				REX::INFO("  ->{}{}", inverted ? "Not " : "", Utilities::EDID::GetEditorID(form));
 			}
 		}
 		else {
-			logger::info("PO3's Tweaks are required to view Location EDIDs!");
+			REX::INFO("PO3's Tweaks are required to view Location EDIDs!");
 		}
-		logger::info("");
+		REX::INFO("");
 	}
 }
