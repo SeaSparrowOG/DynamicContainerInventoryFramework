@@ -67,18 +67,20 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 	const auto ver = a_skse->RuntimeVersion();
 
 #ifdef SKYRIM_GOG
-
-	if (ver < SKSE::RUNTIME_SSE_1_6_1130 || ver >= SKSE::RUNTIME_SSE_1_7_99) {
-		REX::FAIL(
-			fmt::format("You are using a version not supported by this plugin. Check the log at (Documents/My Games/Skyrim Special Edition/{}.log for more information."sv, Plugin::NAME)
-		);
-	}
+	static constexpr std::array<REL::Version, 4> supported = 
+	{
+		SKSE::RUNTIME_SSE_1_6_1130,
+		SKSE::RUNTIME_SSE_1_6_1170,
+		SKSE::RUNTIME_SSE_1_6_1179,
+		REL::Version(1, 6, 1179, 1) // no idea what this is still
+	};
 #else
 	static constexpr std::array<REL::Version, 2> supported = 
 	{
 		SKSE::RUNTIME_SSE_1_7_104,
 		SKSE::RUNTIME_SSE_1_7_99
-	};
+	};	
+#endif
 
 	if ((ver < SKSE::RUNTIME_SSE_LATEST) && (!std::ranges::contains(supported, ver))) {
 		REX::CRITICAL("Game Version: {}"sv, ver.string());
@@ -90,7 +92,6 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 			fmt::format("You are using a version not supported by this plugin. Check the log at (Documents/My Games/Skyrim Special Edition/{}.log for more information."sv, Plugin::NAME)
 		);
 	}
-#endif
 
 	const auto messaging = SKSE::GetMessagingInterface();
 	messaging->RegisterListener(&MessageEventCallback);

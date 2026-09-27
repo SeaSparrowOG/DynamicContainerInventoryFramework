@@ -19,7 +19,7 @@
       "hidden": true,
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
-        "VCPKG_OVERLAY_PORTS": "${sourceDir}/External/CommonLibSSE/cmake/ports;${sourceDir}/cmake/ports"
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/cmake/ports;${sourceDir}/External/CommonLibSSE/cmake/ports"
       }
     },
     {
@@ -72,6 +72,7 @@
       ],
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
+        "GOG": false,
         "SKIP_ARTIFACTS": true
       }
     },
@@ -100,7 +101,9 @@
         "release"
       ],
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "GOG": false,
+        "SKIP_ARTIFACTS": false
       }
     },
     {
@@ -114,8 +117,8 @@
       ],
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "SKIP_ARTIFACTS": true,
-        "GOG": true
+        "GOG": true,
+        "SKIP_ARTIFACTS": false
       }
     },
     {
@@ -128,7 +131,9 @@
         "test"
       ],
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "GOG": false,
+        "SKIP_ARTIFACTS": false
       }
     }
   ],
