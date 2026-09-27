@@ -67,20 +67,8 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 	const auto ver = a_skse->RuntimeVersion();
 
 #ifdef SKYRIM_GOG
-	static constexpr std::array<REL::Version, 2> supported = 
-	{
-		SKSE::RUNTIME_SSE_1_6_1129,
-		SKSE::RUNTIME_SSE_1_6_1170,
-		SKSE::RUNTIME_SSE_1_6_1179,
-		REL::Version(1, 6, 1179, 1) // ghosts?
-	};
 
-	if (!std::ranges::contains(supported, ver)) {
-		REX::CRITICAL("Game Version: {}"sv, ver.string());
-		REX::CRITICAL("Supported Versions:"sv);
-		for (const auto& allowed : supported) {
-			REX::CRITICAL("  - {}"sv, allowed.string());
-		}
+	if (ver < SKSE::RUNTIME_SSE_1_6_1130 || ver >= SKSE::RUNTIME_SSE_1_7_99) {
 		REX::FAIL(
 			fmt::format("You are using a version not supported by this plugin. Check the log at (Documents/My Games/Skyrim Special Edition/{}.log for more information."sv, Plugin::NAME)
 		);
