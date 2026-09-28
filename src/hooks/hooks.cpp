@@ -192,9 +192,9 @@ namespace Hooks {
 
 	void ContainerManager::PrettyPrint()
 	{
-		REX::INFO("=================================================");
+		SECTION_SEPARATOR;
 		REX::INFO("Finished reading settings. Information to follow:");
-		REX::INFO("=================================================");
+		SECTION_SEPARATOR;
 		if (!adds.empty()) {
 			REX::INFO("New add rules:");
 			for (auto& rule : adds) {

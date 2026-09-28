@@ -59,10 +59,10 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface* a_skse)
 
 	SKSE::Init(a_skse, info);
 
-	REX::INFO("=================================================");
+	SECTION_SEPARATOR;
 	REX::INFO("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
 	REX::INFO("Author: SeaSparrow");
-	REX::INFO("=================================================");
+	SECTION_SEPARATOR;
 
 	const auto ver = a_skse->RuntimeVersion();
 
