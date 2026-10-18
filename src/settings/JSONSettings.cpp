@@ -12,6 +12,8 @@
 #include "conditions/referenceCondition.h"
 #include "conditions/worldspaceCondition.h"
 
+#include "ClibUtil/string.hpp"
+
 namespace {
 	void ParseNewAVs(Json::Value& a_data, bool a_inverted, std::vector<Conditions::AVCondition>& a_target, std::string& a_path, Json::Value& friendlyName) {
 		if (!a_data.isArray()) {
@@ -273,7 +275,14 @@ namespace {
 			return;
 		}
 
+		auto* dh = RE::TESDataHandler::GetSingleton();
+		if (!dh) {
+			REX::ERROR("Config <{}>/[{}] has references specified, but CDF failed to retrieve the game's data handler.", a_path, friendlyName.asString());
+			return;
+		}
+
 		std::vector<RE::FormID> forms{};
+		forms.reserve(a_data.size());
 		for (auto& identifier : a_data) {
 			if (!identifier.isString()) {
 				REX::WARN("Config <{}>/[{}] has references specified, but an element is not a string. Config will be ignored.", a_path, friendlyName.asString());
@@ -289,12 +298,18 @@ namespace {
 				continue;
 			}
 
-			auto form = Utilities::Forms::GetFormFromString<RE::TESObjectREFR>(identifier.asString());
-			if (!form) {
-				REX::WARN("Failed to resolve {}|{}"sv, parts.at(0), parts.at(1));
+			
+			auto* file = dh->LookupModByName(parts[1]);
+			if (!file) {
 				continue;
 			}
-			forms.push_back(form->GetFormID());
+			try {
+				RE::FormID id = file->GetCombinedIndex() + clib_util::string::to_num<RE::FormID>(parts[0], true);
+				forms.emplace_back(id);
+			}
+			catch (std::exception& e) {
+				REX::WARN("Failed to add Reference Rule for Config <{}>/[{}]. Error: {}."sv, a_path, friendlyName.asString(), e.what());
+			}
 		}
 
 		Conditions::ReferenceCondition newCondition{ forms };

@@ -6,8 +6,12 @@
 
 namespace {
 	void ResolveLeveledList(RE::TESLeveledList* a_levItem, RE::BSScrapArray<RE::CALCED_OBJECT>* a_result, uint32_t a_count) {
+		constexpr uint32_t maxCount = static_cast<uint32_t>(std::numeric_limits<uint16_t>::max()); // this is such a stupid workaround
 		RE::BSScrapArray<RE::CALCED_OBJECT> temp{};
-		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), a_count, temp, 0, true);
+		uint16_t sanitizedCount = static_cast<uint16_t>(
+			std::clamp(a_count, 0u, maxCount)
+		);
+		a_levItem->CalculateCurrentFormList(RE::PlayerCharacter::GetSingleton()->GetLevel(), sanitizedCount, temp, 0, true);
 
 		for (auto& it : temp) {
 			auto* form = it.form;

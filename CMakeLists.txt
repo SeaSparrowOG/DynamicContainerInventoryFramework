@@ -7,7 +7,7 @@ option(COPY_PSC "Copies any script sources to the MO2 directory (if specified). 
 # -------- Project ----------
 project(
 	ContainerDistributionFramework
-	VERSION 3.1.2
+	VERSION 3.1.3
 	LANGUAGES CXX
 )
 
@@ -36,6 +36,7 @@ add_compile_definitions(SKYRIM_AE)
 add_compile_definitions(SKYRIM_SUPPORT_AE)
 
 set(SKSE_COMMONLIBSSE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/External/CommonLibSSE")
+set(SKSE_NO_INSTALL ON)
 
 if (GOG)
 	add_compile_definitions(SKYRIM_GOG)
@@ -71,6 +72,36 @@ target_include_directories(
 		${CLIB_UTIL_INCLUDE_DIRS}
 )
 
+if (MSVC)
+	target_compile_options(
+		${PROJECT_NAME}
+		PRIVATE
+			/sdl                    # Enable Additional Security Checks
+			/utf-8                  # Set Source and Executable character sets to UTF-8
+			/Zi                     # Debug Information Format
+
+			/permissive-            # Standards conformance
+			/Zc:preprocessor        # Enable preprocessor conformance mode
+			/Zc:__cplusplus
+			
+			/wd4200                 # nonstandard extension used : zero-sized array in struct/union
+			/W4                     # More warnings 
+			/WX                     # Treat all warnings as errors
+			/external:anglebrackets # Ignore warnings for external resources.
+			/external:W0            # Same as above
+			
+			"$<$<CONFIG:DEBUG>:>"
+			"$<$<CONFIG:RELEASE>:/Zc:inline;/JMC-;/Ob3>"
+	)
+
+	target_link_options(
+		${PROJECT_NAME}
+		PRIVATE
+			"$<$<CONFIG:DEBUG>:/INCREMENTAL;/OPT:NOREF;/OPT:NOICF>"
+			"$<$<CONFIG:RELEASE>:/INCREMENTAL:NO;/OPT:REF;/OPT:ICF;/DEBUG:FULL>"
+	)
+endif ()
+
 set(DATA_DIR "${PROJECT_SOURCE_DIR}/data")
 
 include(components.cmake)
@@ -86,39 +117,9 @@ if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
 	endif()
 endif()
 
-# ---- Compile Papyrus Scripts and Pack Into Archive ----
-include(Papyrus)
-include(BSArchive)
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Data/Source/Scripts" AND NOT SKIP_ARTIFACTS)
-	file(GLOB ${PROJECT_NAME}_SOURCES
-		LIST_DIRECTORIES false
-		CONFIGURE_DEPENDS
-		"Data/Source/Scripts/*.psc"
-	)
-
-	Papyrus_Add(
-		"Papyrus"
-		GAME ${Skyrim64Path}
-		IMPORTS ${CMAKE_CURRENT_SOURCE_DIR}/Data/Source/Scripts
-		SOURCES ${${PROJECT_NAME}_SOURCES}
-		OPTIMIZE ANONYMIZE
-	)
-
-	BSArchive_Add(
-		"BSA"
-		OUTPUT "${PROJECT_NAME}.bsa"
-		FORMAT SSE
-		FILES ${Papyrus_OUTPUT}
-	)
-else()
-	message(STATUS "No scripts to compile found, won't compress into BSA.")
-endif()
-
 # ---- Automatically copy artifacts to MO2 ----
 if(DEFINED OUTPUT_FOLDER AND NOT SKIP_ARTIFACTS)
     set(DLL_FOLDER "${OUTPUT_FOLDER}/SKSE/Plugins")
-
     add_custom_command(
         TARGET "${PROJECT_NAME}"
         POST_BUILD
@@ -131,50 +132,14 @@ if(DEFINED OUTPUT_FOLDER AND NOT SKIP_ARTIFACTS)
 			-DPROJECT_NAME="${PROJECT_NAME}"
 			-P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Artifacts.cmake"
     )
-
-    if(COPY_BSA)
-		add_custom_command(
-			TARGET "${PROJECT_NAME}"
-			POST_BUILD
-			COMMAND "${CMAKE_COMMAND}"
-				-DSRC_DIR="${PROJECT_SOURCE_DIR}/Data"
-				-DDST_DIR=${OUTPUT_FOLDER}
-				-DPROJECT_NAME=${PROJECT_NAME}
-				-DBINARY_DIR=${CMAKE_BINARY_DIR}
-				-P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Archive.cmake"
-			VERBATIM
-		)
-	endif()
-
-    if(COPY_PEX)
-        add_custom_command(
-        TARGET "${PROJECT_NAME}"
-        POST_BUILD
-        COMMAND "${CMAKE_COMMAND}"
-            -DCOMPILED_SCRIPTS="${CMAKE_BINARY_DIR}/Scripts"
-            -DOUTPUT_FOLDER="${OUTPUT_FOLDER}"
-            -P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Scripts.cmake"
-        VERBATIM
-		)
-    endif()
-
-	if(COPY_PSC)
-        add_custom_command(
-        TARGET "${PROJECT_NAME}"
-        POST_BUILD
-        COMMAND "${CMAKE_COMMAND}"
-            -DSOURCE_SCRIPTS="${PROJECT_SOURCE_DIR}/Data/Source/Scripts"
-            -DOUTPUT_FOLDER="${OUTPUT_FOLDER}"
-            -P "${PROJECT_SOURCE_DIR}/CMake/Scripts/CMake-Copy-Sources.cmake"
-        VERBATIM
-		)
-    endif()
 endif()
 
 # ---- Github Release Stuff ----
 install(
 	FILES
+		"$<TARGET_FILE:${PROJECT_NAME}>"
+		"$<TARGET_PDB_FILE:${PROJECT_NAME}>"
 		"${DATA_DIR}/SKSE/Plugins/${PROJECT_NAME}.ini"
-	DESTINATION "SKSE/Plugins"
+	DESTINATION "01. Core/SKSE/Plugins"
 	COMPONENT components
 )
