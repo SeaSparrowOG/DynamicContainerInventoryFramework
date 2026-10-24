@@ -1,6 +1,6 @@
 {
   "name": "container-distribution-framework",
-  "version-string": "3.1.3",
+  "version-string": "3.1.4",
   "description": "DLL that allows for dynamic coin addition to containers based on conditions for SkyrimSE. ",
   "homepage": "https://github.com/SeaSparrowOG/DynamicContainerInventoryFramework",
   "license": "GPL-3.0-or-later",

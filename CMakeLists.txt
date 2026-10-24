@@ -7,7 +7,7 @@ option(COPY_PSC "Copies any script sources to the MO2 directory (if specified). 
 # -------- Project ----------
 project(
 	ContainerDistributionFramework
-	VERSION 3.1.3
+	VERSION 3.1.4
 	LANGUAGES CXX
 )
 
