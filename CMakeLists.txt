@@ -1,23 +1,17 @@
 cmake_minimum_required(VERSION 3.24)
 
-option(COPY_BSA "Copies any generated BSA to the MO2 directory (if specified)." OFF)
+option(COPY_BSA "Copies any generated BSA to the MO2 directory (if specified)." ON)
 option(COPY_PEX "Copies any generated scripts to the MO2 directory (if specified). Applies after the BSA (if enabled)." ON)
 option(COPY_PSC "Copies any script sources to the MO2 directory (if specified). Applies after the BSA (if enabled)." ON)
 
 # -------- Project ----------
 project(
 	ContainerDistributionFramework
-	VERSION 3.1.4
+	VERSION 4.0.0
 	LANGUAGES CXX
 )
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-get_filename_component(
-	Skyrim64Path
-	"[HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Bethesda Softworks\\Skyrim Special Edition;installed path]"
-	ABSOLUTE CACHE
-)
 
 list(APPEND CMAKE_IGNORE_PATH "${PROJECT_BINARY_DIR}")
 list(APPEND CMAKE_MODULE_PATH
@@ -110,8 +104,6 @@ include(components.cmake)
 if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
 	if(GOG)
 		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - GOG")
-	elseif (FULL_RELEASE)
-		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - Full Release")
 	else()
 		set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME} - Test")
 	endif()
@@ -120,6 +112,7 @@ endif()
 # ---- Automatically copy artifacts to MO2 ----
 if(DEFINED OUTPUT_FOLDER AND NOT SKIP_ARTIFACTS)
     set(DLL_FOLDER "${OUTPUT_FOLDER}/SKSE/Plugins")
+
     add_custom_command(
         TARGET "${PROJECT_NAME}"
         POST_BUILD
@@ -139,7 +132,7 @@ install(
 	FILES
 		"$<TARGET_FILE:${PROJECT_NAME}>"
 		"$<TARGET_PDB_FILE:${PROJECT_NAME}>"
-		"${DATA_DIR}/SKSE/Plugins/${PROJECT_NAME}.ini"
+		"${DATA_DIR}/${PROJECT_NAME}.ini>"
 	DESTINATION "SKSE/Plugins"
 	COMPONENT components
 )
