@@ -48,12 +48,12 @@ SKSEPlugin_Add(
 		src/common/PCH.h
 )
 
-find_package(jsoncpp CONFIG REQUIRED)
+find_package(glaze CONFIG REQUIRED)
 
 target_link_libraries(
 		"${PROJECT_NAME}"
 		PRIVATE
-			JsonCpp::JsonCpp
+			glaze::glaze
 )
 
 set_target_properties(CommonLibSSE PROPERTIES

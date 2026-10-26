@@ -7,7 +7,6 @@
 #include <expected>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <unordered_set>
-#include <json/json.h>
 
 #include "Plugin.h"
 
