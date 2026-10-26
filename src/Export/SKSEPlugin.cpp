@@ -1,3 +1,5 @@
+#include "Settings/Settings.h"
+
 [[nodiscard]]
 std::string FormatFailureMessage(const std::string_view reason) {
     return fmt::format("{}."
@@ -70,6 +72,12 @@ SKSE_PLUGIN_LOAD(const SKSE::LoadInterface * a_skse)
 			REX::CRITICAL("  - {}"sv, allowed.string());
 		}
 		REX::FAIL(FormatFailureMessage("You are using a version not supported by this plugin"sv));
+	}
+
+	if (!Settings::Initialize()) {
+		REX::FAIL(
+			FormatFailureMessage("Failed to initialize settings"sv)
+		);
 	}
 
 	const auto messaging = SKSE::GetMessagingInterface();
