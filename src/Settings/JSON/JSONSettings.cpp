@@ -161,7 +161,10 @@ namespace Settings::JSON
                 continue;
             }
             assert(!json.isMember(to));
-            json[to] = std::move(json[from]);
+            assert(json.isMember(from));
+            const auto val = std::move(json[from]);
+            json.removeMember(from);
+            json[to] = val;
         }
     }
 
