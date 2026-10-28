@@ -12,7 +12,7 @@ namespace Settings
         public:
             [[nodiscard]] bool Initialize() noexcept;
         private:
-            void PreProcess(const std::filesystem::path& path) noexcept;
+            void PreProcess(const std::filesystem::path& path, const std::string& name) noexcept;
             void CanonicalizeObject(Json::Value& obj, std::string& path) noexcept;
             static void CanonicalizeKeys(Json::Value& json,
                 const std::unordered_map<std::string, std::string>& mappings) noexcept;
@@ -28,6 +28,8 @@ namespace Settings
                 std::vector<std::string> multipleKeyDefinitions{};
             };
             PreProcessStatus status{};
+
+            std::map<std::string, Json::Value> _configs{};
         };
 
         [[nodiscard]]

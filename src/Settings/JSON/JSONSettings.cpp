@@ -60,7 +60,7 @@ namespace Settings::JSON
         for (const auto& path : paths) {
             std::string name = path.string().substr(trimFrom);
             REX::INFO("    >Pre-processing {}..."sv, name);
-            PreProcess(path);
+            PreProcess(path, name);
             if (status.HasError()) {
                 status.LogError();
                 success = false;
@@ -69,7 +69,7 @@ namespace Settings::JSON
         return success;
     }
 
-    void Holder::PreProcess(const std::filesystem::path& path) noexcept {
+    void Holder::PreProcess(const std::filesystem::path& path, const std::string& name) noexcept {
         status = PreProcessStatus();
         Json::CharReaderBuilder builder;
         builder["collectComments"] = false;
@@ -103,6 +103,8 @@ namespace Settings::JSON
                     pathAsString.resize(trimTo);
                 });
             }
+            // It's fine to store "failed" configs, since loading stops if a config cannot be pre-processed.
+            _configs[name] = std::move(val);
         }
         catch (const Json::Exception& e) {
             status.exception = std::string(e.what());
