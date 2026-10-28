@@ -43,8 +43,8 @@ namespace Settings
 
         private:
             void PreProcess(const std::filesystem::path& path, const std::string& name) noexcept;
-            void CanonicalizeObject(Json::Value& obj, std::string& path) noexcept;
-            static void CanonicalizeKeys(Json::Value& json,
+            void ProcessObject(Json::Value& obj, std::string& path) noexcept;
+            static void NormalizeKeys(Json::Value& json,
                 const std::unordered_map<std::string, std::string>& mappings) noexcept;
 
             struct PreProcessStatus {
@@ -63,7 +63,7 @@ namespace Settings
         };
 
         [[nodiscard]]
-        inline static bool Initialize() noexcept {
+        inline bool Initialize() noexcept {
             REX::INFO("Initializing JSON settings..."sv);
             auto* holder = Holder::GetSingleton();
             if (!holder) {

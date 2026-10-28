@@ -2,7 +2,7 @@
 
 namespace {
     [[nodiscard]]
-    static std::string ascii_lowercase(const std::string_view str) noexcept {
+    std::string ascii_lowercase(const std::string_view str) noexcept {
         constexpr unsigned char diff = 'a' - 'A';
         std::string result(str);
         std::ranges::transform(result, result.begin(), [](unsigned char chr) {
@@ -92,14 +92,14 @@ namespace Settings::JSON
             pathAsString.reserve(256u);
             const auto trimTo = pathAsString.size();
             if (val.isObject()) {
-                CanonicalizeObject(val, pathAsString);
+                ProcessObject(val, pathAsString);
             }
             else if (val.isArray()) {
                 auto elements = std::views::iota(Json::ArrayIndex{0u}, val.size()) |
                     std::views::filter([&](const Json::ArrayIndex i) { return val[i].isObject(); });
                 std::ranges::for_each(elements, [&](const Json::ArrayIndex i) {
                     pathAsString += "[" + std::to_string(i) + "]";
-                    CanonicalizeObject(val[i], pathAsString);
+                    ProcessObject(val[i], pathAsString);
                     pathAsString.resize(trimTo);
                 });
             }
@@ -120,7 +120,7 @@ namespace Settings::JSON
         }
     }
 
-    void Holder::CanonicalizeObject(Json::Value& obj, std::string& path) noexcept {
+    void Holder::ProcessObject(Json::Value& obj, std::string& path) noexcept {
         assert(obj.isObject());
         const auto keys = obj.getMemberNames();
         const auto trimTo = path.size();
@@ -137,7 +137,7 @@ namespace Settings::JSON
 
             auto& val = obj[key];
             if (val.isObject()) {
-                CanonicalizeObject(val, path);
+                ProcessObject(val, path);
             }
             else if (val.isArray()) {
                 const auto arrayTrim = path.size();
@@ -145,16 +145,16 @@ namespace Settings::JSON
                     std::views::filter([&](const Json::ArrayIndex i) { return val[i].isObject(); });
                 std::ranges::for_each(elements, [&](const Json::ArrayIndex i) {
                     path += "[" + std::to_string(i) + "]";
-                    CanonicalizeObject(val[i], path);
+                    ProcessObject(val[i], path);
                     path.resize(arrayTrim);
                 });
             }
             path.resize(trimTo);
         }
-        CanonicalizeKeys(obj, mappings);
+        NormalizeKeys(obj, mappings);
     }
 
-    void Holder::CanonicalizeKeys(Json::Value &json,
+    void Holder::NormalizeKeys(Json::Value &json,
         const std::unordered_map<std::string, std::string> &mappings) noexcept
     {
         assert(json.isObject());
