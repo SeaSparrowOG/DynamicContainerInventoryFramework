@@ -13,7 +13,7 @@
 #define DLLEXPORT __declspec(dllexport)
 
 #ifndef NDEBUG
-#define LOG_DEBUG(msg, ...) logger::debug(msg, ##__VA_ARGS__)
+#define LOG_DEBUG(msg, ...) REX::DEBUG(msg, ##__VA_ARGS__)
 #else
 #define LOG_DEBUG(msg, ...)
 #endif

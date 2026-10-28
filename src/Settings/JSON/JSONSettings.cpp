@@ -29,7 +29,7 @@ namespace Settings::JSON
             return true;
         }
         std::vector<std::filesystem::path> paths{};
-        const auto trimFrom = jsonFolder.size() - 1u;
+        const auto trimFrom = jsonFolder.size() + 1u;
         paths.reserve(16u); // this is a reasonable size start, source is "trust me".
 
         for (const auto& it : std::filesystem::directory_iterator(jsonFolder)) {
@@ -66,6 +66,34 @@ namespace Settings::JSON
                 success = false;
             }
         }
+#ifndef NDEBUG
+        Json::StreamWriterBuilder writer;
+        writer["indentation"] = "  ";
+
+        const auto debugDir =
+            std::filesystem::path(fmt::format(R"(.\Data\SKSE\Plugins\{}\Debug)"sv, Plugin::NAME));
+        if (std::filesystem::is_directory(debugDir)) {
+            std::filesystem::remove_all(debugDir);
+        }
+        std::filesystem::create_directories(debugDir);
+
+        for (const auto& [name, config] : _configs) {
+            const auto outputPath = debugDir / name;
+
+            std::ofstream file(outputPath, std::ios::out | std::ios::trunc);
+            if (!file.is_open()) {
+                REX::WARN("Failed to open debug JSON output: {}", outputPath.string());
+                continue;
+            }
+
+            const auto json = Json::writeString(writer, config);
+            file << json << '\n';
+
+            if (!file) {
+                REX::WARN("Failed to write debug JSON output: {}", outputPath.string());
+            }
+        }
+#endif
         return success;
     }
 
@@ -159,11 +187,9 @@ namespace Settings::JSON
     {
         assert(json.isObject());
         for (const auto& [to, from] : mappings) {
-            if (from == to) {
+            if (from == to || json.isMember(to)) {
                 continue;
             }
-            assert(!json.isMember(to));
-            assert(json.isMember(from));
             const auto val = std::move(json[from]);
             json.removeMember(from);
             json[to] = val;
