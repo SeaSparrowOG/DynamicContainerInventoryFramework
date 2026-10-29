@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/FormUtils.hpp"
+
 #include <json/json.h>
 
 namespace JSONUtils {
@@ -71,6 +73,101 @@ namespace Settings
                 return false;
             }
             return holder->Initialize();
+        }
+
+        struct DeserializationErrors
+        {
+            std::vector<std::string> parseErrors{};
+            std::vector<std::string> formErrors{};
+
+            [[nodiscard]] bool HasErrors() const noexcept {
+                return !parseErrors.empty() || !formErrors.empty();
+            }
+
+            void Merge(DeserializationErrors other) {
+                parseErrors.insert(
+                    parseErrors.end(),
+                    std::make_move_iterator(other.parseErrors.begin()),
+                    std::make_move_iterator(other.parseErrors.end())
+                );
+
+                formErrors.insert(
+                    formErrors.end(),
+                    std::make_move_iterator(other.formErrors.begin()),
+                    std::make_move_iterator(other.formErrors.end())
+                );
+            }
+        };
+
+        template <typename T>
+        [[nodiscard]]
+        std::expected<std::vector<T*>, DeserializationErrors> deserialize(const Json::Value& val) noexcept {
+            constexpr auto parse = [](const Json::Value& val) -> std::expected<T*, DeserializationErrors> {
+                assert(val.isString());
+                auto res = FormUtils::get_form_from_string<T>(val.asString());
+                if (!res) {
+                    auto reason = res.error();
+                    DeserializationErrors errors{};
+                    switch (reason) {
+                        case FormUtils::FailureReason::FormNotInPlugin:
+                        case FormUtils::FailureReason::PluginNotLoaded:
+                        case FormUtils::FailureReason::PO3TweaksMissing:
+                        case FormUtils::FailureReason::GenericFailure:
+                            return nullptr; // silently skip tbh. None of those are errors, and "generic error" won't happen.
+                        case FormUtils::FailureReason::WrongFormType:
+                            errors.formErrors.emplace_back(
+                                fmt::format<std::string>("{}: {}"sv, val.asString(), reason)
+                            );
+                            break;
+                        case FormUtils::FailureReason::NoFormID:
+                        case FormUtils::FailureReason::MalformedString:
+                            errors.parseErrors.emplace_back(
+                                fmt::format<std::string>("{}: {}"sv, val.asString(), reason)
+                            );
+                            break;
+                        default: 
+                            break;
+                    }
+                    return std::unexpected(errors);
+                }
+                return res.value();
+            };
+
+            assert(val.isObject() || val.isArray());
+            if (val.isObject()) {
+                auto res = parse(val);
+                if (!res) {
+                    return res.error();
+                }
+                if (!res.value()) {
+                    return {};
+                }
+                return std::vector<T*>(res.value());
+            }
+
+            DeserializationErrors errors{};
+            std::vector<T*> parsed{};
+            parsed.reserve(val.size());
+            for (const auto& element : val) {
+                if (!element.isString()) {
+                    continue;
+                }
+
+                auto res = parse(element);
+                if (!res) {
+                    errors.Merge(std::move(res.error()));
+                    continue;
+                }
+                if (!res.value()) {
+                    continue;
+                }
+                parsed.emplace_back(res.value());
+            }
+
+            if (errors.HasErrors()) {
+                return std::unexpected(std::move(errors));
+            }
+            return parsed;
         }
     }
 }
