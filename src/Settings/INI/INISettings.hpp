@@ -65,7 +65,7 @@ namespace Settings
         };
 
         [[nodiscard]]
-        inline static bool Initialize() noexcept {
+        inline bool Initialize() noexcept {
             REX::INFO("Initializing INI settings..."sv);
             auto* holder = Holder::GetSingleton();
             if (!holder) {
@@ -73,6 +73,13 @@ namespace Settings
                 return false;
             }
             return holder->Initialize();
+        }
+
+        template <typename T> requires is_setting<T>
+        [[nodiscard]]
+        inline T GetSetting(const std::string& name, T defaultValue) noexcept {
+            static auto* holder = Holder::GetSingleton();
+            return holder ? holder->GetSetting(name, defaultValue) : defaultValue;
         }
     }
 }
