@@ -4,19 +4,17 @@
 
 #include <json/json.h>
 
-namespace JSONUtils {
-     constexpr std::string_view json_type_to_string(const Json::ValueType type) noexcept {
-        switch (type) {
-            case Json::ValueType::arrayValue: return "Array";
-            case Json::ValueType::intValue: return "Int";
-            case Json::ValueType::booleanValue: return "Bool";
-            case Json::ValueType::nullValue: return "Null";
-            case Json::ValueType::objectValue: return "Object";
-            case Json::ValueType::realValue: return "Float";
-            case Json::ValueType::stringValue: return "String";
-            case Json::ValueType::uintValue: return "Unsigned Int";
-            default: std::unreachable();
-        }
+constexpr std::string_view json_type_to_string(const Json::ValueType type) noexcept {
+    switch (type) {
+        case Json::ValueType::arrayValue: return "Array";
+        case Json::ValueType::intValue: return "Int";
+        case Json::ValueType::booleanValue: return "Bool";
+        case Json::ValueType::nullValue: return "Null";
+        case Json::ValueType::objectValue: return "Object";
+        case Json::ValueType::realValue: return "Float";
+        case Json::ValueType::stringValue: return "String";
+        case Json::ValueType::uintValue: return "Unsigned Int";
+        default: std::unreachable();
     }
 }
 template <>
@@ -26,7 +24,7 @@ struct fmt::formatter<Json::ValueType> {
     }
 
     auto format(const Json::ValueType& val, format_context& ctx) const {
-        return fmt::format_to(ctx.out(), "{}", JSONUtils::json_type_to_string(val));
+        return fmt::format_to(ctx.out(), "{}", json_type_to_string(val));
     }
 };
 

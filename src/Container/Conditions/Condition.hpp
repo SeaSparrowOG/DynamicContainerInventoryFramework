@@ -3,7 +3,7 @@
 #include "Cache/Cache.hpp"
 #include "Settings/INI/INISettings.hpp"
 
-namespace Rules::Conditions {
+namespace Container::Conditions {
     
     class ConditionParam {
     public:
@@ -38,7 +38,7 @@ namespace Rules::Conditions {
 
             location = from->GetCurrentLocation();
             if (!location && world) {
-                static float maxDist = Settings::INI::GetSetting("General|fMaxRefLookupDistance", 25000.0f);
+                static float maxDist = Settings::INI::GetSetting<float>("General|fMaxRefLookupDistance", 25000.0f);
                 const auto pos = ref->GetPosition();
                 const auto& markers = Cache::GetWorldMarkers(world);
                 float lastDistance = maxDist;
@@ -75,5 +75,9 @@ namespace Rules::Conditions {
                 }
             }            
         }
+    };
+
+    class Condition {
+        
     };
 }

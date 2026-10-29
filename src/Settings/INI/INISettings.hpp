@@ -56,7 +56,12 @@ namespace Settings
                     }
                     return defaultValue;
                 }
-                return it->second;
+                else if constexpr (is_string<T>) {
+                    return it->second;
+                }
+                else {
+                    static_assert(always_false<T>, "Tried to call GetSetting with a non-text/bool/numeric value");
+                }
             }
         private:
             std::unordered_map<std::string, std::string> _settings{};
@@ -79,7 +84,7 @@ namespace Settings
         [[nodiscard]]
         inline T GetSetting(const std::string& name, T defaultValue) noexcept {
             static auto* holder = Holder::GetSingleton();
-            return holder ? holder->GetSetting(name, defaultValue) : defaultValue;
+            return holder ? holder->GetSetting<T>(name, defaultValue) : defaultValue;
         }
     }
 }
