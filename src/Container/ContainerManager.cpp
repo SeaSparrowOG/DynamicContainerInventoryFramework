@@ -38,12 +38,13 @@ namespace Container
 
             std::string path = "Root";
             if (sanitized.isObject()) {
-                success &= ProcessRule(sanitized);
+                success &= ProcessRule(sanitized, path);
             }
             else if (sanitized.isArray()) {
                 const auto trimTo = path.size();
                 const auto size = sanitized.size();
                 for (Json::ArrayIndex i = 0; i < size; ++i) {
+                    path.resize(trimTo);
                     path += "[" + std::to_string(i) + "]";
                     const auto& element = sanitized[i];
                     if (!element.isObject()) {
@@ -51,7 +52,7 @@ namespace Container
                         success = false;
                         continue;
                     }
-                    path.resize(trimTo);
+                    success &= ProcessRule(element, path);
                 }
             }
             else {
@@ -59,23 +60,69 @@ namespace Container
                 //REX::WARN("      >Skipped. Expected an Object or Array at the top level, but got {}."sv, sanitized.type());
             }
         }
-        return false;
+        return success;
     }
 
-    bool Manager::ProcessRule(const Json::Value& val) noexcept {
-        std::vector<std::unique_ptr<Changes::Change>>       resultingChanges{};
-        std::vector<std::unique_ptr<Conditions::Condition>> resultingConditions{};
+    size_t Manager::RegisterCondition(Condition condition) noexcept {
+        size_t idx = _conditions.size();
+        _conditions.emplace_back(std::move(condition));
+        return idx;
+    }
 
-        const auto& changes    = val["changes"];
-        const auto& conditions = val["conditions"];
-
-        if (!changes) {
-
-            return false; // missing changes
+    bool Manager::ProcessRule(const Json::Value &val, std::string &path) noexcept {
+        const auto& rawChanges    = val["changes"];
+        if (!rawChanges) {
+            REX::WARN("      (!) Couldn't find \"Changes\" field in {}. Config is invalid.", path);
+            return false; // TODO: Potentially aggregate errors in conditions here?
         }
-        if (conditions) {
-            
+
+        auto parsedChanges = Changes::create_change(rawChanges);
+        if (!parsedChanges) {
+            REX::WARN("      (!) Failed to parse \"Changes\" field in {}. Errors:"sv);
+            parsedChanges.error().Log("        ");
         }
-        return false;
+
+        const auto& rawConditions = val["conditions"];
+        std::vector<size_t> conditionIDs{};
+        if (rawConditions) {
+            if (!rawConditions.isObject()) {
+                REX::WARN("      (!) \"Conditions\" is not an object, and is instead {}. Config is invalid."sv, 
+                    json_type_to_string(rawConditions.type())
+                );
+                return false;
+            }
+            auto parsedConditions = Conditions::create_condition(rawConditions);
+            if (!parsedConditions) {
+                REX::WARN("      (!) Failed to parse \"Changes\" field in {}. Errors:"sv);
+                parsedConditions.error().Log("        ");
+                return false;
+            }
+
+            auto& condVec = parsedConditions.value();
+            conditionIDs.reserve(condVec.size());
+            for (auto& condition : condVec) {
+                // This is kind of silly. I should just pass in a reference instead of casting to an rvalue.
+                // It is also kind of silly that I register the condition if the change parse fails. But no harm,
+                // since we terminate on failure.
+                conditionIDs.emplace_back(
+                    RegisterCondition(std::move(condition))
+                ); 
+            }
+        }
+
+        if (!parsedChanges) {
+            return false;
+        }
+
+        auto& changes = parsedChanges.value();
+        for (auto& change : changes) {
+            const auto type = change->GetType();
+            change->RegisterConditionIDs(conditionIDs);
+            auto where = std::ranges::find_if(_changes, 
+                [type](const auto& rhs) { return type > rhs->GetType(); }
+            );
+            _changes.emplace(where, std::move(change));
+        }
+        return true;
     }
 }

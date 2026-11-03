@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Changes/Change.hpp"
-#include "Settings/JSON/JSONSettings.hpp" // this pulls in FormUtils and json/json. This is intentional.
 
 namespace Container
 {
@@ -11,7 +10,13 @@ namespace Container
         [[nodiscard]] bool Initialize() noexcept;
 
     private:
-        [[nodiscard]] bool ProcessRule(const Json::Value& val) noexcept;
+        using Condition = std::unique_ptr<Conditions::Condition>;
+        using Change = std::unique_ptr<Changes::Change>;
+        [[nodiscard]] size_t RegisterCondition(Condition condition) noexcept;
+        [[nodiscard]] bool ProcessRule(const Json::Value& val, std::string& path) noexcept;
+
+        std::vector<Condition> _conditions{};
+        std::vector<Change>    _changes{};
     };
 
     [[nodiscard]]

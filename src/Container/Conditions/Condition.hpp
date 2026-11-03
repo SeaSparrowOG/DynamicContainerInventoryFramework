@@ -3,6 +3,8 @@
 #include "Cache/Cache.hpp"
 #include "Settings/INI/INISettings.hpp"
 
+#include "Settings/JSON/JSONSettings.hpp" // this pulls in FormUtils and json/json. This is intentional.
+
 namespace Container::Conditions {
     
     class ConditionParam {
@@ -80,4 +82,14 @@ namespace Container::Conditions {
     class Condition {
         
     };
+
+    class ConditionFail {
+    public:
+        void Log(const std::string& prefix) const noexcept;
+    };
+
+    using Conditions = std::vector<std::unique_ptr<Condition>>;
+
+    [[nodiscard]]
+    std::expected<Conditions, ConditionFail> create_condition(const Json::Value& val) noexcept;
 }
