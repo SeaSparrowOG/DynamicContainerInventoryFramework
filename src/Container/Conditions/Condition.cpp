@@ -51,25 +51,27 @@ namespace Container::Conditions
         if (!location && world) {
             static float maxDist = Settings::INI::GetSetting<float>("General|fMaxRefLookupDistance", 25000.0f);
             const auto pos = ref->GetPosition();
-            const auto& markers = Cache::GetWorldMarkers(world);
-            float lastDistance = maxDist;
-            RE::TESObjectREFR* closestMarker = nullptr;
-            for (const auto& id : markers) {
-                auto* markerRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(id);
-                if (!markerRef) {
-                    continue;
-                }
+            const auto* markers = Cache::GetWorldMarkers(world);
+            if (markers) {
+                float lastDistance = maxDist;
+                RE::TESObjectREFR* closestMarker = nullptr;
+                for (const auto& id : *markers) {
+                    auto* markerRef = RE::TESForm::LookupByID<RE::TESObjectREFR>(id);
+                    if (!markerRef) {
+                        continue;
+                    }
 
-                float dist = pos.GetDistance(markerRef->GetPosition());
-                if (dist > lastDistance) {
-                    continue;
-                }
+                    float dist = pos.GetDistance(markerRef->GetPosition());
+                    if (dist > lastDistance) {
+                        continue;
+                    }
 
-                lastDistance = dist;
-                closestMarker = markerRef;
-            }
-            if (closestMarker) {
-                location = closestMarker->GetCurrentLocation();
+                    lastDistance = dist;
+                    closestMarker = markerRef;
+                }
+                if (closestMarker) {
+                    location = closestMarker->GetCurrentLocation();
+                }
             }
         }
         if (location) {
