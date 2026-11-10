@@ -82,8 +82,8 @@ namespace Container
             parsedChanges.error().Log("        ");
         }
 
+        std::optional<size_t> conditionID = std::nullopt;
         const auto& rawConditions = val["conditions"];
-        std::vector<size_t> conditionIDs{};
         if (rawConditions) {
             if (!rawConditions.isObject()) {
                 REX::WARN("      (!) \"Conditions\" is not an object, and is instead {}. Config is invalid."sv, 
@@ -98,16 +98,7 @@ namespace Container
                 return false;
             }
 
-            auto& condVec = parsedConditions.value();
-            conditionIDs.reserve(condVec.size());
-            for (auto& condition : condVec) {
-                // This is kind of silly. I should just pass in a reference instead of casting to an rvalue.
-                // It is also kind of silly that I register the condition if the change parse fails. But no harm,
-                // since we terminate on failure.
-                conditionIDs.emplace_back(
-                    RegisterCondition(std::move(condition))
-                ); 
-            }
+            conditionID = RegisterCondition(std::move(parsedConditions.value())); 
         }
 
         if (!parsedChanges) {
@@ -117,7 +108,7 @@ namespace Container
         auto& changes = parsedChanges.value();
         for (auto& change : changes) {
             const auto type = change->GetType();
-            change->RegisterConditionIDs(conditionIDs);
+            change->RegisterConditionIDs(conditionID);
             auto where = std::ranges::find_if(_changes, 
                 [type](const auto& rhs) { return type > rhs->GetType(); }
             );

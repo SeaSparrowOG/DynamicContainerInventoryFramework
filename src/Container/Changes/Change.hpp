@@ -5,6 +5,7 @@
 namespace Container::Changes {
     enum class Type
     {
+        None,
         Add,
         Remove,
         RemoveByKeyword,
@@ -21,11 +22,11 @@ namespace Container::Changes {
 
     class Change {
     public:
-        void RegisterConditionIDs(std::vector<size_t>& ids) noexcept { _ids = ids; }; // intentional copy
+        void RegisterConditionIDs(std::optional<size_t> conditionID) noexcept { _conditionID = conditionID; };
 
         virtual Type GetType() const noexcept = 0;
     private:
-        std::vector<size_t> _ids{};
+        std::optional<size_t> _conditionID{};
     };
 
     class ChangeFail {

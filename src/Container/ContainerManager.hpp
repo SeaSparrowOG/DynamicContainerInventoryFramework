@@ -10,7 +10,7 @@ namespace Container
         [[nodiscard]] bool Initialize() noexcept;
 
     private:
-        using Condition = std::unique_ptr<Conditions::Condition>;
+        using Condition = Conditions::ConditionContainer;
         using Change = std::unique_ptr<Changes::Change>;
         [[nodiscard]] size_t RegisterCondition(Condition condition) noexcept;
         [[nodiscard]] bool ProcessRule(const Json::Value& val, std::string& path) noexcept;
