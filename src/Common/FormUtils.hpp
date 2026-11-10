@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ClibUtil/editorID.hpp"
+
 namespace FormUtils
 {
     enum class FailureReason
@@ -261,6 +263,52 @@ namespace FormUtils
             return std::unexpected(FailureReason::WrongFormType);
         }
         return cast;
+    }
+
+    template <typename T>
+    concept derives_from_form = std::derived_from<RE::TESForm*, T>;
+
+    template <typename T> requires derives_from_form<T>
+    [[nodiscard]]
+    std::string get_form_name(const T* form) {
+        const auto get_filename_id_pair = [](const auto* form){
+            const auto id = form->GetFormID();
+            if ((id & 0xFF000000) == 0xFF000000) {
+                return fmt::format("RUNTIME|{:06X}", id & 0xFFFFFF);
+            }
+
+            const auto* files = form->sourceFiles.array;
+            const auto* file = files ? files->front() : nullptr;
+            const auto* fileName = file ? file->fileName : "<No Name>";
+            return fmt::format(
+                file && file->IsLight() ? "{}|{:03X}" : "{}|{:06X}",
+                strcmp(fileName, "") == 0 ? "<Filename Empty>" : fileName, 
+                id & (file && file->IsLight() ? 0xFFF : 0xFFFFFF));
+        }();
+
+        if (!form) {
+            return "NONE";
+        }
+
+        const auto id = form->GetFormID();
+
+        std::string name{form->GetName()};
+        std::string source = get_filename_id_pair(form);
+        std::string edid{};
+        if constexpr (supports_edids_without_tweaks<T>()) {
+            edid = form->GetEditorID();
+        }
+        else if (static auto* tweaks = REX::W32::GetModuleHandleW(L"po3_Tweaks.dll"); tweaks) {
+            edid = clib_util::editorID::get_editorID(form);
+        }
+        else {
+            edid = "<No EditorID>";
+        }
+
+        return fmt::format("{}: {} - {}", 
+            source,
+            edid,
+            name);
     }
 }
 
